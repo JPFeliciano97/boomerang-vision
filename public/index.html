@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>BOOMERANG VISION | Test de Agudeza Visual Profesional</title>
+    <!-- Librería para generar el código QR -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    <!-- Socket.IO cliente -->
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        /* ═══════════ FUENTE OPTICIAN SANS ═══════════ */
+        @font-face {
+            font-family: 'OpticianSans';
+            src: url(data:font/woff;base64,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) format('woff');
+            font-weight: normal;
+            font-style: normal;
+            font-display: block;
+        }
+
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body {
+            background:#000; font-family:'Segoe UI',system-ui,sans-serif; color:#ccc;
+            height:100vh; width:100vw; display:flex; flex-direction:column; overflow:hidden;
+            user-select:none; -webkit-user-select:none;
+        }
+
+        #calibration-bar {
+            background: #252525; border-bottom: 1px solid #333; padding: 8px 12px;
+            display:flex; flex-wrap:wrap; align-items:center; gap:8px; z-index:100;
+            font-size:10px; transition: all 0.3s ease; max-height:140px; overflow:hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+        }
+        #calibration-bar.collapsed { max-height:0; padding:0; opacity:0; border-bottom:none; }
+        #calibration-bar label { color:#999; font-size:9px; text-transform:uppercase; letter-spacing:0.5px; }
+        #calibration-bar input {
+            background:#1a1a1a; border:1px solid #444; color:#fff; padding:5px 8px;
+            border-radius:6px; font-size:10px; font-family:monospace; text-align:center; width:62px;
+            transition: border-color 0.2s;
+        }
+        #calibration-bar input:focus { border-color:#3498db; outline:none; }
+        .btn-sm {
+            background: #2980b9; color:#fff; border:none; padding:6px 12px; border-radius:6px;
+            cursor:pointer; font-size:10px; font-weight:600; white-space:nowrap;
+            transition: background 0.2s, transform 0.1s; box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        .btn-sm:hover { background: #3498db; }
+        .btn-sm:active { transform: scale(0.95); }
+        .btn-sm.toggle-btn { background: #444; }
+        .cal-group { display:flex; align-items:center; gap:4px; }
+        .cal-sep { width:1px; height:18px; background:#444; margin:0 4px; }
+        .mode-selector { display:flex; align-items:center; gap:6px; margin-left:auto; }
+        .bic-btn, .highlight-btn, .single-char-btn {
+            border:1px solid #555; color:#fff; padding:5px 10px; border-radius:6px;
+            font-size:10px; cursor:pointer; white-space:nowrap; transition: all 0.2s;
+        }
+        .bic-btn { background: #8e44ad; }
+        .bic-btn.off { background: #555; }
+        .highlight-btn { background: #444; }
+        .highlight-btn.active { background: #27ae60; border-color: #2ecc71; }
+        .single-char-btn { background: #444; }
+        .single-char-btn.active { background: #e67e22; border-color: #f39c12; }
+
+        .mode-btn {
+            background: #1a3a4a;
+            border:1px solid #2c5f7a;
+            color:#ccc;
+            padding:5px 10px;
+            border-radius:6px;
+            font-size:10px;
+            font-weight:600;
+            cursor:pointer;
+            transition: all 0.2s;
+            white-space:nowrap;
+        }
+        .mode-btn.active {
+            background: #2980b9;
+            border-color: #3498db;
+            color:#fff;
+        }
+        .mode-btn:hover { background: #1e4a5e; }
+        .mode-btn.active:hover { background: #3498db; }
+
+        #test-area {
+            flex:1; position:relative; cursor:none; overflow:hidden;
+            background:#FFFFFF; transition:background 0.2s;
+        }
+        #test-area.showing-cursor { cursor:default; }
+        #test-area.bichromatic { background:transparent; }
+        .bichromatic-half { display:none; position:absolute; top:0; bottom:0; }
+        #test-area.bichromatic .bichromatic-half { display:block; }
+        #half-r { left:0; width:50%; background:#FF0000; }
+        #half-g { right:0; width:50%; background:#00FF00; }
+
+        #lines-container {
+            position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+            display:flex; flex-direction:column; align-items:center; justify-content:center;
+            gap:clamp(14px,2.5vh,30px); z-index:10; pointer-events:none; width:95%;
+        }
+        .optotype-line {
+            display:flex; align-items:center; justify-content:center;
+            gap:clamp(6px,1.5vw,20px); width:100%;
+        }
+        .optotype-row {
+            display:flex; align-items:center; justify-content:center;
+            gap:clamp(6px,1.5vw,20px);
+        }
+        .optotype-row img { display:block; flex-shrink:0; image-rendering:auto; }
+        .optotype-text {
+            font-family: 'OpticianSans', 'Arial Black', Impact, sans-serif;
+            font-weight: normal; color: #000; line-height:1; display:block;
+        }
+        .optotype-line.dimmed .optotype-text,
+        .optotype-line.dimmed img { opacity: 0.10; }
+        .line-annotation-left, .line-annotation-right {
+            font-family:'SF Mono','Consolas',monospace; font-weight:700;
+            color:#999; width:80px; flex-shrink:0;
+            font-size:clamp(10px,1.8vw,22px);
+        }
+        #test-area.bichromatic .line-annotation-left,
+        #test-area.bichromatic .line-annotation-right { color:#aaa; }
+
+        #footer {
+            background:#111; border-top:1px solid #333; padding:8px 16px;
+            display:flex; align-items:center; justify-content:space-between; font-size:11px; z-index:100;
+        }
+        .brand-text {
+            font-family: 'OpticianSans', 'Arial Black', Impact, sans-serif;
+            font-size: 14px;
+            font-weight: normal;
+            color: #ccc;
+            letter-spacing: 1px;
+        }
+        .cal-status.calibrated-text { color:#27ae60; }
+        .cal-status.uncalibrated-text { color:#e74c3c; }
+
+        /* Panel de atajos y botón ? */
+        #shortcuts-panel {
+            position:fixed; bottom:80px; right:16px; z-index:180;
+            background:rgba(20,20,20,0.7); border:1px solid rgba(255,255,255,0.15);
+            border-radius:12px; padding:12px 16px; font-size:10px; font-family:monospace;
+            color:#ccc; line-height:1.8; backdrop-filter:blur(8px);
+            -webkit-backdrop-filter:blur(8px); transition:opacity 0.3s; pointer-events:auto;
+            text-align:left;
+        }
+        #shortcuts-panel.hidden { opacity:0; pointer-events:none; }
+        #shortcuts-panel kbd {
+            background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.25);
+            border-radius:4px; padding:1px 6px; font-size:9px; color:#fff; margin:0 2px;
+        }
+        #shortcuts-toggle {
+            position:fixed; bottom:50px; right:16px; z-index:181;
+            background:rgba(30,30,30,0.5); border:1px solid rgba(255,255,255,0.2);
+            color:#aaa; width:30px; height:30px; border-radius:50%; font-size:16px;
+            cursor:pointer; display:flex; align-items:center; justify-content:center;
+            transition:all 0.2s; backdrop-filter:blur(4px);
+        }
+        #shortcuts-toggle:hover { color:#fff; border-color:rgba(255,255,255,0.5); }
+        #qr-container { margin-top: 12px; display: flex; justify-content: center; }
+        #qr-container canvas, #qr-container img { max-width: 100px; }
+    </style>
+</head>
+<body>
+    <div id="calibration-bar">
+        <div class="cal-group"><label>Res. H</label><input type="number" id="res-h" value="2560" min="100"></div>
+        <div class="cal-group"><label>Res. V</label><input type="number" id="res-v" value="1440" min="100"></div>
+        <div class="cal-sep"></div>
+        <div class="cal-group"><label>Monitor ″</label><input type="number" id="monitor-size" value="24" step="0.1" min="5"></div>
+        <div class="cal-sep"></div>
+        <div class="cal-group"><label>Dist. m</label><input type="number" id="test-distance" value="6" step="0.1" min="0.5"></div>
+        <div class="cal-sep"></div>
+        <div class="cal-group"><label>DPR</label><input type="number" id="dpr-input" value="1" step="0.02" min="0.3" max="6" style="width:50px;"></div>
+        <button class="btn-sm" id="btn-apply-cal">▶ CALIBRAR</button>
+        <button class="btn-sm toggle-btn" id="btn-toggle-cal">▲</button>
+        <span style="font-size:9px;color:#aaa;" id="info-span"></span>
+        <div class="mode-selector">
+            <button class="mode-btn active" data-mode="letters">Letras</button>
+            <button class="mode-btn" data-mode="numbers">Números</button>
+            <button class="mode-btn" data-mode="pediatric">Figuras</button>
+            <button class="mode-btn" data-mode="e_directional">E direc.</button>
+            <button class="bic-btn off" id="btn-bic">⚪ Fondo claro</button>
+            <button class="highlight-btn" id="btn-highlight" title="Resaltar línea (R)">🔦 Resaltar</button>
+            <button class="single-char-btn" id="btn-single-char" title="Modo 1 carácter (U)">Individual</button>
+        </div>
+    </div>
+
+    <div id="test-area">
+        <div class="bichromatic-half" id="half-r"></div>
+        <div class="bichromatic-half" id="half-g"></div>
+        <div id="lines-container"></div>
+    </div>
+
+    <div id="footer">
+        <div class="brand-text">BOOMERANG VISION</div>
+        <span class="cal-status calibrated-text" id="cal-status-footer">● CALIBRADO</span>
+    </div>
+
+    <button id="shortcuts-toggle" title="Mostrar atajos">?</button>
+    <div id="shortcuts-panel" class="hidden">
+        <div><kbd>↑</kbd><kbd>↓</kbd> Navegar pantallas</div>
+        <div><kbd>←</kbd><kbd>→</kbd> Nuevos caracteres</div>
+        <div><kbd>B</kbd> Bicromático</div>
+        <div><kbd>R</kbd> Resaltar línea</div>
+        <div><kbd>U</kbd> Modo 1 carácter</div>
+        <div><kbd>C</kbd> Calibrar</div>
+        <div><kbd>H</kbd> Ocultar panel</div>
+        <div><kbd>?</kbd> Este menú</div>
+        <div style="margin-top:10px; font-size:9px; color:#aaa;">Escanea para control remoto:</div>
+        <div id="qr-container"></div>
+    </div>
+
+    <script>
+        // ═══════════ APLICACIÓN PRINCIPAL ═══════════
+        (() => {
+            function svgToDataURI(svg) { return 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svg))); }
+            const SVG_CACHE = {};
+
+            const E_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 60">
+                <rect x="7" y="4" width="11" height="52" fill="#000"/>
+                <rect x="18" y="4" width="35" height="10" fill="#000"/>
+                <rect x="18" y="25" width="35" height="10" fill="#000"/>
+                <rect x="18" y="46" width="35" height="10" fill="#000"/>
+            </svg>`;
+            SVG_CACHE['E_0'] = svgToDataURI(E_SVG);
+
+            const PEDIATRIC_SVGS = {
+                house: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 60"><polygon points="30,5 6,35 54,35" fill="#000"/><rect x="12" y="35" width="36" height="21" fill="#000"/><rect x="25" y="41" width="10" height="15" fill="#fff"/></svg>`,
+                star: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 60"><polygon points="30,3 37,22 57,22 41,35 47,54 30,43 13,54 19,35 3,22 23,22" fill="#000"/></svg>`,
+                heart: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 60"><path d="M30 50 C12 36 4 26 4 16 C4 8 12 4 18 4 C24 4 30 10 30 10 C30 10 36 4 42 4 C48 4 56 8 56 16 C56 26 48 36 30 50Z" fill="#000"/></svg>`,
+                circle: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 60"><circle cx="30" cy="30" r="24" fill="#000"/></svg>`,
+                square: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 60"><rect x="8" y="8" width="44" height="44" fill="#000"/></svg>`,
+                moon: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 60"><path d="M38 4 C22 4 10 16 10 30 C10 44 22 56 38 56 C32 50 30 40 30 30 C30 20 32 10 38 4Z" fill="#000"/></svg>`,
+                triangle: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 60"><polygon points="30,5 56,55 4,55" fill="#000"/></svg>`,
+                plus: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 60"><rect x="23" y="6" width="14" height="48" fill="#000"/><rect x="6" y="23" width="48" height="14" fill="#000"/></svg>`
+            };
+            for (let [k,v] of Object.entries(PEDIATRIC_SVGS)) SVG_CACHE['P_'+k] = svgToDataURI(v);
+
+            const LETTERS = ['A','C','D','E','H','K','N','O','R','S','V','Z'];
+            const NUMBERS = ['0','1','2','3','4','5','6','7','8','9'];
+
+            const SCREENS = [
+                { lines:[{snellen:'20/400',decimal:0.05,count:1}], label:'Nivel 1' },
+                { lines:[{snellen:'20/200',decimal:0.10,count:3}], label:'Nivel 2' },
+                { lines:[{snellen:'20/150',decimal:0.13,count:3}], label:'Nivel 3' },
+                { lines:[{snellen:'20/100',decimal:0.20,count:3},{snellen:'20/80',decimal:0.25,count:3}], label:'Nivel 4' },
+                { lines:[{snellen:'20/70',decimal:0.29,count:5},{snellen:'20/60',decimal:0.33,count:5},{snellen:'20/40',decimal:0.50,count:5}], label:'Nivel 5' },
+                { lines:[{snellen:'20/30',decimal:0.67,count:5},{snellen:'20/25',decimal:0.80,count:5},{snellen:'20/20',decimal:1.00,count:5}], label:'Nivel 6' },
+                { lines:[{snellen:'20/20',decimal:1.00,count:5},{snellen:'20/15',decimal:1.33,count:5},{snellen:'20/10',decimal:2.00,count:5}], label:'Nivel 7' }
+            ];
+
+            const ALL_LINES = [];
+            SCREENS.forEach((screen, si) => {
+                screen.lines.forEach((line, li) => {
+                    ALL_LINES.push({ ...line, screenIndex: si, lineIndex: li });
+                });
+            });
+
+            const TOTAL_SCREENS = SCREENS.length;
+            const TOTAL_LINES = ALL_LINES.length;
+
+            const state = {
+                resH:2560, resV:1440, monitorInches:24, testDistanceM:6,
+                dprManual:1, calibrationScale:1.0, ppi:0, pxPerMM:0, isCalibrated:false,
+                currentScreenIdx:0, mode:'letters', bichromatic:false,
+                highlightMode: false, highlightLineGlobalIdx:0,
+                singleCharMode: false,
+                lineChars:{},
+            };
+
+            const $ = id => document.getElementById(id);
+            const d = {
+                resH:$('res-h'), resV:$('res-v'), monitorSize:$('monitor-size'),
+                testDistance:$('test-distance'), dprInput:$('dpr-input'),
+                btnApply:$('btn-apply-cal'), btnToggle:$('btn-toggle-cal'),
+                infoSpan:$('info-span'), linesContainer:$('lines-container'),
+                calStatus:$('cal-status-footer'), shortcutsPanel:$('shortcuts-panel'),
+                shortcutsToggle:$('shortcuts-toggle'), btnHighlight:$('btn-highlight'),
+                btnSingleChar:$('btn-single-char'), btnBic:$('btn-bic'),
+                testArea:$('test-area'), calBar:$('calibration-bar'),
+                modeBtns: document.querySelectorAll('.mode-btn'),
+                qrContainer: document.getElementById('qr-container'),
+            };
+
+            const rad = min => min*Math.PI/10800;
+            function optotypeHeightMM(decimal,distanceM){ const angleMin=5/decimal; return 2*distanceM*1000*Math.tan(rad(angleMin/2)); }
+            function computePPI(w,h,inches){ return inches>0?Math.sqrt(w*w+h*h)/inches:0; }
+            function computePxPerMM(ppi){ return ppi/25.4; }
+            function cssHeight(h_mm){ if(state.dprManual<=0)state.dprManual=1; return (h_mm*state.pxPerMM)/state.dprManual*state.calibrationScale; }
+            function getCurrentScreen(){ return SCREENS[state.currentScreenIdx]; }
+
+            function getPoolItems(){
+                if(state.mode==='letters') return LETTERS.map(ch => ({type:'text', char:ch}));
+                if(state.mode==='numbers') return NUMBERS.map(n => ({type:'text', char:n}));
+                if(state.mode==='pediatric') return Object.keys(PEDIATRIC_SVGS).map(k => ({type:'img', key:'P_'+k}));
+                if(state.mode==='e_directional') return [
+                    {type:'img', key:'E_0', rot:0}, {type:'img', key:'E_0', rot:90},
+                    {type:'img', key:'E_0', rot:180}, {type:'img', key:'E_0', rot:270}
+                ];
+                return [];
+            }
+
+            function getLineCacheKey(si,li){ return `${si}-${li}`; }
+            function generateLineChars(si,li,count){
+                const pool=getPoolItems(); const chars=[];
+                const shuffled=[...pool].sort(()=>Math.random()-0.5);
+                for(let i=0;i<count;i++) chars.push({...shuffled[i%shuffled.length]});
+                state.lineChars[getLineCacheKey(si,li)]=chars; return chars;
+            }
+            function getLineChars(si,li,count){
+                const key=getLineCacheKey(si,li);
+                if(!state.lineChars[key]||state.lineChars[key].length!==count) return generateLineChars(si,li,count);
+                return state.lineChars[key];
+            }
+
+            function renderScreen(){
+                d.linesContainer.innerHTML='';
+                if(!state.isCalibrated) return;
+                const screen = getCurrentScreen();
+                screen.lines.forEach((line,li)=>{
+                    const h_mm=optotypeHeightMM(line.decimal,state.testDistanceM);
+                    const h_css=cssHeight(h_mm);
+                    const originalChars = getLineChars(state.currentScreenIdx,li,line.count);
+                    let chars = originalChars;
+                    if (state.singleCharMode) {
+                        chars = [originalChars[0]];
+                    }
+                    
+                    const lineDiv = document.createElement('div');
+                    lineDiv.className = 'optotype-line';
+                    
+                    if (state.highlightMode) {
+                        const globalLine = ALL_LINES.find(l => l.screenIndex === state.currentScreenIdx && l.lineIndex === li);
+                        if (globalLine && ALL_LINES.indexOf(globalLine) !== state.highlightLineGlobalIdx) {
+                            lineDiv.classList.add('dimmed');
+                        }
+                    }
+                    
+                    const leftAnn = document.createElement('div');
+                    leftAnn.className = 'line-annotation-left';
+                    leftAnn.textContent = line.snellen;
+                    
+                    const row = document.createElement('div');
+                    row.className = 'optotype-row';
+                    
+                    chars.forEach(ch => {
+                        if (ch.type === 'text') {
+                            const span = document.createElement('span');
+                            span.className = 'optotype-text';
+                            span.textContent = ch.char;
+                            span.style.fontSize = h_css + 'px';
+                            row.appendChild(span);
+                        } else {
+                            const img = document.createElement('img');
+                            let scale = 1.0;
+                            if (ch.key && ch.key.startsWith('P_')) {
+                                scale = 8.7 / 14.5;
+                            } else if (ch.key === 'E_0') {
+                                scale = 8.7 / 17;
+                            }
+                            img.style.height = (h_css * scale) + 'px';
+                            img.style.width = 'auto';
+                            img.style.display = 'block';
+                            if (ch.rot) img.style.transform = `rotate(${ch.rot}deg)`;
+                            img.src = SVG_CACHE[ch.key] || '';
+                            row.appendChild(img);
+                        }
+                    });
+                    
+                    const rightAnn = document.createElement('div');
+                    rightAnn.className = 'line-annotation-right';
+                    rightAnn.textContent = line.decimal.toFixed(2);
+                    
+                    lineDiv.appendChild(leftAnn);
+                    lineDiv.appendChild(row);
+                    lineDiv.appendChild(rightAnn);
+                    d.linesContainer.appendChild(lineDiv);
+                });
+                const mm20_20 = optotypeHeightMM(1.0,state.testDistanceM);
+                d.infoSpan.textContent = `20/20: ${mm20_20.toFixed(2)}mm → ${cssHeight(mm20_20).toFixed(1)}px`;
+            }
+
+            function updateModeButtons() {
+                d.modeBtns.forEach(btn => {
+                    btn.classList.toggle('active', btn.dataset.mode === state.mode);
+                });
+            }
+
+            function setMode(mode) {
+                if(state.mode===mode) return;
+                state.mode = mode;
+                updateModeButtons();
+                state.lineChars = {};
+                renderScreen();
+                saveToStorage();
+            }
+
+            function applyCalibration(){
+                state.resH=parseInt(d.resH.value)||2560; state.resV=parseInt(d.resV.value)||1440;
+                state.monitorInches=parseFloat(d.monitorSize.value)||24;
+                state.testDistanceM=parseFloat(d.testDistance.value)||6;
+                state.dprManual=parseFloat(d.dprInput.value)||1;
+                if(state.dprManual<0.1)state.dprManual=1;
+                state.ppi=computePPI(state.resH,state.resV,state.monitorInches);
+                state.pxPerMM=computePxPerMM(state.ppi);
+                state.isCalibrated=state.ppi>0&&state.monitorInches>0;
+                d.calStatus.textContent=state.isCalibrated?'● CALIBRADO':'○ NO CALIBRADO';
+                d.calStatus.className='cal-status '+(state.isCalibrated?'calibrated-text':'uncalibrated-text');
+                state.lineChars={}; renderScreen();
+                saveToStorage();
+            }
+
+            function saveToStorage(){
+                try{ localStorage.setItem('bvc',JSON.stringify({
+                    resH:state.resH, resV:state.resV, monitorInches:state.monitorInches,
+                    testDistanceM:state.testDistanceM, dprManual:state.dprManual,
+                    calibrationScale:state.calibrationScale, mode:state.mode,
+                    bichromatic:state.bichromatic, highlightMode:state.highlightMode,
+                    singleCharMode:state.singleCharMode, currentScreenIdx:state.currentScreenIdx
+                })); }catch(e){}
+            }
+
+            function loadFromStorage(){
+                const saved=JSON.parse(localStorage.getItem('bvc'));
+                state.mode = 'letters';
+                if(saved){
+                    d.resH.value=saved.resH||2560; d.resV.value=saved.resV||1440;
+                    d.monitorSize.value=saved.monitorInches||24;
+                    d.testDistance.value=saved.testDistanceM||6;
+                    d.dprInput.value=saved.dprManual||1;
+                    state.calibrationScale=saved.calibrationScale||1.0;
+                    if(typeof saved.bichromatic==='boolean') state.bichromatic=saved.bichromatic;
+                    if(typeof saved.highlightMode==='boolean') state.highlightMode=saved.highlightMode;
+                    if(typeof saved.singleCharMode==='boolean') state.singleCharMode=saved.singleCharMode;
+                    if(typeof saved.currentScreenIdx==='number') state.currentScreenIdx=saved.currentScreenIdx;
+                } else {
+                    state.bichromatic=false;
+                    d.dprInput.value=window.devicePixelRatio||1;
+                }
+                updateModeButtons();
+                d.testArea.classList.toggle('bichromatic',state.bichromatic);
+                d.btnBic.textContent=state.bichromatic?'🔴🟢 Bicrom.':'⚪ Fondo claro';
+                d.btnBic.className='bic-btn'+(state.bichromatic?'':' off');
+                d.btnHighlight.classList.toggle('active', state.highlightMode);
+                d.btnSingleChar.classList.toggle('active', state.singleCharMode);
+            }
+
+            function toggleBichromatic(){
+                state.bichromatic=!state.bichromatic;
+                d.testArea.classList.toggle('bichromatic',state.bichromatic);
+                d.btnBic.textContent=state.bichromatic?'🔴🟢 Bicrom.':'⚪ Fondo claro';
+                d.btnBic.className='bic-btn'+(state.bichromatic?'':' off');
+                saveToStorage();
+            }
+
+            function toggleHighlightMode(){
+                state.highlightMode = !state.highlightMode;
+                d.btnHighlight.classList.toggle('active', state.highlightMode);
+                if (state.highlightMode) {
+                    const screen = getCurrentScreen();
+                    const firstLine = screen.lines[0];
+                    const global = ALL_LINES.findIndex(l => l.snellen === firstLine.snellen && l.decimal === firstLine.decimal);
+                    state.highlightLineGlobalIdx = global >= 0 ? global : 0;
+                }
+                renderScreen();
+                saveToStorage();
+            }
+
+            function moveHighlight(step){
+                if (!state.highlightMode) return;
+                let newIdx = state.highlightLineGlobalIdx + step;
+                if (newIdx < 0) newIdx = 0;
+                if (newIdx >= TOTAL_LINES) newIdx = TOTAL_LINES - 1;
+                state.highlightLineGlobalIdx = newIdx;
+                const line = ALL_LINES[newIdx];
+                if (line.screenIndex !== state.currentScreenIdx) {
+                    state.currentScreenIdx = line.screenIndex;
+                }
+                renderScreen();
+                saveToStorage();
+            }
+
+            function toggleSingleCharMode(){
+                state.singleCharMode = !state.singleCharMode;
+                d.btnSingleChar.classList.toggle('active', state.singleCharMode);
+                renderScreen();
+                saveToStorage();
+            }
+
+            function navigateToScreen(idx){
+                idx=Math.min(TOTAL_SCREENS-1,Math.max(0,idx));
+                if(state.currentScreenIdx!==idx){
+                    state.currentScreenIdx=idx;
+                    renderScreen();
+                    saveToStorage();
+                }
+            }
+
+            function shuffleCurrentScreen(){
+                const screen=getCurrentScreen();
+                screen.lines.forEach((line,li)=>generateLineChars(state.currentScreenIdx,li,line.count));
+                renderScreen();
+            }
+
+            function toggleCalPanel(){
+                const collapsed=d.calBar.classList.toggle('collapsed');
+                d.btnToggle.textContent=collapsed?'▼':'▲';
+            }
+
+            let qrGenerated = false;
+            function toggleShortcuts(){
+                const panel = d.shortcutsPanel;
+                const isHidden = panel.classList.contains('hidden');
+                if (isHidden) {
+                    panel.classList.remove('hidden');
+                    if (!qrGenerated && d.qrContainer && typeof QRCode !== 'undefined') {
+                        const url = location.protocol + '//' + location.host + '/remote';
+                        new QRCode(d.qrContainer, {
+                            text: url,
+                            width: 100,
+                            height: 100,
+                            colorDark: '#ffffff',
+                            colorLight: 'transparent'
+                        });
+                        qrGenerated = true;
+                    }
+                } else {
+                    panel.classList.add('hidden');
+                }
+            }
+
+            d.modeBtns.forEach(btn => {
+                btn.addEventListener('click', () => setMode(btn.dataset.mode));
+            });
+
+            d.btnApply.addEventListener('click',applyCalibration);
+            d.btnToggle.addEventListener('click',toggleCalPanel);
+            d.btnBic.addEventListener('click',toggleBichromatic);
+            d.btnHighlight.addEventListener('click',toggleHighlightMode);
+            d.btnSingleChar.addEventListener('click',toggleSingleCharMode);
+            d.shortcutsToggle.addEventListener('click',toggleShortcuts);
+
+            document.addEventListener('keydown',e=>{
+                if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) e.preventDefault();
+                if(e.key==='ArrowUp'){
+                    if (state.highlightMode) moveHighlight(-1);
+                    else navigateToScreen(state.currentScreenIdx-1);
+                }
+                else if(e.key==='ArrowDown'){
+                    if (state.highlightMode) moveHighlight(1);
+                    else navigateToScreen(state.currentScreenIdx+1);
+                }
+                else if(e.key==='ArrowLeft'||e.key==='ArrowRight') shuffleCurrentScreen();
+                else if(e.key==='b'||e.key==='B'){ if(!e.ctrlKey&&!e.metaKey) toggleBichromatic(); }
+                else if(e.key==='r'||e.key==='R'){ if(!e.ctrlKey&&!e.metaKey) toggleHighlightMode(); }
+                else if(e.key==='u'||e.key==='U'){ if(!e.ctrlKey&&!e.metaKey) toggleSingleCharMode(); }
+                else if(e.key==='c'||e.key==='C'){ if(!e.ctrlKey&&!e.metaKey) applyCalibration(); }
+                else if(e.key==='h'||e.key==='H'){ if(!e.ctrlKey&&!e.metaKey) toggleCalPanel(); }
+                else if(e.key==='?') toggleShortcuts();
+                else if(e.key==='Escape'){ if(!d.shortcutsPanel.classList.contains('hidden')) toggleShortcuts(); }
+            });
+
+            d.testArea.addEventListener('mousemove',()=>{
+                d.testArea.classList.add('showing-cursor');
+                clearTimeout(d.testArea._ct);
+                d.testArea._ct=setTimeout(()=>d.testArea.classList.remove('showing-cursor'),2500);
+            });
+
+            window.addEventListener('resize',()=>{ if(state.isCalibrated) renderScreen(); });
+
+            document.fonts.load('1em OpticianSans').then(() => console.log('✅ Fuente OpticianSans cargada')).catch(() => console.warn('⚠️ Fuente OpticianSans no disponible'));
+
+            // ═══════════ CONTROL REMOTO VÍA SOCKET.IO ═══════════
+            (function setupRemote() {
+                const socket = io();
+                socket.on('comando', (cmd) => {
+                    const keyEvent = new KeyboardEvent('keydown', {
+                        key: cmd.startsWith('Key') ? cmd.slice(3) : cmd,
+                        code: cmd,
+                        bubbles: true
+                    });
+                    document.dispatchEvent(keyEvent);
+                });
+            })();
+
+            function init(){
+                loadFromStorage();
+                applyCalibration();
+                navigateToScreen(state.currentScreenIdx);
+                if (state.highlightMode) {
+                    const screen = getCurrentScreen();
+                    const firstLine = screen.lines[0];
+                    const global = ALL_LINES.findIndex(l => l.snellen === firstLine.snellen && l.decimal === firstLine.decimal);
+                    state.highlightLineGlobalIdx = global >= 0 ? global : 0;
+                    renderScreen();
+                }
+                setTimeout(()=>{ if(!d.shortcutsPanel.classList.contains('hidden')) d.shortcutsPanel.classList.add('hidden'); },8000);
+            }
+            init();
+        })();
+    </script>
+</body>
+</html>

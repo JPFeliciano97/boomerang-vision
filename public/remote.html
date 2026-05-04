@@ -6,11 +6,52 @@
     <title>Control Remoto Boomerang</title>
     <script src="/socket.io/socket.io.js"></script>
     <style>
-        body { font-family: sans-serif; background: #111; color: #fff; text-align: center; padding: 20px; }
-        button { font-size: 24px; padding: 15px 30px; margin: 10px; border-radius: 10px; border: none; background: #2980b9; color: #fff; }
-        button:active { background: #3498db; }
-        .row { display: flex; justify-content: center; gap: 10px; }
-        .special { background: #8e44ad; }
+        :root {
+            --bg: #111;
+            --text: #fff;
+            --btn: #2980b9;
+            --btn-active: #3498db;
+            --special: #8e44ad;
+        }
+        .light-mode {
+            --bg: #f5f5f5;
+            --text: #222;
+            --btn: #2980b9;
+            --btn-active: #3498db;
+            --special: #8e44ad;
+        }
+        body {
+            font-family: sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            text-align: center;
+            padding: 20px;
+            transition: background 0.3s, color 0.3s;
+        }
+        button {
+            font-size: 24px;
+            padding: 15px 30px;
+            margin: 10px;
+            border-radius: 10px;
+            border: none;
+            background: var(--btn);
+            color: #fff;
+            transition: background 0.15s;
+        }
+        button:active { background: var(--btn-active); }
+        .row {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+        }
+        .special { background: var(--special); }
+        #theme-toggle {
+            font-size: 14px;
+            padding: 10px 20px;
+            margin-top: 20px;
+            background: #444;
+            color: #fff;
+        }
     </style>
 </head>
 <body>
@@ -25,10 +66,30 @@
     <button onclick="enviar('KeyR')">🔦 Resaltar</button>
     <button onclick="enviar('KeyU')">👤 Individual</button>
     <button onclick="enviar('KeyB')">🎨 Bicrom.</button>
+    <br>
+    <button id="theme-toggle" onclick="toggleTheme()">🌓 Modo claro</button>
 
     <script>
         const socket = io();
-        function enviar(cmd) { socket.emit('comando', cmd); }
+
+        function enviar(cmd) {
+            socket.emit('comando', cmd);
+            // Vibración de 15 ms
+            if (window.navigator && window.navigator.vibrate) {
+                window.navigator.vibrate(15);
+            }
+        }
+
+        // Modo oscuro / claro
+        function toggleTheme() {
+            document.body.classList.toggle('light-mode');
+            const btn = document.getElementById('theme-toggle');
+            if (document.body.classList.contains('light-mode')) {
+                btn.textContent = '🌓 Modo oscuro';
+            } else {
+                btn.textContent = '🌓 Modo claro';
+            }
+        }
     </script>
 </body>
 </html>

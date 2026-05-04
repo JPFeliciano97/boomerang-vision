@@ -386,13 +386,18 @@
             }
 
             function setMode(mode) {
-                if(state.mode===mode) return;
+                if(state.mode === mode) return;
                 state.mode = mode;
                 updateModeButtons();
                 state.lineChars = {};
                 renderScreen();
                 saveToStorage();
-            }
+    // Notificar a todos los clientes (incluido el panel remoto)
+             if (typeof io !== 'undefined') {
+                const socket = io();
+                socket.emit('modo', mode);
+    }
+}
 
             function applyCalibration(){
                 state.resH=parseInt(d.resH.value)||2560; state.resV=parseInt(d.resV.value)||1440;

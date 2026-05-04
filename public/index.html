@@ -386,18 +386,17 @@
             }
 
             function setMode(mode) {
-                if(state.mode === mode) return;
+                if(state.mode===mode) return;
                 state.mode = mode;
                 updateModeButtons();
                 state.lineChars = {};
                 renderScreen();
                 saveToStorage();
-    // Notificar a todos los clientes (incluido el panel remoto)
-             if (typeof io !== 'undefined') {
-                const socket = io();
-                socket.emit('modo', mode);
-    }
-}
+                // Emitir el nuevo modo a los clientes remotos
+                if (window.remoteSocket) {
+                    window.remoteSocket.emit('modo', state.mode);
+                }
+            }
 
             function applyCalibration(){
                 state.resH=parseInt(d.resH.value)||2560; state.resV=parseInt(d.resV.value)||1440;
@@ -576,12 +575,14 @@
 
             // ═══════════ CONTROL REMOTO VÍA SOCKET.IO ═══════════
             (function setupRemote() {
-                const socket = io();
+                window.remoteSocket = io();
+                const socket = window.remoteSocket;
+
                 socket.on('comando', (cmd) => {
                     if (cmd.startsWith('Mode:')) {
                         const modo = cmd.split(':')[1];
                         setMode(modo);
-                        socket.emit('modo', modo); // notifica al remoto el modo actual
+                        socket.emit('modo', modo);
                     } else {
                         const keyEvent = new KeyboardEvent('keydown', {
                             key: cmd.startsWith('Key') ? cmd.slice(3) : cmd,
@@ -592,7 +593,6 @@
                     }
                 });
 
-                // Enviar el modo actual cuando se conecta un nuevo panel remoto
                 socket.on('connect', () => {
                     socket.emit('modo', state.mode);
                 });

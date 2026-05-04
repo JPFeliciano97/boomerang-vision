@@ -39,7 +39,7 @@
             -webkit-user-select: none;
         }
 
-        /* ── Modo (Letras, Números, Figuras, E direc.) ── */
+        /* Modo */
         .mode-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
@@ -71,7 +71,7 @@
             color: #fff;
         }
 
-        /* ── Cruz direccional ── */
+        /* Cruz direccional */
         .dpad {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
@@ -102,7 +102,7 @@
             pointer-events: none;
         }
 
-        /* ── Botones de función ── */
+        /* Funciones */
         .function-btns {
             display: flex;
             width: 100%;
@@ -117,23 +117,25 @@
             padding: 15px 0;
             border: none;
             border-radius: 12px;
-            background: var(--dim);
             color: #fff;
             transition: background 0.15s;
+            background: var(--dim);
         }
         .function-btns button.special {
-            background: var(--special);
+            background: linear-gradient(to right, #e74c3c 50%, #2ecc71 50%);
+            color: #fff;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.5);
         }
         .light-mode .function-btns button {
             background: #ddd;
             color: #222;
         }
         .light-mode .function-btns button.special {
-            background: var(--special);
+            background: linear-gradient(to right, #e74c3c 50%, #2ecc71 50%);
             color: #fff;
         }
 
-        /* ── Toggle tema ── */
+        /* Toggle tema */
         #theme-toggle {
             font-size: 14px;
             padding: 10px 20px;
@@ -176,7 +178,7 @@
     <div class="function-btns">
         <button onclick="enviar('KeyR')">🔦<br>Resaltar</button>
         <button onclick="enviar('KeyU')">👤<br>Individual</button>
-        <button onclick="enviar('KeyB')" class="special">🎨<br>Bicrom.</button>
+        <button onclick="enviar('KeyB')" class="special"><br></button>
     </div>
 
     <!-- Tema -->
@@ -192,7 +194,7 @@
             }
         }
 
-        // Configurar botones de modo con data-mode
+        // Botones de modo con data-mode
         document.querySelectorAll('#mode-buttons button').forEach(btn => {
             btn.addEventListener('click', () => {
                 enviar('Mode:' + btn.dataset.mode);

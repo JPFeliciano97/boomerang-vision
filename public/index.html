@@ -4,9 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>BOOMERANG VISION | Test de Agudeza Visual Profesional</title>
-    <!-- Librería para generar el código QR -->
-    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-    <!-- Socket.IO cliente -->
     <script src="/socket.io/socket.io.js"></script>
     <style>
         /* ═══════════ FUENTE OPTICIAN SANS ═══════════ */
@@ -81,6 +78,8 @@
         .mode-btn:hover { background: #1e4a5e; }
         .mode-btn.active:hover { background: #3498db; }
 
+        #dpr-input { width: 70px; }
+
         #test-area {
             flex:1; position:relative; cursor:none; overflow:hidden;
             background:#FFFFFF; transition:background 0.2s;
@@ -95,17 +94,19 @@
         #lines-container {
             position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
             display:flex; flex-direction:column; align-items:center; justify-content:center;
-            gap:clamp(14px,2.5vh,30px); z-index:10; pointer-events:none; width:95%;
+            width:95%;
         }
         .optotype-line {
             display:flex; align-items:center; justify-content:center;
-            gap:clamp(6px,1.5vw,20px); width:100%;
+            width:100%;
         }
         .optotype-row {
             display:flex; align-items:center; justify-content:center;
-            gap:clamp(6px,1.5vw,20px);
         }
-        .optotype-row img { display:block; flex-shrink:0; image-rendering:auto; }
+        .optotype-row img {
+            display:block; flex-shrink:0;
+            transform-origin: center center;
+        }
         .optotype-text {
             font-family: 'OpticianSans', 'Arial Black', Impact, sans-serif;
             font-weight: normal; color: #000; line-height:1; display:block;
@@ -114,11 +115,13 @@
         .optotype-line.dimmed img { opacity: 0.10; }
         .line-annotation-left, .line-annotation-right {
             font-family:'SF Mono','Consolas',monospace; font-weight:700;
-            color:#999; width:80px; flex-shrink:0;
+            width:80px; flex-shrink:0;
             font-size:clamp(10px,1.8vw,22px);
+            opacity: 0.20;
+            color: #333;
         }
         #test-area.bichromatic .line-annotation-left,
-        #test-area.bichromatic .line-annotation-right { color:#aaa; }
+        #test-area.bichromatic .line-annotation-right { color: #555; }
 
         #footer {
             background:#111; border-top:1px solid #333; padding:8px 16px;
@@ -134,7 +137,6 @@
         .cal-status.calibrated-text { color:#27ae60; }
         .cal-status.uncalibrated-text { color:#e74c3c; }
 
-        /* Panel de atajos y botón ? */
         #shortcuts-panel {
             position:fixed; bottom:80px; right:16px; z-index:180;
             background:rgba(20,20,20,0.7); border:1px solid rgba(255,255,255,0.15);
@@ -157,7 +159,7 @@
         }
         #shortcuts-toggle:hover { color:#fff; border-color:rgba(255,255,255,0.5); }
         #qr-container { margin-top: 12px; display: flex; justify-content: center; }
-        #qr-container canvas, #qr-container img { max-width: 100px; }
+        #qr-container img { display:block; }
     </style>
 </head>
 <body>
@@ -169,7 +171,7 @@
         <div class="cal-sep"></div>
         <div class="cal-group"><label>Dist. m</label><input type="number" id="test-distance" value="6" step="0.1" min="0.5"></div>
         <div class="cal-sep"></div>
-        <div class="cal-group"><label>DPR</label><input type="number" id="dpr-input" value="1" step="0.02" min="0.3" max="6" style="width:50px;"></div>
+        <div class="cal-group"><label>DPR</label><input type="number" id="dpr-input" value="1" step="0.02" min="0.3" max="6" style="width:70px;"></div>
         <button class="btn-sm" id="btn-apply-cal">▶ CALIBRAR</button>
         <button class="btn-sm toggle-btn" id="btn-toggle-cal">▲</button>
         <span style="font-size:9px;color:#aaa;" id="info-span"></span>
@@ -210,28 +212,28 @@
     </div>
 
     <script>
-        // ═══════════ APLICACIÓN PRINCIPAL ═══════════
         (() => {
             function svgToDataURI(svg) { return 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svg))); }
             const SVG_CACHE = {};
 
+            // E direccional centrada en viewBox 60x60 (dibujo 50x50 centrado)
             const E_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 60">
-                <rect x="7" y="4" width="11" height="52" fill="#000"/>
-                <rect x="18" y="4" width="35" height="10" fill="#000"/>
-                <rect x="18" y="25" width="35" height="10" fill="#000"/>
-                <rect x="18" y="46" width="35" height="10" fill="#000"/>
+                <rect x="5" y="5" width="10" height="50" fill="#000"/>
+                <rect x="15" y="5" width="40" height="10" fill="#000"/>
+                <rect x="15" y="25" width="40" height="10" fill="#000"/>
+                <rect x="15" y="45" width="40" height="10" fill="#000"/>
             </svg>`;
             SVG_CACHE['E_0'] = svgToDataURI(E_SVG);
 
             const PEDIATRIC_SVGS = {
-                house: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 60"><polygon points="30,5 6,35 54,35" fill="#000"/><rect x="12" y="35" width="36" height="21" fill="#000"/><rect x="25" y="41" width="10" height="15" fill="#fff"/></svg>`,
-                star: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 60"><polygon points="30,3 37,22 57,22 41,35 47,54 30,43 13,54 19,35 3,22 23,22" fill="#000"/></svg>`,
-                heart: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 60"><path d="M30 50 C12 36 4 26 4 16 C4 8 12 4 18 4 C24 4 30 10 30 10 C30 10 36 4 42 4 C48 4 56 8 56 16 C56 26 48 36 30 50Z" fill="#000"/></svg>`,
-                circle: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 60"><circle cx="30" cy="30" r="24" fill="#000"/></svg>`,
-                square: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 60"><rect x="8" y="8" width="44" height="44" fill="#000"/></svg>`,
-                moon: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 60"><path d="M38 4 C22 4 10 16 10 30 C10 44 22 56 38 56 C32 50 30 40 30 30 C30 20 32 10 38 4Z" fill="#000"/></svg>`,
-                triangle: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 60"><polygon points="30,5 56,55 4,55" fill="#000"/></svg>`,
-                plus: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 60"><rect x="23" y="6" width="14" height="48" fill="#000"/><rect x="6" y="23" width="48" height="14" fill="#000"/></svg>`
+                house: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 60"><polygon points="30,6 8,36 52,36" fill="#000"/><rect x="14" y="36" width="32" height="18" fill="#000"/><rect x="24" y="42" width="12" height="12" fill="#fff"/></svg>`,
+                star: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 60"><polygon points="30,6 36,22 52,22 39,32 44,48 30,38 16,48 21,32 8,22 24,22" fill="#000"/></svg>`,
+                heart: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 60"><path d="M30 48 C12 34 6 26 6 16 C6 8 14 4 20 4 C26 4 30 10 30 10 C30 10 34 4 40 4 C46 4 54 8 54 16 C54 26 48 34 30 48Z" fill="#000"/></svg>`,
+                circle: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 60"><circle cx="30" cy="30" r="22" fill="#000"/></svg>`,
+                square: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 60"><rect x="10" y="10" width="40" height="40" fill="#000"/></svg>`,
+                moon: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 60"><path d="M38 8 C24 8 14 18 14 30 C14 42 24 52 38 52 C30 46 28 36 28 30 C28 24 30 14 38 8Z" fill="#000"/></svg>`,
+                triangle: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 60"><polygon points="30,8 52,52 8,52" fill="#000"/></svg>`,
+                plus: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 60"><rect x="24" y="6" width="12" height="48" fill="#000"/><rect x="6" y="24" width="48" height="12" fill="#000"/></svg>`
             };
             for (let [k,v] of Object.entries(PEDIATRIC_SVGS)) SVG_CACHE['P_'+k] = svgToDataURI(v);
 
@@ -316,17 +318,23 @@
                 d.linesContainer.innerHTML='';
                 if(!state.isCalibrated) return;
                 const screen = getCurrentScreen();
+                const firstLine = screen.lines[0];
+                const baseH_mm = optotypeHeightMM(firstLine.decimal, state.testDistanceM);
+                let baseSpacing = cssHeight(baseH_mm) * 0.5;
+                if (screen.lines.length > 1) baseSpacing *= 1.15;
+                const responsiveGap = `clamp(8px, 2vw, ${baseSpacing}px)`;
+                d.linesContainer.style.gap = responsiveGap;
+
                 screen.lines.forEach((line,li)=>{
                     const h_mm=optotypeHeightMM(line.decimal,state.testDistanceM);
                     const h_css=cssHeight(h_mm);
                     const originalChars = getLineChars(state.currentScreenIdx,li,line.count);
                     let chars = originalChars;
-                    if (state.singleCharMode) {
-                        chars = [originalChars[0]];
-                    }
+                    if (state.singleCharMode) chars = [originalChars[0]];
                     
                     const lineDiv = document.createElement('div');
                     lineDiv.className = 'optotype-line';
+                    lineDiv.style.gap = responsiveGap;
                     
                     if (state.highlightMode) {
                         const globalLine = ALL_LINES.find(l => l.screenIndex === state.currentScreenIdx && l.lineIndex === li);
@@ -341,6 +349,7 @@
                     
                     const row = document.createElement('div');
                     row.className = 'optotype-row';
+                    row.style.gap = responsiveGap;
                     
                     chars.forEach(ch => {
                         if (ch.type === 'text') {
@@ -351,15 +360,14 @@
                             row.appendChild(span);
                         } else {
                             const img = document.createElement('img');
-                            let scale = 1.0;
-                            if (ch.key && ch.key.startsWith('P_')) {
-                                scale = 8.7 / 14.5;
-                            } else if (ch.key === 'E_0') {
-                                scale = 8.7 / 17;
-                            }
-                            img.style.height = (h_css * scale) + 'px';
-                            img.style.width = 'auto';
+                            const scaleE = 0.739;
+                            const scaleFig = 0.769;
+                            const scale = ch.key === 'E_0' ? scaleE : scaleFig;
+                            const size = h_css * scale;
+                            img.style.height = size + 'px';
+                            img.style.width  = size + 'px';
                             img.style.display = 'block';
+                            img.style.transformOrigin = 'center center';
                             if (ch.rot) img.style.transform = `rotate(${ch.rot}deg)`;
                             img.src = SVG_CACHE[ch.key] || '';
                             row.appendChild(img);
@@ -380,9 +388,7 @@
             }
 
             function updateModeButtons() {
-                d.modeBtns.forEach(btn => {
-                    btn.classList.toggle('active', btn.dataset.mode === state.mode);
-                });
+                d.modeBtns.forEach(btn => btn.classList.toggle('active', btn.dataset.mode === state.mode));
             }
 
             function setMode(mode) {
@@ -392,10 +398,7 @@
                 state.lineChars = {};
                 renderScreen();
                 saveToStorage();
-                // Emitir el nuevo modo a los clientes remotos
-                if (window.remoteSocket) {
-                    window.remoteSocket.emit('modo', state.mode);
-                }
+                if (window.remoteSocket) window.remoteSocket.emit('modo', state.mode);
             }
 
             function applyCalibration(){
@@ -476,9 +479,7 @@
                 if (newIdx >= TOTAL_LINES) newIdx = TOTAL_LINES - 1;
                 state.highlightLineGlobalIdx = newIdx;
                 const line = ALL_LINES[newIdx];
-                if (line.screenIndex !== state.currentScreenIdx) {
-                    state.currentScreenIdx = line.screenIndex;
-                }
+                if (line.screenIndex !== state.currentScreenIdx) state.currentScreenIdx = line.screenIndex;
                 renderScreen();
                 saveToStorage();
             }
@@ -516,15 +517,15 @@
                 const isHidden = panel.classList.contains('hidden');
                 if (isHidden) {
                     panel.classList.remove('hidden');
-                    if (!qrGenerated && d.qrContainer && typeof QRCode !== 'undefined') {
-                        const url = location.protocol + '//' + location.host + '/remote';
-                        new QRCode(d.qrContainer, {
-                            text: url,
-                            width: 100,
-                            height: 100,
-                            colorDark: '#ffffff',
-                            colorLight: 'transparent'
-                        });
+                    if (!qrGenerated && d.qrContainer) {
+                        const url = 'https://boomerang-vision.onrender.com/remote';
+                        const img = document.createElement('img');
+                        img.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(url)}`;
+                        img.alt = 'QR Control Remoto';
+                        img.style.width = '150px';
+                        img.style.height = '150px';
+                        d.qrContainer.innerHTML = '';
+                        d.qrContainer.appendChild(img);
                         qrGenerated = true;
                     }
                 } else {
@@ -532,10 +533,7 @@
                 }
             }
 
-            d.modeBtns.forEach(btn => {
-                btn.addEventListener('click', () => setMode(btn.dataset.mode));
-            });
-
+            d.modeBtns.forEach(btn => btn.addEventListener('click', () => setMode(btn.dataset.mode)));
             d.btnApply.addEventListener('click',applyCalibration);
             d.btnToggle.addEventListener('click',toggleCalPanel);
             d.btnBic.addEventListener('click',toggleBichromatic);
@@ -570,14 +568,12 @@
             });
 
             window.addEventListener('resize',()=>{ if(state.isCalibrated) renderScreen(); });
-
             document.fonts.load('1em OpticianSans').then(() => console.log('✅ Fuente OpticianSans cargada')).catch(() => console.warn('⚠️ Fuente OpticianSans no disponible'));
 
             // ═══════════ CONTROL REMOTO VÍA SOCKET.IO ═══════════
             (function setupRemote() {
                 window.remoteSocket = io();
                 const socket = window.remoteSocket;
-
                 socket.on('comando', (cmd) => {
                     if (cmd.startsWith('Mode:')) {
                         const modo = cmd.split(':')[1];
@@ -592,10 +588,7 @@
                         document.dispatchEvent(keyEvent);
                     }
                 });
-
-                socket.on('connect', () => {
-                    socket.emit('modo', state.mode);
-                });
+                socket.on('connect', () => socket.emit('modo', state.mode));
             })();
 
             function init(){

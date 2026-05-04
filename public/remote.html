@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Control Remoto Boomerang</title>
     <script src="/socket.io/socket.io.js"></script>
     <style>
@@ -10,118 +10,176 @@
             --bg: #111;
             --text: #fff;
             --btn: #2980b9;
-            --btn-active: #3498db;
+            --btn-hover: #3498db;
             --special: #8e44ad;
+            --dim: #444;
         }
         .light-mode {
             --bg: #f5f5f5;
             --text: #222;
             --btn: #2980b9;
-            --btn-active: #3498db;
+            --btn-hover: #3498db;
             --special: #8e44ad;
+            --dim: #ccc;
         }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
             font-family: system-ui, -apple-system, sans-serif;
             background: var(--bg);
             color: var(--text);
-            padding: 10px;
+            height: 100vh;
+            height: 100dvh;
             display: flex;
             flex-direction: column;
+            justify-content: space-evenly;
             align-items: center;
-            gap: 15px;
+            padding: 10px;
             transition: background 0.3s, color 0.3s;
+            user-select: none;
+            -webkit-user-select: none;
         }
-        .grid {
+
+        /* ── Modo (Letras, Números, Figuras, E direc.) ── */
+        .mode-grid {
             display: grid;
-            grid-template-columns: repeat(4,1fr);
-            gap: 8px;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
             width: 100%;
             max-width: 400px;
+            padding: 0 5px;
         }
-        .grid button {
-            font-size: 18px;
-            padding: 12px 5px;
+        .mode-grid button {
+            font-size: clamp(14px, 3.5vw, 20px);
+            font-weight: 700;
+            padding: 15px 0;
             border: none;
-            border-radius: 8px;
+            border-radius: 12px;
             background: #333;
             color: #fff;
-            font-weight: 600;
+            transition: background 0.15s;
         }
-        .grid button.active-mode {
-            background: var(--btn);
-        }
-        .arrows {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 5px;
-        }
-        .arrows .row {
-            display: flex;
-            gap: 10px;
-        }
-        .arrows button {
-            font-size: 26px;
-            padding: 12px 22px;
-            border: none;
-            border-radius: 8px;
+        .mode-grid button.active-mode {
             background: var(--btn);
             color: #fff;
         }
+        .light-mode .mode-grid button {
+            background: #ddd;
+            color: #222;
+        }
+        .light-mode .mode-grid button.active-mode {
+            background: var(--btn);
+            color: #fff;
+        }
+
+        /* ── Cruz direccional ── */
+        .dpad {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            gap: 10px;
+            width: 70vmin;
+            height: 70vmin;
+            max-width: 280px;
+            max-height: 280px;
+        }
+        .dpad button {
+            font-size: clamp(30px, 8vw, 44px);
+            border: none;
+            border-radius: 12px;
+            background: var(--btn);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.15s, transform 0.1s;
+        }
+        .dpad button:active {
+            background: var(--btn-hover);
+            transform: scale(0.92);
+        }
+        .dpad .empty {
+            background: transparent;
+            pointer-events: none;
+        }
+
+        /* ── Botones de función ── */
         .function-btns {
             display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            gap: 8px;
+            width: 100%;
+            max-width: 400px;
+            gap: 10px;
+            padding: 0 5px;
         }
         .function-btns button {
-            font-size: 16px;
-            padding: 12px 16px;
+            flex: 1;
+            font-size: clamp(14px, 3.5vw, 20px);
+            font-weight: 700;
+            padding: 15px 0;
             border: none;
-            border-radius: 8px;
-            background: #444;
+            border-radius: 12px;
+            background: var(--dim);
             color: #fff;
-            font-weight: 600;
+            transition: background 0.15s;
         }
-        .function-btns button.special { background: var(--special); }
+        .function-btns button.special {
+            background: var(--special);
+        }
+        .light-mode .function-btns button {
+            background: #ddd;
+            color: #222;
+        }
+        .light-mode .function-btns button.special {
+            background: var(--special);
+            color: #fff;
+        }
+
+        /* ── Toggle tema ── */
         #theme-toggle {
             font-size: 14px;
-            padding: 8px 16px;
-            background: #555;
-            color: #fff;
+            padding: 10px 20px;
             border: none;
             border-radius: 8px;
+            background: #555;
+            color: #fff;
+            transition: background 0.2s;
         }
-        button:active { filter: brightness(0.9); transform: scale(0.96); }
+        .light-mode #theme-toggle {
+            background: #aaa;
+            color: #000;
+        }
+        button:active { filter: brightness(0.9); }
     </style>
 </head>
 <body>
-    <!-- Botones de modo -->
-    <div class="grid" id="mode-buttons">
-        <button onclick="enviar('Mode:letters')" class="active-mode">Letras</button>
-        <button onclick="enviar('Mode:numbers')">Números</button>
-        <button onclick="enviar('Mode:pediatric')">Figuras</button>
-        <button onclick="enviar('Mode:e_directional')">E direc.</button>
+    <!-- Modo -->
+    <div class="mode-grid" id="mode-buttons">
+        <button data-mode="letters" class="active-mode">Letras</button>
+        <button data-mode="numbers">Números</button>
+        <button data-mode="pediatric">Figuras</button>
+        <button data-mode="e_directional">E direc.</button>
     </div>
 
-    <!-- Flechas de navegación -->
-    <div class="arrows">
+    <!-- Cruz direccional -->
+    <div class="dpad">
+        <div class="empty"></div>
         <button onclick="enviar('ArrowUp')">▲</button>
-        <div class="row">
-            <button onclick="enviar('ArrowLeft')">◀</button>
-            <button onclick="enviar('ArrowRight')">▶</button>
-        </div>
+        <div class="empty"></div>
+        <button onclick="enviar('ArrowLeft')">◀</button>
+        <div class="empty"></div>
+        <button onclick="enviar('ArrowRight')">▶</button>
+        <div class="empty"></div>
         <button onclick="enviar('ArrowDown')">▼</button>
+        <div class="empty"></div>
     </div>
 
-    <!-- Botones de función -->
+    <!-- Funciones -->
     <div class="function-btns">
-        <button onclick="enviar('KeyR')">🔦 Resaltar</button>
-        <button onclick="enviar('KeyU')">👤 Individual</button>
-        <button onclick="enviar('KeyB')" class="special">🎨 Bicrom.</button>
+        <button onclick="enviar('KeyR')">🔦<br>Resaltar</button>
+        <button onclick="enviar('KeyU')">👤<br>Individual</button>
+        <button onclick="enviar('KeyB')" class="special">🎨<br>Bicrom.</button>
     </div>
 
-    <!-- Toggle modo oscuro / claro -->
+    <!-- Tema -->
     <button id="theme-toggle" onclick="toggleTheme()">🌓 Modo claro</button>
 
     <script>
@@ -134,17 +192,26 @@
             }
         }
 
-        // Mantener resaltado el botón del modo activo (se actualiza desde el servidor)
+        // Configurar botones de modo con data-mode
+        document.querySelectorAll('#mode-buttons button').forEach(btn => {
+            btn.addEventListener('click', () => {
+                enviar('Mode:' + btn.dataset.mode);
+            });
+        });
+
+        // Actualizar botón activo cuando el servidor notifica el modo
         socket.on('modo', (modo) => {
-            document.querySelectorAll('#mode-buttons button').forEach(btn => btn.classList.remove('active-mode'));
-            const activo = document.querySelector(`#mode-buttons button[onclick="enviar('Mode:${modo}')"]`);
-            if (activo) activo.classList.add('active-mode');
+            document.querySelectorAll('#mode-buttons button').forEach(btn => {
+                btn.classList.toggle('active-mode', btn.dataset.mode === modo);
+            });
         });
 
         function toggleTheme() {
             document.body.classList.toggle('light-mode');
             const btn = document.getElementById('theme-toggle');
-            btn.textContent = document.body.classList.contains('light-mode') ? '🌓 Modo oscuro' : '🌓 Modo claro';
+            btn.textContent = document.body.classList.contains('light-mode')
+                ? '🌓 Modo oscuro'
+                : '🌓 Modo claro';
         }
     </script>
 </body>

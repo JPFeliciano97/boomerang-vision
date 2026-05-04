@@ -573,12 +573,23 @@
             (function setupRemote() {
                 const socket = io();
                 socket.on('comando', (cmd) => {
-                    const keyEvent = new KeyboardEvent('keydown', {
-                        key: cmd.startsWith('Key') ? cmd.slice(3) : cmd,
-                        code: cmd,
-                        bubbles: true
-                    });
-                    document.dispatchEvent(keyEvent);
+                    if (cmd.startsWith('Mode:')) {
+                        const modo = cmd.split(':')[1];
+                        setMode(modo);
+                        socket.emit('modo', modo); // notifica al remoto el modo actual
+                    } else {
+                        const keyEvent = new KeyboardEvent('keydown', {
+                            key: cmd.startsWith('Key') ? cmd.slice(3) : cmd,
+                            code: cmd,
+                            bubbles: true
+                        });
+                        document.dispatchEvent(keyEvent);
+                    }
+                });
+
+                // Enviar el modo actual cuando se conecta un nuevo panel remoto
+                socket.on('connect', () => {
+                    socket.emit('modo', state.mode);
                 });
             })();
 

@@ -17,8 +17,14 @@ app.get('/remote', (req, res) => {
 });
 
 io.on('connection', (socket) => {
+    // Reenviar comandos de control remoto
     socket.on('comando', (cmd) => {
         socket.broadcast.emit('comando', cmd);
+    });
+
+    // Retransmitir el modo actual a los demás clientes
+    socket.on('modo', (modo) => {
+        socket.broadcast.emit('modo', modo);
     });
 });
 

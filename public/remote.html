@@ -21,52 +21,107 @@
             --special: #8e44ad;
         }
         body {
-            font-family: sans-serif;
+            font-family: system-ui, -apple-system, sans-serif;
             background: var(--bg);
             color: var(--text);
-            text-align: center;
-            padding: 20px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
             transition: background 0.3s, color 0.3s;
         }
-        button {
-            font-size: 24px;
-            padding: 15px 30px;
-            margin: 10px;
-            border-radius: 10px;
-            border: none;
-            background: var(--btn);
-            color: #fff;
-            transition: background 0.15s;
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(4,1fr);
+            gap: 8px;
+            width: 100%;
+            max-width: 400px;
         }
-        button:active { background: var(--btn-active); }
-        .row {
+        .grid button {
+            font-size: 18px;
+            padding: 12px 5px;
+            border: none;
+            border-radius: 8px;
+            background: #333;
+            color: #fff;
+            font-weight: 600;
+        }
+        .grid button.active-mode {
+            background: var(--btn);
+        }
+        .arrows {
             display: flex;
-            justify-content: center;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+        }
+        .arrows .row {
+            display: flex;
             gap: 10px;
         }
-        .special { background: var(--special); }
-        #theme-toggle {
-            font-size: 14px;
-            padding: 10px 20px;
-            margin-top: 20px;
-            background: #444;
+        .arrows button {
+            font-size: 26px;
+            padding: 12px 22px;
+            border: none;
+            border-radius: 8px;
+            background: var(--btn);
             color: #fff;
         }
+        .function-btns {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 8px;
+        }
+        .function-btns button {
+            font-size: 16px;
+            padding: 12px 16px;
+            border: none;
+            border-radius: 8px;
+            background: #444;
+            color: #fff;
+            font-weight: 600;
+        }
+        .function-btns button.special { background: var(--special); }
+        #theme-toggle {
+            font-size: 14px;
+            padding: 8px 16px;
+            background: #555;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+        }
+        button:active { filter: brightness(0.9); transform: scale(0.96); }
     </style>
 </head>
 <body>
-    <h2>Control Remoto – Boomerang Vision</h2>
-    <div class="row"><button onclick="enviar('ArrowUp')">▲</button></div>
-    <div class="row">
-        <button onclick="enviar('ArrowLeft')">◀</button>
-        <button onclick="enviar('ArrowRight')">▶</button>
+    <!-- Botones de modo -->
+    <div class="grid" id="mode-buttons">
+        <button onclick="enviar('Mode:letters')" class="active-mode">Letras</button>
+        <button onclick="enviar('Mode:numbers')">Números</button>
+        <button onclick="enviar('Mode:pediatric')">Figuras</button>
+        <button onclick="enviar('Mode:e_directional')">E direc.</button>
     </div>
-    <div class="row"><button onclick="enviar('ArrowDown')">▼</button></div>
-    <br>
-    <button onclick="enviar('KeyR')">🔦 Resaltar</button>
-    <button onclick="enviar('KeyU')">👤 Individual</button>
-    <button onclick="enviar('KeyB')">🎨 Bicrom.</button>
-    <br>
+
+    <!-- Flechas de navegación -->
+    <div class="arrows">
+        <button onclick="enviar('ArrowUp')">▲</button>
+        <div class="row">
+            <button onclick="enviar('ArrowLeft')">◀</button>
+            <button onclick="enviar('ArrowRight')">▶</button>
+        </div>
+        <button onclick="enviar('ArrowDown')">▼</button>
+    </div>
+
+    <!-- Botones de función -->
+    <div class="function-btns">
+        <button onclick="enviar('KeyR')">🔦 Resaltar</button>
+        <button onclick="enviar('KeyU')">👤 Individual</button>
+        <button onclick="enviar('KeyB')" class="special">🎨 Bicrom.</button>
+    </div>
+
+    <!-- Toggle modo oscuro / claro -->
     <button id="theme-toggle" onclick="toggleTheme()">🌓 Modo claro</button>
 
     <script>
@@ -74,21 +129,22 @@
 
         function enviar(cmd) {
             socket.emit('comando', cmd);
-            // Vibración de 15 ms
             if (window.navigator && window.navigator.vibrate) {
                 window.navigator.vibrate(15);
             }
         }
 
-        // Modo oscuro / claro
+        // Mantener resaltado el botón del modo activo (se actualiza desde el servidor)
+        socket.on('modo', (modo) => {
+            document.querySelectorAll('#mode-buttons button').forEach(btn => btn.classList.remove('active-mode'));
+            const activo = document.querySelector(`#mode-buttons button[onclick="enviar('Mode:${modo}')"]`);
+            if (activo) activo.classList.add('active-mode');
+        });
+
         function toggleTheme() {
             document.body.classList.toggle('light-mode');
             const btn = document.getElementById('theme-toggle');
-            if (document.body.classList.contains('light-mode')) {
-                btn.textContent = '🌓 Modo oscuro';
-            } else {
-                btn.textContent = '🌓 Modo claro';
-            }
+            btn.textContent = document.body.classList.contains('light-mode') ? '🌓 Modo oscuro' : '🌓 Modo claro';
         }
     </script>
 </body>

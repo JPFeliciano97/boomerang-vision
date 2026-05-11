@@ -22,21 +22,21 @@
             overflow: hidden;
         }
 
-        /* Contenedor principal: sin scroll, altura fija */
+        /* Contenedor del remoto: sin scroll, altura ajustable pero fija */
         #remote-screen {
             width: 100%;
             max-width: 500px;
             height: auto;
-            max-height: 65vh;
+            min-height: 260px;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 8px;
+            gap: 12px;
             background: #000;
             border-radius: 12px;
             margin-bottom: 12px;
-            padding: 8px 4px;
+            padding: 10px 6px;
             overflow: hidden;
         }
         #remote-screen img { filter: invert(1); }
@@ -46,13 +46,13 @@
             align-items: center;
             justify-content: center;
             width: 100%;
-            gap: 4px;
+            gap: 8px;
         }
         .remote-row {
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 4px;
+            gap: 8px;
         }
         .remote-row img {
             display: block;
@@ -64,21 +64,23 @@
             color: #fff;
             line-height: 1;
             display: block;
+            font-size: 28px;  /* Tamaño fijo para letras/números */
         }
         .remote-line.dimmed .remote-text,
         .remote-line.dimmed img { opacity: 0.10; }
 
+        /* Anotaciones: siempre visibles, ancho fijo */
         .remote-ann-left, .remote-ann-right {
             font-family: 'Segoe UI', 'Helvetica Neue', sans-serif;
             font-weight: 600;
-            width: 45px;
+            width: 50px;
             text-align: center;
-            font-size: 12px;
+            font-size: 14px;
             color: #aaa;
             flex-shrink: 0;
         }
 
-        /* Botones (igual que antes) */
+        /* Botones (modo, direccional, función) - mismos estilos compactos */
         .mode-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
@@ -187,35 +189,18 @@
             document.getElementById('btn-bic')?.classList.toggle('active-func', state.bichromatic);
         }
 
-        // Normalización: tamaño máximo para la línea más grande (20/400)
-        function getNormalizedSize(originalCssSize) {
-            const maxSize = 32; // px máximo para texto/imágenes
-            return Math.min(originalCssSize, maxSize);
-        }
+        // Tamaños fijos para el remoto (no se escala según la línea)
+        const BASE_FONT_SIZE = 28;      // px para letras/números
+        const SCALE_E = 0.739;          // para E direccional
+        const SCALE_FIG = 0.769;        // para figuras infantiles
 
         socket.on('screenUpdate', (data) => {
             const container = document.getElementById('remote-screen');
             container.innerHTML = '';
-            if (!data?.lines || !data.cal) return;
+            if (!data?.lines) return;
 
-            const cal = data.cal;
-            const rad = (min) => min * Math.PI / 10800;
-            function optotypeHeightMM(decimal, distanceM) {
-                const angleMin = 5 / decimal;
-                return 2 * distanceM * 1000 * Math.tan(rad(angleMin / 2));
-            }
-            function cssHeight(h_mm) {
-                return (h_mm * cal.pxPerMM) / cal.dprManual * cal.calibrationScale;
-            }
-
-            // Calcular tamaño original de la primera línea y aplicar límite
-            const firstDecimal = data.lines[0]?.decimal || 1.0;
-            const firstH_mm = optotypeHeightMM(firstDecimal, cal.testDistanceM);
-            let baseSize = cssHeight(firstH_mm);
-            baseSize = Math.min(baseSize, 32); // límite global
-
-            // Espaciado proporcional al tamaño base (máximo 8px)
-            let gap = Math.min(6, baseSize * 0.25);
+            // Espaciado fijo para todas las líneas
+            const gap = 10;
             container.style.gap = gap + 'px';
 
             data.lines.forEach((line, li) => {
@@ -223,14 +208,18 @@
                 lineDiv.className = 'remote-line';
                 lineDiv.style.gap = gap + 'px';
 
+                // Resaltado si aplica
                 if (data.highlightMode && li !== data.highlightLineIdx) {
                     lineDiv.classList.add('dimmed');
                 }
 
+                // Anotación izquierda (Snellen: solo denominador)
                 const leftAnn = document.createElement('div');
                 leftAnn.className = 'remote-ann-left';
-                leftAnn.textContent = line.snellen.split('/')[1];
+                const denominator = line.snellen.split('/')[1];
+                leftAnn.textContent = denominator;
 
+                // Fila de optotipos
                 const row = document.createElement('div');
                 row.className = 'remote-row';
                 row.style.gap = gap + 'px';
@@ -238,27 +227,19 @@
                 let chars = line.chars;
                 if (data.singleCharMode) chars = [chars[0]];
 
-                // Calculamos el tamaño proporcional para esta línea
-                const h_mm = optotypeHeightMM(line.decimal, cal.testDistanceM);
-                let rawSize = cssHeight(h_mm);
-                // Escala de referencia: la línea más grande (20/400) tendrá baseSize (≤32px)
-                // Las demás se escalan proporcionalmente a su tamaño original relativo
-                const firstRaw = cssHeight(optotypeHeightMM(firstDecimal, cal.testDistanceM));
-                const proportionalSize = (rawSize / firstRaw) * baseSize;
-                const finalSize = Math.min(proportionalSize, 32);
-
                 chars.forEach(ch => {
                     if (ch.type === 'text') {
                         const span = document.createElement('span');
                         span.className = 'remote-text';
                         span.textContent = ch.char;
-                        span.style.fontSize = finalSize + 'px';
+                        // Tamaño fijo, no depende de la línea
+                        span.style.fontSize = BASE_FONT_SIZE + 'px';
                         row.appendChild(span);
                     } else {
                         const img = document.createElement('img');
-                        const scaleE = 0.739, scaleFig = 0.769;
-                        const scale = ch.key === 'E_0' ? scaleE : scaleFig;
-                        const size = finalSize * scale;
+                        // Escalas fijas aplicadas al tamaño base
+                        let scale = ch.key === 'E_0' ? SCALE_E : SCALE_FIG;
+                        const size = BASE_FONT_SIZE * scale;
                         img.style.height = size + 'px';
                         img.style.width = size + 'px';
                         img.style.display = 'block';
@@ -268,6 +249,7 @@
                     }
                 });
 
+                // Anotación derecha (decimal)
                 const rightAnn = document.createElement('div');
                 rightAnn.className = 'remote-ann-right';
                 rightAnn.textContent = line.decimal.toFixed(2);

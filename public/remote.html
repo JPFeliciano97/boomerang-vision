@@ -11,7 +11,6 @@
             --text: #fff;
             --btn: #2980b9;
             --btn-active: #3498db;
-            --special: #8e44ad;
             --dim: #444;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -23,12 +22,13 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            padding: 6px;
+            justify-content: center;
+            padding: 8px;
             user-select: none;
             -webkit-user-select: none;
         }
 
-        /* Zona de optotipos (tamaño fijo) */
+        /* ── Recuadro de optotipos (tamaño fijo) ── */
         #remote-screen {
             width: 100%;
             height: 130px;
@@ -36,12 +36,15 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 3px;
+            gap: 4px;
             background: #000;
             border-radius: 10px;
-            margin-bottom: 6px;
+            margin-bottom: 12px;
             overflow: hidden;
         }
+        /* Invertir colores de las imágenes (negro → blanco) */
+        #remote-screen img { filter: invert(1); }
+
         .remote-line {
             display: flex;
             align-items: center;
@@ -73,48 +76,48 @@
         .remote-ann-left, .remote-ann-right {
             font-family: 'Segoe UI', 'Helvetica Neue', sans-serif;
             font-weight: 600;
-            width: 55px;
+            width: 60px;
             text-align: center;
             font-size: 13px;
             color: #aaa;
         }
 
-        /* Botones de modo */
+        /* ── Botones de modo ── */
         .mode-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
-            gap: 5px;
+            gap: 6px;
             width: 100%;
             max-width: 400px;
-            margin-bottom: 5px;
+            margin-bottom: 8px;
         }
         .mode-grid button {
-            font-size: 13px;
+            font-size: 14px;
             font-weight: 700;
-            padding: 10px 0;
+            padding: 12px 0;
             border: none;
-            border-radius: 8px;
+            border-radius: 10px;
             background: #333;
             color: #fff;
         }
         .mode-grid button.active-mode { background: #2980b9; }
 
-        /* Cruz direccional */
+        /* ── Cruz direccional ── */
         .dpad {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             grid-template-rows: repeat(3, 1fr);
-            gap: 5px;
-            width: 55vmin;
-            height: 55vmin;
-            max-width: 220px;
-            max-height: 220px;
-            margin-bottom: 5px;
+            gap: 6px;
+            width: 70vmin;
+            height: 70vmin;
+            max-width: 280px;
+            max-height: 280px;
+            margin-bottom: 8px;
         }
         .dpad button {
-            font-size: 26px;
+            font-size: 30px;
             border: none;
-            border-radius: 8px;
+            border-radius: 10px;
             background: #2980b9;
             color: #fff;
             display: flex;
@@ -124,20 +127,20 @@
         .dpad button:active { background: #3498db; transform: scale(0.92); }
         .dpad .empty { background: transparent; pointer-events: none; }
 
-        /* Botones de función */
+        /* ── Botones de función ── */
         .function-btns {
             display: flex;
             width: 100%;
             max-width: 400px;
-            gap: 5px;
+            gap: 6px;
         }
         .function-btns button {
             flex: 1;
-            font-size: 13px;
+            font-size: 14px;
             font-weight: 700;
-            padding: 10px 0;
-            border: 2px solid transparent;
-            border-radius: 8px;
+            padding: 14px 0;
+            border: 3px solid transparent;
+            border-radius: 10px;
             background: #444;
             color: #fff;
             transition: border-color 0.2s;
@@ -174,7 +177,6 @@
 
     <script>
         const socket = io();
-
         function enviar(cmd) {
             socket.emit('comando', cmd);
             if (window.navigator?.vibrate) window.navigator.vibrate(15);
@@ -212,26 +214,23 @@
                 return 2 * cal.testDistanceM * 1000 * Math.tan(rad(angleMin / 2));
             }
 
+            // Tamaño fijo basado en 20/20 a distancia de prueba
+            const baseH_mm = optotypeHeightMM(1.0);
+            const baseH_css = cssHeight(baseH_mm);
+
             const firstDecimal = data.lines[0]?.decimal || 1.0;
-            const baseH_mm = optotypeHeightMM(firstDecimal);
-            let baseSpacing = cssHeight(baseH_mm) * 0.5;
+            const firstH_mm = optotypeHeightMM(firstDecimal);
+            let baseSpacing = cssHeight(firstH_mm) * 0.5;
             if (data.lines.length > 1) baseSpacing *= 1.15;
-            const responsiveGap = `clamp(3px, 1vw, ${baseSpacing}px)`;
-            container.style.gap = responsiveGap;
+            const gap = Math.min(12, baseSpacing);  // límite superior para que quepa
+            container.style.gap = gap + 'px';
 
-            // Índice de línea resaltada (global -> local)
-            const currentScreen = data.lines;
-            const highlightLineIdx = data.highlightMode ? data.highlightLineIdx : -1;
-
-            currentScreen.forEach((line, li) => {
-                const h_mm = optotypeHeightMM(line.decimal);
-                const h_css = cssHeight(h_mm); // sin límite
-
+            data.lines.forEach((line, li) => {
                 const lineDiv = document.createElement('div');
                 lineDiv.className = 'remote-line';
-                lineDiv.style.gap = responsiveGap;
+                lineDiv.style.gap = gap + 'px';
 
-                if (data.highlightMode && li !== highlightLineIdx) {
+                if (data.highlightMode && li !== data.highlightLineIdx) {
                     lineDiv.classList.add('dimmed');
                 }
 
@@ -241,7 +240,7 @@
 
                 const row = document.createElement('div');
                 row.className = 'remote-row';
-                row.style.gap = responsiveGap;
+                row.style.gap = gap + 'px';
 
                 let chars = line.chars;
                 if (data.singleCharMode) chars = [chars[0]];
@@ -251,13 +250,13 @@
                         const span = document.createElement('span');
                         span.className = 'remote-text';
                         span.textContent = ch.char;
-                        span.style.fontSize = h_css + 'px';
+                        span.style.fontSize = baseH_css + 'px';   // tamaño fijo
                         row.appendChild(span);
                     } else {
                         const img = document.createElement('img');
                         const scaleE = 0.739, scaleFig = 0.769;
                         const scale = ch.key === 'E_0' ? scaleE : scaleFig;
-                        const size = h_css * scale;
+                        const size = baseH_css * scale;
                         img.style.height = size + 'px';
                         img.style.width  = size + 'px';
                         img.style.display = 'block';

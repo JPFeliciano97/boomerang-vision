@@ -23,8 +23,7 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: space-between;
-            padding: 10px;
+            padding: 8px;
             user-select: none;
             -webkit-user-select: none;
         }
@@ -32,16 +31,16 @@
         /* === Zona de optotipos (espejo del index) === */
         #remote-screen {
             width: 100%;
-            flex: 1;
+            max-height: 30vh;          /* 👈 más pequeño, no ocupa media pantalla */
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: clamp(8px, 2vw, 20px);
+            gap: 4px;
             background: #000;
-            border-radius: 12px;
-            margin-bottom: 10px;
-            padding: 10px;
+            border-radius: 10px;
+            margin-bottom: 8px;
+            padding: 6px;
             overflow: hidden;
         }
         .remote-line {
@@ -49,13 +48,13 @@
             align-items: center;
             justify-content: center;
             width: 100%;
-            gap: clamp(4px, 1vw, 15px);
+            gap: 4px;
         }
         .remote-row {
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: clamp(4px, 1vw, 15px);
+            gap: 4px;
         }
         .remote-row img {
             display: block;
@@ -68,13 +67,14 @@
             color: #fff;
             line-height: 1;
             display: block;
+            max-font-size: 40px;       /* 👈 limitamos tamaño máximo */
         }
         .remote-ann-left, .remote-ann-right {
             font-family: 'Segoe UI', 'Helvetica Neue', sans-serif;
             font-weight: 600;
             width: 60px;
             text-align: center;
-            font-size: clamp(14px, 3vw, 22px);
+            font-size: 14px;
             color: #aaa;
         }
 
@@ -82,13 +82,13 @@
         .mode-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
-            gap: 8px;
+            gap: 6px;
             width: 100%;
             max-width: 400px;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
         }
         .mode-grid button {
-            font-size: clamp(12px, 3vw, 18px);
+            font-size: 14px;
             font-weight: 700;
             padding: 12px 0;
             border: none;
@@ -105,15 +105,15 @@
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             grid-template-rows: repeat(3, 1fr);
-            gap: 8px;
-            width: 65vmin;
-            height: 65vmin;
-            max-width: 260px;
-            max-height: 260px;
-            margin-bottom: 8px;
+            gap: 6px;
+            width: 60vmin;
+            height: 60vmin;
+            max-width: 240px;
+            max-height: 240px;
+            margin-bottom: 6px;
         }
         .dpad button {
-            font-size: clamp(28px, 7vw, 40px);
+            font-size: 28px;
             border: none;
             border-radius: 10px;
             background: #2980b9;
@@ -136,12 +136,11 @@
             display: flex;
             width: 100%;
             max-width: 400px;
-            gap: 8px;
-            margin-bottom: 8px;
+            gap: 6px;
         }
         .function-btns button {
             flex: 1;
-            font-size: clamp(12px, 3vw, 18px);
+            font-size: 14px;
             font-weight: 700;
             padding: 12px 0;
             border: 3px solid transparent;
@@ -151,7 +150,7 @@
             transition: border-color 0.2s;
         }
         .function-btns button.active-func {
-            border-color: #f1c40f;
+            border-color: #f1c40f;      /* 👈 borde amarillo cuando está activo */
         }
         .function-btns button.special {
             background: linear-gradient(to right, #e74c3c 50%, #2ecc71 50%);
@@ -202,19 +201,29 @@
             }
         }
 
-        // Configurar botones de modo
+        // Botones de modo
         document.querySelectorAll('#mode-buttons button').forEach(btn => {
             btn.addEventListener('click', () => {
                 enviar('Mode:' + btn.dataset.mode);
             });
         });
 
-        // Actualizar modo activo
+        // Modo activo
         socket.on('modo', (modo) => {
             document.querySelectorAll('#mode-buttons button').forEach(btn => {
                 btn.classList.toggle('active-mode', btn.dataset.mode === modo);
             });
         });
+
+        // Actualizar botones de función
+        function updateFuncButtons(state) {
+            const resaltar = document.getElementById('btn-resaltar');
+            const individual = document.getElementById('btn-individual');
+            const bic = document.getElementById('btn-bic');
+            if (resaltar) resaltar.classList.toggle('active-func', state.highlightMode);
+            if (individual) individual.classList.toggle('active-func', state.singleCharMode);
+            if (bic) bic.classList.toggle('active-func', state.bichromatic);
+        }
 
         // Dibujar pantalla espejo
         socket.on('screenUpdate', (data) => {
@@ -223,21 +232,21 @@
             if (!data || !data.lines || !data.cal) return;
 
             const cal = data.cal;
-            const pxPerMM = cal.ppi / 25.4;
+            const pxPerMM = cal.pxPerMM;
             function cssHeight(h_mm) {
                 return (h_mm * pxPerMM) / cal.dprManual * cal.calibrationScale;
             }
             const rad = (min) => min * Math.PI / 10800;
             function optotypeHeightMM(decimal) {
                 const angleMin = 5 / decimal;
-                return 2 * cal.testDistanceM * 1000 * Math.tan(rad(angleMin/2));
+                return 2 * cal.testDistanceM * 1000 * Math.tan(rad(angleMin / 2));
             }
 
             const firstDecimal = data.lines[0]?.decimal || 1.0;
             const baseH_mm = optotypeHeightMM(firstDecimal);
             let baseSpacing = cssHeight(baseH_mm) * 0.5;
             if (data.lines.length > 1) baseSpacing *= 1.15;
-            const responsiveGap = `clamp(4px, 1.5vw, ${baseSpacing}px)`;
+            const responsiveGap = `clamp(3px, 1vw, ${baseSpacing}px)`;
             container.style.gap = responsiveGap;
 
             data.lines.forEach(line => {
@@ -250,7 +259,7 @@
 
                 const leftAnn = document.createElement('div');
                 leftAnn.className = 'remote-ann-left';
-                leftAnn.textContent = line.snellen; // solo denominador
+                leftAnn.textContent = line.snellen;
 
                 const row = document.createElement('div');
                 row.className = 'remote-row';
@@ -261,7 +270,7 @@
                         const span = document.createElement('span');
                         span.className = 'remote-text';
                         span.textContent = ch.char;
-                        span.style.fontSize = h_css + 'px';
+                        span.style.fontSize = Math.min(h_css, 40) + 'px'; // 👈 límite máximo
                         row.appendChild(span);
                     } else {
                         const img = document.createElement('img');
@@ -269,23 +278,12 @@
                         const scaleFig = 0.769;
                         const scale = ch.key === 'E_0' ? scaleE : scaleFig;
                         const size = h_css * scale;
-                        img.style.height = size + 'px';
-                        img.style.width  = size + 'px';
+                        img.style.height = Math.min(size, 40) + 'px';  // 👈 límite máximo
+                        img.style.width  = img.style.height;
                         img.style.display = 'block';
                         img.style.transformOrigin = 'center center';
                         if (ch.rot) img.style.transform = `rotate(${ch.rot}deg)`;
-                        // Como el remote no tiene los SVGs incrustados, los recibe como data URIs desde el index
-                        // pero el index no envía las URIs. Para simplificar, podemos enviar también las URIs base64.
-                        // O bien, el servidor puede reenviar el screenUpdate que ya contiene chars pero no las imágenes.
-                        // Solución: incluir las URIs en el objeto chars desde el index.
-                        // Modificar index.html para enviar también la URI en cada char.
-                        // En este remote asumimos que el objeto ch incluye 'uri' (data URI).
-                        if (ch.uri) {
-                            img.src = ch.uri;
-                        } else {
-                            // Fallback: crear un placeholder
-                            img.src = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 60"><rect width="60" height="60" fill="#ccc"/></svg>');
-                        }
+                        img.src = ch.uri || '';
                         row.appendChild(img);
                     }
                 });
@@ -299,23 +297,12 @@
                 lineDiv.appendChild(rightAnn);
                 container.appendChild(lineDiv);
             });
-        });
 
-        // Actualizar estado de botones de función
-        function updateFuncButtons(state) {
-            const resaltar = document.getElementById('btn-resaltar');
-            const individual = document.getElementById('btn-individual');
-            const bic = document.getElementById('btn-bic');
-            if (resaltar) resaltar.classList.toggle('active-func', state.highlightMode);
-            if (individual) individual.classList.toggle('active-func', state.singleCharMode);
-            if (bic) bic.classList.toggle('active-func', state.bichromatic);
-        }
-
-        // Recibir actualizaciones de estado
-        socket.on('screenUpdate', (data) => {
+            // Actualizar estado de los botones de función
             updateFuncButtons(data);
         });
-        // También al conectar pedir estado actual
+
+        // Al conectar, pedir el estado actual al servidor (que reenviará al index)
         socket.on('connect', () => {
             socket.emit('requestScreenUpdate');
         });

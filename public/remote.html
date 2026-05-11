@@ -23,23 +23,23 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            padding: 8px;
+            padding: 6px;
             user-select: none;
             -webkit-user-select: none;
         }
 
-        /* === Zona de optotipos (tamaño fijo) === */
+        /* Zona de optotipos (tamaño fijo) */
         #remote-screen {
             width: 100%;
-            height: 130px;                     /* 👈 tamaño fijo */
+            height: 130px;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 4px;
+            gap: 3px;
             background: #000;
             border-radius: 10px;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
             overflow: hidden;
         }
         .remote-line {
@@ -67,55 +67,54 @@
             line-height: 1;
             display: block;
         }
-        /* Atenuación igual que en el index */
         .remote-line.dimmed .remote-text,
         .remote-line.dimmed img { opacity: 0.10; }
 
         .remote-ann-left, .remote-ann-right {
             font-family: 'Segoe UI', 'Helvetica Neue', sans-serif;
             font-weight: 600;
-            width: 60px;
+            width: 55px;
             text-align: center;
-            font-size: 14px;
+            font-size: 13px;
             color: #aaa;
         }
 
-        /* === Botones de modo === */
+        /* Botones de modo */
         .mode-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
-            gap: 6px;
+            gap: 5px;
             width: 100%;
             max-width: 400px;
-            margin-bottom: 6px;
+            margin-bottom: 5px;
         }
         .mode-grid button {
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 700;
-            padding: 12px 0;
+            padding: 10px 0;
             border: none;
-            border-radius: 10px;
+            border-radius: 8px;
             background: #333;
             color: #fff;
         }
         .mode-grid button.active-mode { background: #2980b9; }
 
-        /* === Cruz direccional === */
+        /* Cruz direccional */
         .dpad {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             grid-template-rows: repeat(3, 1fr);
-            gap: 6px;
-            width: 60vmin;
-            height: 60vmin;
-            max-width: 240px;
-            max-height: 240px;
-            margin-bottom: 6px;
+            gap: 5px;
+            width: 55vmin;
+            height: 55vmin;
+            max-width: 220px;
+            max-height: 220px;
+            margin-bottom: 5px;
         }
         .dpad button {
-            font-size: 28px;
+            font-size: 26px;
             border: none;
-            border-radius: 10px;
+            border-radius: 8px;
             background: #2980b9;
             color: #fff;
             display: flex;
@@ -125,20 +124,20 @@
         .dpad button:active { background: #3498db; transform: scale(0.92); }
         .dpad .empty { background: transparent; pointer-events: none; }
 
-        /* === Botones de función (estado activo) === */
+        /* Botones de función */
         .function-btns {
             display: flex;
             width: 100%;
             max-width: 400px;
-            gap: 6px;
+            gap: 5px;
         }
         .function-btns button {
             flex: 1;
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 700;
-            padding: 12px 0;
-            border: 3px solid transparent;
-            border-radius: 10px;
+            padding: 10px 0;
+            border: 2px solid transparent;
+            border-radius: 8px;
             background: #444;
             color: #fff;
             transition: border-color 0.2s;
@@ -220,18 +219,18 @@
             const responsiveGap = `clamp(3px, 1vw, ${baseSpacing}px)`;
             container.style.gap = responsiveGap;
 
-            // Determinar la línea resaltada (para atenuar las demás)
+            // Índice de línea resaltada (global -> local)
+            const currentScreen = data.lines;
             const highlightLineIdx = data.highlightMode ? data.highlightLineIdx : -1;
 
-            data.lines.forEach((line, li) => {
+            currentScreen.forEach((line, li) => {
                 const h_mm = optotypeHeightMM(line.decimal);
-                const h_css = Math.min(cssHeight(h_mm), 40); // tamaño máximo en px
+                const h_css = cssHeight(h_mm); // sin límite
 
                 const lineDiv = document.createElement('div');
                 lineDiv.className = 'remote-line';
                 lineDiv.style.gap = responsiveGap;
 
-                // Atenuar si estamos en modo resaltar y esta línea no es la activa
                 if (data.highlightMode && li !== highlightLineIdx) {
                     lineDiv.classList.add('dimmed');
                 }
@@ -245,7 +244,7 @@
                 row.style.gap = responsiveGap;
 
                 let chars = line.chars;
-                if (data.singleCharMode) chars = [chars[0]]; // solo un carácter
+                if (data.singleCharMode) chars = [chars[0]];
 
                 chars.forEach(ch => {
                     if (ch.type === 'text') {

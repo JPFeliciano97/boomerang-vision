@@ -16,13 +16,13 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            padding: 8px;
+            padding: 6px;
             user-select: none;
             -webkit-user-select: none;
             overflow: hidden;
         }
 
-        /* Contenedor del remoto: sin scroll, altura ajustable pero fija */
+        /* Contenedor principal compacto */
         #remote-screen {
             width: 100%;
             max-width: 500px;
@@ -32,11 +32,10 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 12px;
             background: #000;
             border-radius: 12px;
-            margin-bottom: 12px;
-            padding: 10px 6px;
+            margin-bottom: 10px;
+            padding: 8px 4px;
             overflow: hidden;
         }
         #remote-screen img { filter: invert(1); }
@@ -46,13 +45,13 @@
             align-items: center;
             justify-content: center;
             width: 100%;
-            gap: 8px;
+            gap: 10px;   /* mismo gap entre anotación y fila */
         }
         .remote-row {
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 8px;
+            gap: 10px;   /* mismo gap entre optotipos */
         }
         .remote-row img {
             display: block;
@@ -64,23 +63,23 @@
             color: #fff;
             line-height: 1;
             display: block;
-            font-size: 28px;  /* Tamaño fijo para letras/números */
+            font-size: 32px;  /* Tamaño fijo para todos los niveles */
         }
         .remote-line.dimmed .remote-text,
         .remote-line.dimmed img { opacity: 0.10; }
 
-        /* Anotaciones: siempre visibles, ancho fijo */
+        /* Anotaciones más compactas */
         .remote-ann-left, .remote-ann-right {
             font-family: 'Segoe UI', 'Helvetica Neue', sans-serif;
             font-weight: 600;
-            width: 50px;
+            width: 45px;
             text-align: center;
-            font-size: 14px;
+            font-size: 12px;
             color: #aaa;
             flex-shrink: 0;
         }
 
-        /* Botones (modo, direccional, función) - mismos estilos compactos */
+        /* Botones (modos, direccional, funciones) optimizados */
         .mode-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
@@ -189,18 +188,17 @@
             document.getElementById('btn-bic')?.classList.toggle('active-func', state.bichromatic);
         }
 
-        // Tamaños fijos para el remoto (no se escala según la línea)
-        const BASE_FONT_SIZE = 28;      // px para letras/números
-        const SCALE_E = 0.739;          // para E direccional
-        const SCALE_FIG = 0.769;        // para figuras infantiles
+        // Configuración fija para el remoto
+        const BASE_FONT_SIZE = 32;      // px
+        const SCALE_E = 0.739;
+        const SCALE_FIG = 0.769;
 
         socket.on('screenUpdate', (data) => {
             const container = document.getElementById('remote-screen');
             container.innerHTML = '';
             if (!data?.lines) return;
 
-            // Espaciado fijo para todas las líneas
-            const gap = 10;
+            const gap = 10;   // Mismo espaciado vertical/horizontal
             container.style.gap = gap + 'px';
 
             data.lines.forEach((line, li) => {
@@ -208,18 +206,19 @@
                 lineDiv.className = 'remote-line';
                 lineDiv.style.gap = gap + 'px';
 
-                // Resaltado si aplica
                 if (data.highlightMode && li !== data.highlightLineIdx) {
                     lineDiv.classList.add('dimmed');
                 }
 
-                // Anotación izquierda (Snellen: solo denominador)
+                // Anotación izquierda: solo el denominador de Snellen
                 const leftAnn = document.createElement('div');
                 leftAnn.className = 'remote-ann-left';
-                const denominator = line.snellen.split('/')[1];
+                let denominator = line.snellen;
+                if (denominator && denominator.includes('/')) {
+                    denominator = denominator.split('/')[1];
+                }
                 leftAnn.textContent = denominator;
 
-                // Fila de optotipos
                 const row = document.createElement('div');
                 row.className = 'remote-row';
                 row.style.gap = gap + 'px';
@@ -232,12 +231,10 @@
                         const span = document.createElement('span');
                         span.className = 'remote-text';
                         span.textContent = ch.char;
-                        // Tamaño fijo, no depende de la línea
                         span.style.fontSize = BASE_FONT_SIZE + 'px';
                         row.appendChild(span);
                     } else {
                         const img = document.createElement('img');
-                        // Escalas fijas aplicadas al tamaño base
                         let scale = ch.key === 'E_0' ? SCALE_E : SCALE_FIG;
                         const size = BASE_FONT_SIZE * scale;
                         img.style.height = size + 'px';
@@ -249,7 +246,6 @@
                     }
                 });
 
-                // Anotación derecha (decimal)
                 const rightAnn = document.createElement('div');
                 rightAnn.className = 'remote-ann-right';
                 rightAnn.textContent = line.decimal.toFixed(2);

@@ -6,7 +6,7 @@
     <title>Control Remoto Boomerang</title>
     <script src="/socket.io/socket.io.js"></script>
     <style>
-        /* ═══════════ FUENTE OPTICIAN SANS (para el título) ═══════════ */
+        /* ═══════════ FUENTE OPTICIAN SANS (título) ═══════════ */
         @font-face {
             font-family: 'OpticianSans';
             src: url('/OpticianSans.woff') format('woff');
@@ -31,7 +31,7 @@
             overflow: hidden;
         }
 
-        /* Título estilo BOOMERANG VISION */
+        /* Título BOOMERANG VISION */
         .remote-title {
             font-family: 'OpticianSans', 'Arial Black', Impact, sans-serif;
             font-size: 16px;
@@ -39,7 +39,7 @@
             color: #ccc;
             letter-spacing: 2px;
             text-align: center;
-            margin-bottom: 8px;
+            margin-bottom: 20px;   /* 20px abajo del título */
         }
 
         /* Contenedor principal */
@@ -54,7 +54,7 @@
             justify-content: center;
             background: #000;
             border-radius: 12px;
-            margin-bottom: 12px;
+            margin-bottom: 20px;    /* separación inferior */
             padding: 8px 4px;
             overflow: hidden;
         }
@@ -83,7 +83,7 @@
             color: #fff;
             line-height: 1;
             display: block;
-            font-size: 36px;  /* aumentado de 32px a 36px */
+            font-size: 36px;
         }
         .remote-line.dimmed .remote-text,
         .remote-line.dimmed img { opacity: 0.10; }
@@ -98,14 +98,14 @@
             flex-shrink: 0;
         }
 
-        /* Botones */
+        /* Botones de modo */
         .mode-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
             gap: 6px;
             width: 100%;
             max-width: 400px;
-            margin-bottom: 14px;  /* más separación */
+            margin-bottom: 20px;   /* 20px abajo de los botones de modo */
         }
         .mode-grid button {
             font-size: 13px;
@@ -118,6 +118,7 @@
         }
         .mode-grid button.active-mode { background: #2980b9; }
 
+        /* Cruz direccional */
         .dpad {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
@@ -127,7 +128,7 @@
             height: 60vmin;
             max-width: 220px;
             max-height: 220px;
-            margin-bottom: 14px;  /* más separación */
+            margin-bottom: 20px;   /* 20px abajo de las flechas */
         }
         .dpad button {
             font-size: 28px;
@@ -139,11 +140,13 @@
         .dpad button:active { background: #3498db; transform: scale(0.92); }
         .dpad .empty { background: transparent; pointer-events: none; }
 
+        /* Botones de función (inferiores) */
         .function-btns {
             display: flex;
             width: 100%;
             max-width: 400px;
             gap: 6px;
+            margin-top: 0;
         }
         .function-btns button {
             flex: 1;
@@ -209,8 +212,7 @@
             document.getElementById('btn-bic')?.classList.toggle('active-func', state.bichromatic);
         }
 
-        // Configuración fija para el remoto
-        const BASE_FONT_SIZE = 36;      // px (aumentado)
+        const BASE_FONT_SIZE = 36;
         const SCALE_E = 0.739;
         const SCALE_FIG = 0.769;
 
@@ -219,7 +221,7 @@
             container.innerHTML = '';
             if (!data?.lines) return;
 
-            const gap = 12;   // espaciado uniforme (aumentado ligeramente)
+            const gap = 12;
             container.style.gap = gap + 'px';
 
             data.lines.forEach((line, li) => {
@@ -231,7 +233,6 @@
                     lineDiv.classList.add('dimmed');
                 }
 
-                // Anotación izquierda: solo el denominador de Snellen
                 const leftAnn = document.createElement('div');
                 leftAnn.className = 'remote-ann-left';
                 let denominator = line.snellen;

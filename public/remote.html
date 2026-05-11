@@ -28,10 +28,10 @@
             -webkit-user-select: none;
         }
 
-        /* === Zona de optotipos (espejo del index) === */
+        /* === Zona de optotipos (tamaño fijo) === */
         #remote-screen {
             width: 100%;
-            max-height: 30vh;          /* 👈 más pequeño, no ocupa media pantalla */
+            height: 130px;                     /* 👈 tamaño fijo */
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -40,7 +40,6 @@
             background: #000;
             border-radius: 10px;
             margin-bottom: 8px;
-            padding: 6px;
             overflow: hidden;
         }
         .remote-line {
@@ -67,8 +66,11 @@
             color: #fff;
             line-height: 1;
             display: block;
-            max-font-size: 40px;       /* 👈 limitamos tamaño máximo */
         }
+        /* Atenuación igual que en el index */
+        .remote-line.dimmed .remote-text,
+        .remote-line.dimmed img { opacity: 0.10; }
+
         .remote-ann-left, .remote-ann-right {
             font-family: 'Segoe UI', 'Helvetica Neue', sans-serif;
             font-weight: 600;
@@ -96,9 +98,7 @@
             background: #333;
             color: #fff;
         }
-        .mode-grid button.active-mode {
-            background: #2980b9;
-        }
+        .mode-grid button.active-mode { background: #2980b9; }
 
         /* === Cruz direccional === */
         .dpad {
@@ -122,16 +122,10 @@
             align-items: center;
             justify-content: center;
         }
-        .dpad button:active {
-            background: #3498db;
-            transform: scale(0.92);
-        }
-        .dpad .empty {
-            background: transparent;
-            pointer-events: none;
-        }
+        .dpad button:active { background: #3498db; transform: scale(0.92); }
+        .dpad .empty { background: transparent; pointer-events: none; }
 
-        /* === Botones de función con estado activo === */
+        /* === Botones de función (estado activo) === */
         .function-btns {
             display: flex;
             width: 100%;
@@ -149,9 +143,7 @@
             color: #fff;
             transition: border-color 0.2s;
         }
-        .function-btns button.active-func {
-            border-color: #f1c40f;      /* 👈 borde amarillo cuando está activo */
-        }
+        .function-btns button.active-func { border-color: #f1c40f; }
         .function-btns button.special {
             background: linear-gradient(to right, #e74c3c 50%, #2ecc71 50%);
             color: #fff;
@@ -160,10 +152,8 @@
     </style>
 </head>
 <body>
-    <!-- Espejo de la pantalla principal -->
     <div id="remote-screen"></div>
 
-    <!-- Modo -->
     <div class="mode-grid" id="mode-buttons">
         <button data-mode="letters" class="active-mode">Letras</button>
         <button data-mode="numbers">Números</button>
@@ -171,20 +161,12 @@
         <button data-mode="e_directional">E direc.</button>
     </div>
 
-    <!-- Cruz direccional -->
     <div class="dpad">
-        <div class="empty"></div>
-        <button onclick="enviar('ArrowUp')">▲</button>
-        <div class="empty"></div>
-        <button onclick="enviar('ArrowLeft')">◀</button>
-        <div class="empty"></div>
-        <button onclick="enviar('ArrowRight')">▶</button>
-        <div class="empty"></div>
-        <button onclick="enviar('ArrowDown')">▼</button>
-        <div class="empty"></div>
+        <div class="empty"></div><button onclick="enviar('ArrowUp')">▲</button><div class="empty"></div>
+        <button onclick="enviar('ArrowLeft')">◀</button><div class="empty"></div><button onclick="enviar('ArrowRight')">▶</button>
+        <div class="empty"></div><button onclick="enviar('ArrowDown')">▼</button><div class="empty"></div>
     </div>
 
-    <!-- Funciones -->
     <div class="function-btns" id="func-buttons">
         <button id="btn-resaltar" onclick="enviar('KeyR')">🔦 Resaltar</button>
         <button id="btn-individual" onclick="enviar('KeyU')">👤 Individual</button>
@@ -196,40 +178,29 @@
 
         function enviar(cmd) {
             socket.emit('comando', cmd);
-            if (window.navigator && window.navigator.vibrate) {
-                window.navigator.vibrate(15);
-            }
+            if (window.navigator?.vibrate) window.navigator.vibrate(15);
         }
 
-        // Botones de modo
         document.querySelectorAll('#mode-buttons button').forEach(btn => {
-            btn.addEventListener('click', () => {
-                enviar('Mode:' + btn.dataset.mode);
-            });
+            btn.addEventListener('click', () => enviar('Mode:' + btn.dataset.mode));
         });
 
-        // Modo activo
         socket.on('modo', (modo) => {
             document.querySelectorAll('#mode-buttons button').forEach(btn => {
                 btn.classList.toggle('active-mode', btn.dataset.mode === modo);
             });
         });
 
-        // Actualizar botones de función
         function updateFuncButtons(state) {
-            const resaltar = document.getElementById('btn-resaltar');
-            const individual = document.getElementById('btn-individual');
-            const bic = document.getElementById('btn-bic');
-            if (resaltar) resaltar.classList.toggle('active-func', state.highlightMode);
-            if (individual) individual.classList.toggle('active-func', state.singleCharMode);
-            if (bic) bic.classList.toggle('active-func', state.bichromatic);
+            document.getElementById('btn-resaltar')?.classList.toggle('active-func', state.highlightMode);
+            document.getElementById('btn-individual')?.classList.toggle('active-func', state.singleCharMode);
+            document.getElementById('btn-bic')?.classList.toggle('active-func', state.bichromatic);
         }
 
-        // Dibujar pantalla espejo
         socket.on('screenUpdate', (data) => {
             const container = document.getElementById('remote-screen');
             container.innerHTML = '';
-            if (!data || !data.lines || !data.cal) return;
+            if (!data?.lines || !data.cal) return;
 
             const cal = data.cal;
             const pxPerMM = cal.pxPerMM;
@@ -249,13 +220,21 @@
             const responsiveGap = `clamp(3px, 1vw, ${baseSpacing}px)`;
             container.style.gap = responsiveGap;
 
-            data.lines.forEach(line => {
+            // Determinar la línea resaltada (para atenuar las demás)
+            const highlightLineIdx = data.highlightMode ? data.highlightLineIdx : -1;
+
+            data.lines.forEach((line, li) => {
                 const h_mm = optotypeHeightMM(line.decimal);
-                const h_css = cssHeight(h_mm);
+                const h_css = Math.min(cssHeight(h_mm), 40); // tamaño máximo en px
 
                 const lineDiv = document.createElement('div');
                 lineDiv.className = 'remote-line';
                 lineDiv.style.gap = responsiveGap;
+
+                // Atenuar si estamos en modo resaltar y esta línea no es la activa
+                if (data.highlightMode && li !== highlightLineIdx) {
+                    lineDiv.classList.add('dimmed');
+                }
 
                 const leftAnn = document.createElement('div');
                 leftAnn.className = 'remote-ann-left';
@@ -265,21 +244,23 @@
                 row.className = 'remote-row';
                 row.style.gap = responsiveGap;
 
-                (line.chars || []).forEach(ch => {
+                let chars = line.chars;
+                if (data.singleCharMode) chars = [chars[0]]; // solo un carácter
+
+                chars.forEach(ch => {
                     if (ch.type === 'text') {
                         const span = document.createElement('span');
                         span.className = 'remote-text';
                         span.textContent = ch.char;
-                        span.style.fontSize = Math.min(h_css, 40) + 'px'; // 👈 límite máximo
+                        span.style.fontSize = h_css + 'px';
                         row.appendChild(span);
                     } else {
                         const img = document.createElement('img');
-                        const scaleE = 0.739;
-                        const scaleFig = 0.769;
+                        const scaleE = 0.739, scaleFig = 0.769;
                         const scale = ch.key === 'E_0' ? scaleE : scaleFig;
                         const size = h_css * scale;
-                        img.style.height = Math.min(size, 40) + 'px';  // 👈 límite máximo
-                        img.style.width  = img.style.height;
+                        img.style.height = size + 'px';
+                        img.style.width  = size + 'px';
                         img.style.display = 'block';
                         img.style.transformOrigin = 'center center';
                         if (ch.rot) img.style.transform = `rotate(${ch.rot}deg)`;
@@ -298,14 +279,10 @@
                 container.appendChild(lineDiv);
             });
 
-            // Actualizar estado de los botones de función
             updateFuncButtons(data);
         });
 
-        // Al conectar, pedir el estado actual al servidor (que reenviará al index)
-        socket.on('connect', () => {
-            socket.emit('requestScreenUpdate');
-        });
+        socket.on('connect', () => socket.emit('requestScreenUpdate'));
     </script>
 </body>
 </html>

@@ -17,14 +17,26 @@ app.get('/remote', (req, res) => {
 });
 
 io.on('connection', (socket) => {
-    // Reenviar comandos de control remoto
+    console.log('Cliente conectado:', socket.id);
+
+    // Reenviar comandos a todos los demás (del remote al index)
     socket.on('comando', (cmd) => {
         socket.broadcast.emit('comando', cmd);
     });
 
-    // Retransmitir el modo actual a los demás clientes
+    // Reenviar el modo actual a los demás
     socket.on('modo', (modo) => {
         socket.broadcast.emit('modo', modo);
+    });
+
+    // Reenviar el estado de la pantalla (del index al remote)
+    socket.on('screenUpdate', (data) => {
+        socket.broadcast.emit('screenUpdate', data);
+    });
+
+    // Cuando el remote pide el estado actual, se lo pedimos al index
+    socket.on('requestScreenUpdate', () => {
+        socket.broadcast.emit('requestScreenUpdate');
     });
 });
 

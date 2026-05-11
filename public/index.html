@@ -22,13 +22,33 @@
             user-select:none; -webkit-user-select:none;
         }
 
+        /* Barra de calibración con grid de 3 columnas */
         #calibration-bar {
-            background: #252525; border-bottom: 1px solid #333; padding: 8px 12px;
-            display:flex; flex-wrap:wrap; align-items:center; gap:8px; z-index:100;
-            font-size:10px; transition: all 0.3s ease; max-height:140px; overflow:hidden;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+            background: #252525;
+            border-bottom: 1px solid #333;
+            padding: 8px 12px;
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            align-items: center;
+            gap: 12px;
+            z-index: 100;
+            font-size: 10px;
+            transition: all 0.3s ease;
+            max-height: 140px;
+            overflow: hidden;
         }
         #calibration-bar.collapsed { max-height:0; padding:0; opacity:0; border-bottom:none; }
+
+        /* Columna izquierda: inputs y botón CALIBRAR */
+        .left-group {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+            justify-content: flex-start;
+        }
+        .cal-group { display:flex; align-items:center; gap:4px; }
+        .cal-sep { width:1px; height:18px; background:#444; margin:0 4px; }
         #calibration-bar label { color:#999; font-size:9px; text-transform:uppercase; letter-spacing:0.5px; }
         #calibration-bar input {
             background:#1a1a1a; border:1px solid #444; color:#fff; padding:5px 8px;
@@ -39,14 +59,38 @@
         .btn-sm {
             background: #2980b9; color:#fff; border:none; padding:6px 12px; border-radius:6px;
             cursor:pointer; font-size:10px; font-weight:600; white-space:nowrap;
-            transition: background 0.2s, transform 0.1s; box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            transition: background 0.2s, transform 0.1s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
         }
         .btn-sm:hover { background: #3498db; }
         .btn-sm:active { transform: scale(0.95); }
-        .btn-sm.toggle-btn { background: #444; }
-        .cal-group { display:flex; align-items:center; gap:4px; }
-        .cal-sep { width:1px; height:18px; background:#444; margin:0 4px; }
-        .mode-selector { display:flex; align-items:center; gap:6px; margin-left:auto; }
+        #btn-apply-cal { order: 0; }
+
+        /* Columna central: botón toggle + info */
+        .center-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            justify-content: center;
+        }
+        .btn-sm.toggle-btn {
+            background: #444;
+            margin: 0;
+        }
+        #info-span {
+            font-size: 9px;
+            color: #aaa;
+            white-space: nowrap;
+        }
+
+        /* Columna derecha: selector de modo */
+        .mode-selector {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            justify-content: flex-end;
+            flex-wrap: wrap;
+        }
         .bic-btn, .highlight-btn, .single-char-btn {
             border:1px solid #555; color:#fff; padding:5px 10px; border-radius:6px;
             font-size:10px; cursor:pointer; white-space:nowrap; transition: all 0.2s;
@@ -92,16 +136,26 @@
         #half-g { right:0; width:50%; background:#00FF00; }
 
         #lines-container {
-            position:absolute; top:45%; left:50%; transform:translate(-50%,-50%);
-            display:flex; flex-direction:column; align-items:center; justify-content:center;
+            position:absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display:flex;
+            flex-direction:column;
+            align-items:center;
+            justify-content:center;
             width:95%;
         }
         .optotype-line {
-            display:flex; align-items:center; justify-content:center;
+            display:flex;
+            align-items:center;
+            justify-content:center;
             width:100%;
         }
         .optotype-row {
-            display:flex; align-items:center; justify-content:center;
+            display:flex;
+            align-items:center;
+            justify-content:center;
         }
         .optotype-row img {
             display:block; flex-shrink:0;
@@ -144,8 +198,7 @@
             background:rgba(20,20,20,0.7); border:1px solid rgba(255,255,255,0.15);
             border-radius:12px; padding:12px 16px; font-size:10px; font-family:monospace;
             color:#ccc; line-height:1.8; backdrop-filter:blur(8px);
-            -webkit-backdrop-filter:blur(8px); transition:opacity 0.3s; pointer-events:auto;
-            text-align:left;
+            transition:opacity 0.3s; pointer-events:auto; text-align:left;
         }
         #shortcuts-panel.hidden { opacity:0; pointer-events:none; }
         #shortcuts-panel kbd {
@@ -161,22 +214,31 @@
         }
         #shortcuts-toggle:hover { color:#fff; border-color:rgba(255,255,255,0.5); }
         #qr-container { margin-top: 12px; display: flex; justify-content: center; }
-        #qr-container img { display:block; }
+        #qr-container img { display:block; width:150px; height:150px; }
     </style>
 </head>
 <body>
     <div id="calibration-bar">
-        <div class="cal-group"><label>Res. H</label><input type="number" id="res-h" value="2560" min="100"></div>
-        <div class="cal-group"><label>Res. V</label><input type="number" id="res-v" value="1440" min="100"></div>
-        <div class="cal-sep"></div>
-        <div class="cal-group"><label>Monitor ″</label><input type="number" id="monitor-size" value="24" step="0.1" min="5"></div>
-        <div class="cal-sep"></div>
-        <div class="cal-group"><label>Dist. m</label><input type="number" id="test-distance" value="6" step="0.1" min="0.5"></div>
-        <div class="cal-sep"></div>
-        <div class="cal-group"><label>DPR</label><input type="number" id="dpr-input" value="1" step="0.02" min="0.3" max="6" style="width:70px;"></div>
-        <button class="btn-sm" id="btn-apply-cal">▶ CALIBRAR</button>
-        <button class="btn-sm toggle-btn" id="btn-toggle-cal">▲</button>
-        <span style="font-size:9px;color:#aaa;" id="info-span"></span>
+        <!-- Columna izquierda -->
+        <div class="left-group">
+            <div class="cal-group"><label>Res. H</label><input type="number" id="res-h" value="2560" min="100"></div>
+            <div class="cal-group"><label>Res. V</label><input type="number" id="res-v" value="1440" min="100"></div>
+            <div class="cal-sep"></div>
+            <div class="cal-group"><label>Monitor ″</label><input type="number" id="monitor-size" value="24" step="0.1" min="5"></div>
+            <div class="cal-sep"></div>
+            <div class="cal-group"><label>Dist. m</label><input type="number" id="test-distance" value="6" step="0.1" min="0.5"></div>
+            <div class="cal-sep"></div>
+            <div class="cal-group"><label>DPR</label><input type="number" id="dpr-input" value="1" step="0.02" min="0.3" max="6" style="width:70px;"></div>
+            <button class="btn-sm" id="btn-apply-cal">▶ CALIBRAR</button>
+        </div>
+
+        <!-- Columna central: botón toggle + info -->
+        <div class="center-group">
+            <button class="btn-sm toggle-btn" id="btn-toggle-cal">▲</button>
+            <span id="info-span"></span>
+        </div>
+
+        <!-- Columna derecha -->
         <div class="mode-selector">
             <button class="mode-btn active" data-mode="letters">Letras</button>
             <button class="mode-btn" data-mode="numbers">Números</button>
@@ -326,7 +388,6 @@
                 const responsiveGap = `clamp(8px, 2vw, ${baseSpacing}px)`;
                 d.linesContainer.style.gap = responsiveGap;
 
-                // Índice local de la línea resaltada (dentro de esta pantalla)
                 let localHighlightIdx = -1;
                 if (state.highlightMode) {
                     const globalLine = ALL_LINES[state.highlightLineGlobalIdx];
@@ -367,8 +428,7 @@
                             row.appendChild(span);
                         } else {
                             const img = document.createElement('img');
-                            const scaleE = 0.739;
-                            const scaleFig = 0.769;
+                            const scaleE = 0.739, scaleFig = 0.769;
                             const scale = ch.key === 'E_0' ? scaleE : scaleFig;
                             const size = h_css * scale;
                             img.style.height = size + 'px';
@@ -391,7 +451,6 @@
                     d.linesContainer.appendChild(lineDiv);
                 });
 
-                // Enviar estado al remote (con índice local de resalte)
                 if (window.remoteSocket && window.remoteSocket.connected) {
                     const screenData = {
                         lines: screen.lines.map((line, li) => ({
@@ -413,7 +472,7 @@
                         },
                         mode: state.mode,
                         highlightMode: state.highlightMode,
-                        highlightLineIdx: localHighlightIdx,   // índice local
+                        highlightLineIdx: localHighlightIdx,
                         singleCharMode: state.singleCharMode,
                         bichromatic: state.bichromatic,
                     };
@@ -549,6 +608,7 @@
             }
 
             let qrGenerated = false;
+            let shortcutsTimer = null;
             function toggleShortcuts(){
                 const panel = d.shortcutsPanel;
                 const isHidden = panel.classList.contains('hidden');
@@ -565,8 +625,15 @@
                         d.qrContainer.appendChild(img);
                         qrGenerated = true;
                     }
+                    if (shortcutsTimer) clearTimeout(shortcutsTimer);
+                    shortcutsTimer = setTimeout(() => {
+                        if (!d.shortcutsPanel.classList.contains('hidden')) {
+                            d.shortcutsPanel.classList.add('hidden');
+                        }
+                    }, 7000);
                 } else {
                     panel.classList.add('hidden');
+                    if (shortcutsTimer) clearTimeout(shortcutsTimer);
                 }
             }
 

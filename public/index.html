@@ -346,7 +346,7 @@
                     
                     const leftAnn = document.createElement('div');
                     leftAnn.className = 'line-annotation-left';
-                    leftAnn.textContent = line.snellen.split('/')[1];  // solo denominador
+                    leftAnn.textContent = line.snellen.split('/')[1];
                     
                     const row = document.createElement('div');
                     row.className = 'optotype-row';
@@ -385,7 +385,7 @@
                     d.linesContainer.appendChild(lineDiv);
                 });
 
-                // Enviar estado al panel remoto
+                // Enviar estado al panel remoto (incluyendo URIs)
                 if (window.remoteSocket && window.remoteSocket.connected) {
                     const screenData = {
                         lines: screen.lines.map((line, li) => ({
@@ -396,7 +396,8 @@
                                 type: ch.type,
                                 char: ch.char || '',
                                 key: ch.key || '',
-                                rot: ch.rot || 0
+                                rot: ch.rot || 0,
+                                uri: ch.type === 'img' ? SVG_CACHE[ch.key] : null
                             }))
                         })),
                         cal: {
@@ -608,6 +609,7 @@
             (function setupRemote() {
                 window.remoteSocket = io();
                 const socket = window.remoteSocket;
+
                 socket.on('comando', (cmd) => {
                     if (cmd.startsWith('Mode:')) {
                         const modo = cmd.split(':')[1];
@@ -622,9 +624,15 @@
                         document.dispatchEvent(keyEvent);
                     }
                 });
+
                 socket.on('connect', () => {
                     socket.emit('modo', state.mode);
-                    // Enviar estado inicial al conectar un nuevo remote
+                    // Enviar estado inicial al remote
+                    renderScreen(); // Esto ya emite screenUpdate
+                });
+
+                // Cuando el remote pide el estado actual (poco después de conectarse)
+                socket.on('requestScreenUpdate', () => {
                     renderScreen();
                 });
             })();

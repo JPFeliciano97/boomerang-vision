@@ -6,6 +6,15 @@
     <title>Control Remoto Boomerang</title>
     <script src="/socket.io/socket.io.js"></script>
     <style>
+        /* ═══════════ FUENTE OPTICIAN SANS (para el título) ═══════════ */
+        @font-face {
+            font-family: 'OpticianSans';
+            src: url('/OpticianSans.woff') format('woff');
+            font-weight: normal;
+            font-style: normal;
+            font-display: block;
+        }
+
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
             font-family: system-ui, -apple-system, sans-serif;
@@ -22,7 +31,18 @@
             overflow: hidden;
         }
 
-        /* Contenedor principal compacto */
+        /* Título estilo BOOMERANG VISION */
+        .remote-title {
+            font-family: 'OpticianSans', 'Arial Black', Impact, sans-serif;
+            font-size: 16px;
+            font-weight: normal;
+            color: #ccc;
+            letter-spacing: 2px;
+            text-align: center;
+            margin-bottom: 8px;
+        }
+
+        /* Contenedor principal */
         #remote-screen {
             width: 100%;
             max-width: 500px;
@@ -34,7 +54,7 @@
             justify-content: center;
             background: #000;
             border-radius: 12px;
-            margin-bottom: 10px;
+            margin-bottom: 12px;
             padding: 8px 4px;
             overflow: hidden;
         }
@@ -45,13 +65,13 @@
             align-items: center;
             justify-content: center;
             width: 100%;
-            gap: 10px;   /* mismo gap entre anotación y fila */
+            gap: 12px;
         }
         .remote-row {
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 10px;   /* mismo gap entre optotipos */
+            gap: 12px;
         }
         .remote-row img {
             display: block;
@@ -63,12 +83,11 @@
             color: #fff;
             line-height: 1;
             display: block;
-            font-size: 32px;  /* Tamaño fijo para todos los niveles */
+            font-size: 36px;  /* aumentado de 32px a 36px */
         }
         .remote-line.dimmed .remote-text,
         .remote-line.dimmed img { opacity: 0.10; }
 
-        /* Anotaciones más compactas */
         .remote-ann-left, .remote-ann-right {
             font-family: 'Segoe UI', 'Helvetica Neue', sans-serif;
             font-weight: 600;
@@ -79,19 +98,19 @@
             flex-shrink: 0;
         }
 
-        /* Botones (modos, direccional, funciones) optimizados */
+        /* Botones */
         .mode-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
-            gap: 5px;
+            gap: 6px;
             width: 100%;
             max-width: 400px;
-            margin-bottom: 8px;
+            margin-bottom: 14px;  /* más separación */
         }
         .mode-grid button {
             font-size: 13px;
             font-weight: 700;
-            padding: 8px 0;
+            padding: 9px 0;
             border: none;
             border-radius: 8px;
             background: #333;
@@ -103,12 +122,12 @@
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             grid-template-rows: repeat(3, 1fr);
-            gap: 5px;
+            gap: 6px;
             width: 60vmin;
             height: 60vmin;
             max-width: 220px;
             max-height: 220px;
-            margin-bottom: 8px;
+            margin-bottom: 14px;  /* más separación */
         }
         .dpad button {
             font-size: 28px;
@@ -124,13 +143,13 @@
             display: flex;
             width: 100%;
             max-width: 400px;
-            gap: 5px;
+            gap: 6px;
         }
         .function-btns button {
             flex: 1;
             font-size: 12px;
             font-weight: 700;
-            padding: 10px 0;
+            padding: 11px 0;
             border: 2px solid transparent;
             border-radius: 8px;
             background: #444;
@@ -144,6 +163,8 @@
     </style>
 </head>
 <body>
+    <div class="remote-title">BOOMERANG VISION</div>
+
     <div id="remote-screen"></div>
 
     <div class="mode-grid" id="mode-buttons">
@@ -189,7 +210,7 @@
         }
 
         // Configuración fija para el remoto
-        const BASE_FONT_SIZE = 32;      // px
+        const BASE_FONT_SIZE = 36;      // px (aumentado)
         const SCALE_E = 0.739;
         const SCALE_FIG = 0.769;
 
@@ -198,7 +219,7 @@
             container.innerHTML = '';
             if (!data?.lines) return;
 
-            const gap = 10;   // Mismo espaciado vertical/horizontal
+            const gap = 12;   // espaciado uniforme (aumentado ligeramente)
             container.style.gap = gap + 'px';
 
             data.lines.forEach((line, li) => {

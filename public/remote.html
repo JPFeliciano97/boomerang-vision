@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Control Remoto Boomerang</title>
     <script src="/socket.io/socket.io.js"></script>
     <style>
@@ -16,57 +16,48 @@
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body {
+        html, body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
             font-family: system-ui, -apple-system, sans-serif;
             background: #111;
             color: #fff;
-            height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0;
-            overflow: hidden;
-            user-select: none;
-            -webkit-user-select: none;
-        }
-
-        /* ── Envolvente escalable ── */
-        #scale-wrapper {
-            width: 375px;                    /* ancho de referencia (iPhone 6/7/8) */
-            margin: 0 auto;
-            transform-origin: top left;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            padding: 6px;
+            user-select: none;
+            -webkit-user-select: none;
         }
 
         /* Título BOOMERANG VISION */
         .remote-title {
             font-family: 'OpticianSans', 'Arial Black', Impact, sans-serif;
-            font-size: 16px;
+            font-size: 5vw;           /* responsivo */
             font-weight: normal;
             color: #ccc;
-            letter-spacing: 2px;
+            letter-spacing: 0.5vw;
             text-align: center;
-            margin-bottom: 20px;
+            margin-bottom: 2vh;
         }
 
         /* Contenedor principal */
         #remote-screen {
-            width: 100%;
+            width: 94%;
             max-width: 500px;
-            height: auto;
-            min-height: 260px;
+            flex: 0 0 auto;
+            min-height: 28vh;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             background: #000;
-            border-radius: 12px;
-            margin-bottom: 20px;
-            padding: 8px 4px;
+            border-radius: 3vw;
+            margin-bottom: 2vh;
+            padding: 2vw;
             overflow: hidden;
         }
         #remote-screen img { filter: invert(1); }
@@ -76,13 +67,13 @@
             align-items: center;
             justify-content: center;
             width: 100%;
-            gap: 12px;
+            gap: 3vw;
         }
         .remote-row {
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 12px;
+            gap: 3vw;
         }
         .remote-row img {
             display: block;
@@ -94,7 +85,7 @@
             color: #fff;
             line-height: 1;
             display: block;
-            font-size: 36px;
+            font-size: 8vw;          /* antes 36px -> ahora responsivo */
         }
         .remote-line.dimmed .remote-text,
         .remote-line.dimmed img { opacity: 0.10; }
@@ -102,9 +93,9 @@
         .remote-ann-left, .remote-ann-right {
             font-family: 'Segoe UI', 'Helvetica Neue', sans-serif;
             font-weight: 600;
-            width: 45px;
+            width: 14vw;
             text-align: center;
-            font-size: 12px;
+            font-size: 3.5vw;
             color: #aaa;
             flex-shrink: 0;
         }
@@ -113,17 +104,17 @@
         .mode-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
-            gap: 6px;
-            width: 100%;
+            gap: 2vw;
+            width: 94%;
             max-width: 400px;
-            margin-bottom: 20px;
+            margin-bottom: 2vh;
         }
         .mode-grid button {
-            font-size: 13px;
+            font-size: 3.5vw;
             font-weight: 700;
-            padding: 9px 0;
+            padding: 2.5vw 0;
             border: none;
-            border-radius: 8px;
+            border-radius: 2vw;
             background: #333;
             color: #fff;
         }
@@ -134,17 +125,17 @@
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             grid-template-rows: repeat(3, 1fr);
-            gap: 6px;
-            width: 60vmin;
-            height: 60vmin;
-            max-width: 220px;
-            max-height: 220px;
-            margin-bottom: 20px;
+            gap: 2vw;
+            width: 70vw;
+            height: 70vw;
+            max-width: 300px;
+            max-height: 300px;
+            margin-bottom: 2vh;
         }
         .dpad button {
-            font-size: 28px;
+            font-size: 8vw;
             border: none;
-            border-radius: 8px;
+            border-radius: 2vw;
             background: #2980b9;
             color: #fff;
         }
@@ -154,18 +145,17 @@
         /* Botones de función (inferiores) */
         .function-btns {
             display: flex;
-            width: 100%;
+            width: 94%;
             max-width: 400px;
-            gap: 6px;
-            margin-top: 0;
+            gap: 2vw;
         }
         .function-btns button {
             flex: 1;
-            font-size: 12px;
+            font-size: 3.5vw;
             font-weight: 700;
-            padding: 11px 0;
+            padding: 3vw 0;
             border: 2px solid transparent;
-            border-radius: 8px;
+            border-radius: 2vw;
             background: #444;
             color: #fff;
         }
@@ -177,29 +167,27 @@
     </style>
 </head>
 <body>
-    <div id="scale-wrapper">
-        <div class="remote-title">BOOMERANG VISION</div>
+    <div class="remote-title">BOOMERANG VISION</div>
 
-        <div id="remote-screen"></div>
+    <div id="remote-screen"></div>
 
-        <div class="mode-grid" id="mode-buttons">
-            <button data-mode="letters" class="active-mode">Letras</button>
-            <button data-mode="numbers">Números</button>
-            <button data-mode="pediatric">Figuras</button>
-            <button data-mode="e_directional">E direc.</button>
-        </div>
+    <div class="mode-grid" id="mode-buttons">
+        <button data-mode="letters" class="active-mode">Letras</button>
+        <button data-mode="numbers">Números</button>
+        <button data-mode="pediatric">Figuras</button>
+        <button data-mode="e_directional">E direc.</button>
+    </div>
 
-        <div class="dpad">
-            <div class="empty"></div><button onclick="enviar('ArrowUp')">▲</button><div class="empty"></div>
-            <button onclick="enviar('ArrowLeft')">◀</button><div class="empty"></div><button onclick="enviar('ArrowRight')">▶</button>
-            <div class="empty"></div><button onclick="enviar('ArrowDown')">▼</button><div class="empty"></div>
-        </div>
+    <div class="dpad">
+        <div class="empty"></div><button onclick="enviar('ArrowUp')">▲</button><div class="empty"></div>
+        <button onclick="enviar('ArrowLeft')">◀</button><div class="empty"></div><button onclick="enviar('ArrowRight')">▶</button>
+        <div class="empty"></div><button onclick="enviar('ArrowDown')">▼</button><div class="empty"></div>
+    </div>
 
-        <div class="function-btns" id="func-buttons">
-            <button id="btn-resaltar" onclick="enviar('KeyR')">🔦 Resaltar</button>
-            <button id="btn-individual" onclick="enviar('KeyU')">👤 Individual</button>
-            <button id="btn-bic" class="special" onclick="enviar('KeyB')"></button>
-        </div>
+    <div class="function-btns" id="func-buttons">
+        <button id="btn-resaltar" onclick="enviar('KeyR')">🔦 Resaltar</button>
+        <button id="btn-individual" onclick="enviar('KeyU')">👤 Individual</button>
+        <button id="btn-bic" class="special" onclick="enviar('KeyB')"></button>
     </div>
 
     <script>
@@ -225,7 +213,7 @@
             document.getElementById('btn-bic')?.classList.toggle('active-func', state.bichromatic);
         }
 
-        const BASE_FONT_SIZE = 36;
+        const BASE_FONT_SIZE_VW = 8;   // tamaño base en vw (relativo al ancho de pantalla)
         const SCALE_E = 0.739;
         const SCALE_FIG = 0.769;
 
@@ -234,13 +222,13 @@
             container.innerHTML = '';
             if (!data?.lines) return;
 
-            const gap = 12;
-            container.style.gap = gap + 'px';
+            const gap = 3;   // en vw
+            container.style.gap = gap + 'vw';
 
             data.lines.forEach((line, li) => {
                 const lineDiv = document.createElement('div');
                 lineDiv.className = 'remote-line';
-                lineDiv.style.gap = gap + 'px';
+                lineDiv.style.gap = gap + 'vw';
 
                 if (data.highlightMode && li !== data.highlightLineIdx) {
                     lineDiv.classList.add('dimmed');
@@ -256,7 +244,7 @@
 
                 const row = document.createElement('div');
                 row.className = 'remote-row';
-                row.style.gap = gap + 'px';
+                row.style.gap = gap + 'vw';
 
                 let chars = line.chars;
                 if (data.singleCharMode) chars = [chars[0]];
@@ -266,14 +254,14 @@
                         const span = document.createElement('span');
                         span.className = 'remote-text';
                         span.textContent = ch.char;
-                        span.style.fontSize = BASE_FONT_SIZE + 'px';
+                        span.style.fontSize = BASE_FONT_SIZE_VW + 'vw';
                         row.appendChild(span);
                     } else {
                         const img = document.createElement('img');
                         let scale = ch.key === 'E_0' ? SCALE_E : SCALE_FIG;
-                        const size = BASE_FONT_SIZE * scale;
-                        img.style.height = size + 'px';
-                        img.style.width = size + 'px';
+                        const size = BASE_FONT_SIZE_VW * scale;
+                        img.style.height = size + 'vw';
+                        img.style.width = size + 'vw';
                         img.style.display = 'block';
                         if (ch.rot) img.style.transform = `rotate(${ch.rot}deg)`;
                         img.src = ch.uri || '';
@@ -295,26 +283,6 @@
         });
 
         socket.on('connect', () => socket.emit('requestScreenUpdate'));
-
-        // ═══════════ Escalado para igualar visualización en todos los celulares ═══════════
-        (function() {
-            const wrapper = document.getElementById('scale-wrapper');
-            const DESIGN_WIDTH = 375; // ancho de referencia en px
-
-            function applyScale() {
-                const screenWidth = window.innerWidth;
-                const scale = screenWidth / DESIGN_WIDTH;
-                wrapper.style.transform = `scale(${scale})`;
-                // Ajusta la altura del body para que, después de escalar, ocupe toda la pantalla
-                document.body.style.height = (window.innerHeight / scale) + 'px';
-            }
-
-            window.addEventListener('resize', applyScale);
-            window.addEventListener('orientationchange', function() {
-                setTimeout(applyScale, 100);
-            });
-            applyScale();
-        })();
     </script>
 </body>
 </html>

@@ -16,22 +16,31 @@
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body {
+        html, body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
             font-family: system-ui, -apple-system, sans-serif;
             background: #111;
             color: #fff;
-            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        /* ═══════════ CONTENEDOR DE ESCALADO ═══════════ */
+        #scaled-content {
+            /* El ancho se establecerá dinámicamente con JS */
+            transform-origin: top left;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             padding: 6px;
-            user-select: none;
-            -webkit-user-select: none;
-            overflow: hidden;
-            /* Evitar que el sistema escale el texto automáticamente */
-            -webkit-text-size-adjust: 100%;
-            text-size-adjust: 100%;
         }
 
         /* Título BOOMERANG VISION */
@@ -169,27 +178,29 @@
     </style>
 </head>
 <body>
-    <div class="remote-title">BOOMERANG VISION</div>
+    <div id="scaled-content">
+        <div class="remote-title">BOOMERANG VISION</div>
 
-    <div id="remote-screen"></div>
+        <div id="remote-screen"></div>
 
-    <div class="mode-grid" id="mode-buttons">
-        <button data-mode="letters" class="active-mode">Letras</button>
-        <button data-mode="numbers">Números</button>
-        <button data-mode="pediatric">Figuras</button>
-        <button data-mode="e_directional">E direc.</button>
-    </div>
+        <div class="mode-grid" id="mode-buttons">
+            <button data-mode="letters" class="active-mode">Letras</button>
+            <button data-mode="numbers">Números</button>
+            <button data-mode="pediatric">Figuras</button>
+            <button data-mode="e_directional">E direc.</button>
+        </div>
 
-    <div class="dpad">
-        <div class="empty"></div><button onclick="enviar('ArrowUp')">▲</button><div class="empty"></div>
-        <button onclick="enviar('ArrowLeft')">◀</button><div class="empty"></div><button onclick="enviar('ArrowRight')">▶</button>
-        <div class="empty"></div><button onclick="enviar('ArrowDown')">▼</button><div class="empty"></div>
-    </div>
+        <div class="dpad">
+            <div class="empty"></div><button onclick="enviar('ArrowUp')">▲</button><div class="empty"></div>
+            <button onclick="enviar('ArrowLeft')">◀</button><div class="empty"></div><button onclick="enviar('ArrowRight')">▶</button>
+            <div class="empty"></div><button onclick="enviar('ArrowDown')">▼</button><div class="empty"></div>
+        </div>
 
-    <div class="function-btns" id="func-buttons">
-        <button id="btn-resaltar" onclick="enviar('KeyR')">🔦 Resaltar</button>
-        <button id="btn-individual" onclick="enviar('KeyU')">👤 Individual</button>
-        <button id="btn-bic" class="special" onclick="enviar('KeyB')"></button>
+        <div class="function-btns" id="func-buttons">
+            <button id="btn-resaltar" onclick="enviar('KeyR')">🔦 Resaltar</button>
+            <button id="btn-individual" onclick="enviar('KeyU')">👤 Individual</button>
+            <button id="btn-bic" class="special" onclick="enviar('KeyB')"></button>
+        </div>
     </div>
 
     <script>
@@ -286,21 +297,29 @@
 
         socket.on('connect', () => socket.emit('requestScreenUpdate'));
 
-        // ═══════════════════════════════════════════════════
-        // ESCALADO AUTOMÁTICO (conserva tamaño y proporción)
-        // ═══════════════════════════════════════════════════
+        // ══════════════════════════════════════
+        // ESCALADO CORREGIDO (centrado y sin márgenes)
+        // ══════════════════════════════════════
         (function() {
-            const DESIGN_WIDTH = 375; // ancho de referencia (en px)
+            const wrapper = document.getElementById('scaled-content');
+            // Ancho fijo de referencia (píxeles CSS). Ajústalo si el diseño se ve muy pequeño/grande.
+            const DESIGN_WIDTH = 412;
 
             function applyScale() {
-                const viewportWidth = window.innerWidth;
-                const scale = viewportWidth / DESIGN_WIDTH;
+                const vw = window.innerWidth;
+                const vh = window.innerHeight;
+                const scale = vw / DESIGN_WIDTH;
 
-                document.body.style.transform = `scale(${scale})`;
-                document.body.style.transformOrigin = 'top left';
+                // 1. Escalar el contenido
+                wrapper.style.transform = `scale(${scale})`;
+                wrapper.style.transformOrigin = 'top left';
 
-                // Ajustar altura para que después del escalado ocupe justo la ventana
-                document.body.style.height = (window.innerHeight / scale) + 'px';
+                // 2. Fijar el ancho del contenedor al ancho de diseño
+                wrapper.style.width = DESIGN_WIDTH + 'px';
+
+                // 3. Centrar horizontalmente: el body usa flexbox, así que no necesitamos left negativo
+                // 4. Altura: ajustamos el alto del body para que no sobre/bajo
+                document.body.style.height = (vh / scale) + 'px';
             }
 
             window.addEventListener('resize', applyScale);

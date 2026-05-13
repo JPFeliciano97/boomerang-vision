@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Control Remoto Boomerang</title>
     <script src="/socket.io/socket.io.js"></script>
     <style>
@@ -16,48 +16,46 @@
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        html, body {
-            width: 100%;
-            height: 100%;
-            margin: 0;
-            padding: 0;
-            overflow: hidden;
+        body {
             font-family: system-ui, -apple-system, sans-serif;
             background: #111;
             color: #fff;
+            height: 100vh;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
+            padding: 6px;
             user-select: none;
             -webkit-user-select: none;
+            overflow: hidden;
         }
 
         /* Título BOOMERANG VISION */
         .remote-title {
             font-family: 'OpticianSans', 'Arial Black', Impact, sans-serif;
-            font-size: 5vw;           /* responsivo */
+            font-size: 16px;
             font-weight: normal;
             color: #ccc;
-            letter-spacing: 0.5vw;
+            letter-spacing: 2px;
             text-align: center;
-            margin-bottom: 2vh;
+            margin-bottom: 20px;   /* 20px abajo del título */
         }
 
         /* Contenedor principal */
         #remote-screen {
-            width: 94%;
+            width: 100%;
             max-width: 500px;
-            flex: 0 0 auto;
-            min-height: 28vh;
+            height: auto;
+            min-height: 260px;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             background: #000;
-            border-radius: 3vw;
-            margin-bottom: 2vh;
-            padding: 2vw;
+            border-radius: 12px;
+            margin-bottom: 20px;    /* separación inferior */
+            padding: 8px 4px;
             overflow: hidden;
         }
         #remote-screen img { filter: invert(1); }
@@ -67,13 +65,13 @@
             align-items: center;
             justify-content: center;
             width: 100%;
-            gap: 3vw;
+            gap: 12px;
         }
         .remote-row {
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 3vw;
+            gap: 12px;
         }
         .remote-row img {
             display: block;
@@ -85,7 +83,7 @@
             color: #fff;
             line-height: 1;
             display: block;
-            font-size: 8vw;          /* antes 36px -> ahora responsivo */
+            font-size: 36px;
         }
         .remote-line.dimmed .remote-text,
         .remote-line.dimmed img { opacity: 0.10; }
@@ -93,9 +91,9 @@
         .remote-ann-left, .remote-ann-right {
             font-family: 'Segoe UI', 'Helvetica Neue', sans-serif;
             font-weight: 600;
-            width: 14vw;
+            width: 45px;
             text-align: center;
-            font-size: 3.5vw;
+            font-size: 12px;
             color: #aaa;
             flex-shrink: 0;
         }
@@ -104,17 +102,17 @@
         .mode-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
-            gap: 2vw;
-            width: 94%;
+            gap: 6px;
+            width: 100%;
             max-width: 400px;
-            margin-bottom: 2vh;
+            margin-bottom: 20px;   /* 20px abajo de los botones de modo */
         }
         .mode-grid button {
-            font-size: 3.5vw;
+            font-size: 13px;
             font-weight: 700;
-            padding: 2.5vw 0;
+            padding: 9px 0;
             border: none;
-            border-radius: 2vw;
+            border-radius: 8px;
             background: #333;
             color: #fff;
         }
@@ -125,17 +123,17 @@
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             grid-template-rows: repeat(3, 1fr);
-            gap: 2vw;
-            width: 70vw;
-            height: 70vw;
-            max-width: 300px;
-            max-height: 300px;
-            margin-bottom: 2vh;
+            gap: 6px;
+            width: 60vmin;
+            height: 60vmin;
+            max-width: 220px;
+            max-height: 220px;
+            margin-bottom: 20px;   /* 20px abajo de las flechas */
         }
         .dpad button {
-            font-size: 8vw;
+            font-size: 28px;
             border: none;
-            border-radius: 2vw;
+            border-radius: 8px;
             background: #2980b9;
             color: #fff;
         }
@@ -145,17 +143,18 @@
         /* Botones de función (inferiores) */
         .function-btns {
             display: flex;
-            width: 94%;
+            width: 100%;
             max-width: 400px;
-            gap: 2vw;
+            gap: 6px;
+            margin-top: 0;
         }
         .function-btns button {
             flex: 1;
-            font-size: 3.5vw;
+            font-size: 12px;
             font-weight: 700;
-            padding: 3vw 0;
+            padding: 11px 0;
             border: 2px solid transparent;
-            border-radius: 2vw;
+            border-radius: 8px;
             background: #444;
             color: #fff;
         }
@@ -213,7 +212,7 @@
             document.getElementById('btn-bic')?.classList.toggle('active-func', state.bichromatic);
         }
 
-        const BASE_FONT_SIZE_VW = 8;   // tamaño base en vw (relativo al ancho de pantalla)
+        const BASE_FONT_SIZE = 36;
         const SCALE_E = 0.739;
         const SCALE_FIG = 0.769;
 
@@ -222,13 +221,13 @@
             container.innerHTML = '';
             if (!data?.lines) return;
 
-            const gap = 3;   // en vw
-            container.style.gap = gap + 'vw';
+            const gap = 12;
+            container.style.gap = gap + 'px';
 
             data.lines.forEach((line, li) => {
                 const lineDiv = document.createElement('div');
                 lineDiv.className = 'remote-line';
-                lineDiv.style.gap = gap + 'vw';
+                lineDiv.style.gap = gap + 'px';
 
                 if (data.highlightMode && li !== data.highlightLineIdx) {
                     lineDiv.classList.add('dimmed');
@@ -244,7 +243,7 @@
 
                 const row = document.createElement('div');
                 row.className = 'remote-row';
-                row.style.gap = gap + 'vw';
+                row.style.gap = gap + 'px';
 
                 let chars = line.chars;
                 if (data.singleCharMode) chars = [chars[0]];
@@ -254,14 +253,14 @@
                         const span = document.createElement('span');
                         span.className = 'remote-text';
                         span.textContent = ch.char;
-                        span.style.fontSize = BASE_FONT_SIZE_VW + 'vw';
+                        span.style.fontSize = BASE_FONT_SIZE + 'px';
                         row.appendChild(span);
                     } else {
                         const img = document.createElement('img');
                         let scale = ch.key === 'E_0' ? SCALE_E : SCALE_FIG;
-                        const size = BASE_FONT_SIZE_VW * scale;
-                        img.style.height = size + 'vw';
-                        img.style.width = size + 'vw';
+                        const size = BASE_FONT_SIZE * scale;
+                        img.style.height = size + 'px';
+                        img.style.width = size + 'px';
                         img.style.display = 'block';
                         if (ch.rot) img.style.transform = `rotate(${ch.rot}deg)`;
                         img.src = ch.uri || '';

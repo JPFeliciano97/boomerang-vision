@@ -25,22 +25,18 @@
             font-family: system-ui, -apple-system, sans-serif;
             background: #111;
             color: #fff;
-            display: flex;
-            align-items: center;
-            justify-content: center;
             user-select: none;
             -webkit-user-select: none;
         }
 
-        /* ═══════════ CONTENEDOR DE ESCALADO ═══════════ */
-        #scaled-content {
-            transform-origin: top left;
+        /* ═══════════ CONTENEDOR PRINCIPAL (flex vertical) ═══════════ */
+        body {
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: flex-start;   /* tiramos hacia arriba */
-            padding: 0 6px;               /* solo padding lateral */
-            margin: 0 auto;
+            justify-content: flex-start;
+            padding: 0 6px;
+            /* El JS se encargará del escalado y centrado */
         }
 
         /* Título BOOMERANG VISION */
@@ -51,7 +47,7 @@
             color: #ccc;
             letter-spacing: 2px;
             text-align: center;
-            margin-top: 12px;              /* pequeño respiro superior */
+            margin-top: 12px;
             margin-bottom: 16px;
         }
 
@@ -160,7 +156,7 @@
             max-width: 400px;
             gap: 6px;
             margin-top: 0;
-            margin-bottom: 10px;          /* cerca del borde inferior */
+            margin-bottom: 10px;
         }
         .function-btns button {
             flex: 1;
@@ -180,29 +176,27 @@
     </style>
 </head>
 <body>
-    <div id="scaled-content">
-        <div class="remote-title">BOOMERANG VISION</div>
+    <div class="remote-title">BOOMERANG VISION</div>
 
-        <div id="remote-screen"></div>
+    <div id="remote-screen"></div>
 
-        <div class="mode-grid" id="mode-buttons">
-            <button data-mode="letters" class="active-mode">Letras</button>
-            <button data-mode="numbers">Números</button>
-            <button data-mode="pediatric">Figuras</button>
-            <button data-mode="e_directional">E direc.</button>
-        </div>
+    <div class="mode-grid" id="mode-buttons">
+        <button data-mode="letters" class="active-mode">Letras</button>
+        <button data-mode="numbers">Números</button>
+        <button data-mode="pediatric">Figuras</button>
+        <button data-mode="e_directional">E direc.</button>
+    </div>
 
-        <div class="dpad">
-            <div class="empty"></div><button onclick="enviar('ArrowUp')">▲</button><div class="empty"></div>
-            <button onclick="enviar('ArrowLeft')">◀</button><div class="empty"></div><button onclick="enviar('ArrowRight')">▶</button>
-            <div class="empty"></div><button onclick="enviar('ArrowDown')">▼</button><div class="empty"></div>
-        </div>
+    <div class="dpad">
+        <div class="empty"></div><button onclick="enviar('ArrowUp')">▲</button><div class="empty"></div>
+        <button onclick="enviar('ArrowLeft')">◀</button><div class="empty"></div><button onclick="enviar('ArrowRight')">▶</button>
+        <div class="empty"></div><button onclick="enviar('ArrowDown')">▼</button><div class="empty"></div>
+    </div>
 
-        <div class="function-btns" id="func-buttons">
-            <button id="btn-resaltar" onclick="enviar('KeyR')">🔦 Resaltar</button>
-            <button id="btn-individual" onclick="enviar('KeyU')">👤 Individual</button>
-            <button id="btn-bic" class="special" onclick="enviar('KeyB')"></button>
-        </div>
+    <div class="function-btns" id="func-buttons">
+        <button id="btn-resaltar" onclick="enviar('KeyR')">🔦 Resaltar</button>
+        <button id="btn-individual" onclick="enviar('KeyU')">👤 Individual</button>
+        <button id="btn-bic" class="special" onclick="enviar('KeyB')"></button>
     </div>
 
     <script>
@@ -299,22 +293,33 @@
 
         socket.on('connect', () => socket.emit('requestScreenUpdate'));
 
-        // ══════════════════════════════════════
-        // ESCALADO CORREGIDO (centrado y sin márgenes)
-        // ══════════════════════════════════════
+        // ═══════════════════════════════════════════════════
+        // ESCALADO PRECISO (centrado perfecto, sin huecos)
+        // ═══════════════════════════════════════════════════
         (function() {
-            const wrapper = document.getElementById('scaled-content');
-            const DESIGN_WIDTH = 412;
+            const DESIGN_WIDTH = 412; // ancho de referencia en px (ajústalo si es necesario)
 
             function applyScale() {
                 const vw = window.innerWidth;
                 const vh = window.innerHeight;
                 const scale = vw / DESIGN_WIDTH;
 
-                wrapper.style.transform = `scale(${scale})`;
-                wrapper.style.transformOrigin = 'top left';
-                wrapper.style.width = DESIGN_WIDTH + 'px';
+                // Escalamos el body completo
+                document.body.style.transform = `scale(${scale})`;
+                document.body.style.transformOrigin = 'top left';
+
+                // Ancho fijo real (para que ocupe el espacio correcto antes del escalado)
+                document.body.style.width = DESIGN_WIDTH + 'px';
+                // Altura necesaria para llenar la ventana después del escalado
                 document.body.style.height = (vh / scale) + 'px';
+
+                // Posicionamiento absoluto para centrar
+                document.body.style.position = 'absolute';
+                document.body.style.left = '50%';
+                // Margen negativo basado en el ancho sin escalar (se ajusta automáticamente)
+                document.body.style.marginLeft = -(DESIGN_WIDTH / 2) + 'px';
+                document.body.style.top = '0';
+                document.body.style.marginTop = '0';
             }
 
             window.addEventListener('resize', applyScale);

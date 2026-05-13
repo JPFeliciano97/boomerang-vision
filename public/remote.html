@@ -2,7 +2,8 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <!-- ✅ VIEWPORT CORREGIDO: ancho fijo 412, escalado natural -->
+    <meta name="viewport" content="width=412, initial-scale=1.0, user-scalable=yes">
     <title>Control Remoto Boomerang</title>
     <script src="/socket.io/socket.io.js"></script>
     <style>
@@ -25,22 +26,12 @@
             font-family: system-ui, -apple-system, sans-serif;
             background: #111;
             color: #fff;
-            user-select: none;
-            -webkit-user-select: none;
-        }
-
-        /* ═══════════ NUEVO CONTENEDOR DE ESCALADO ═══════════ */
-        #wrapper {
-            position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
-            margin: auto;
-            /* El ancho se fija en JS, el alto se ajusta solo */
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: flex-start;
-            padding: 0 6px;
-            transform-origin: top left;
+            justify-content: center;  /* centrado vertical nativo */
+            user-select: none;
+            -webkit-user-select: none;
         }
 
         /* Título BOOMERANG VISION */
@@ -57,7 +48,7 @@
 
         /* Contenedor principal */
         #remote-screen {
-            width: 100%;
+            width: 94%;
             max-width: 500px;
             height: auto;
             min-height: 260px;
@@ -116,7 +107,7 @@
             display: grid;
             grid-template-columns: repeat(4, 1fr);
             gap: 6px;
-            width: 100%;
+            width: 94%;
             max-width: 400px;
             margin-bottom: 16px;
         }
@@ -156,11 +147,11 @@
         /* Botones de función (inferiores) */
         .function-btns {
             display: flex;
-            width: 100%;
+            width: 94%;
             max-width: 400px;
             gap: 6px;
             margin-top: 0;
-            margin-bottom: 10px;
+            margin-bottom: 10px;      /* pequeño margen para no pegar al borde */
         }
         .function-btns button {
             flex: 1;
@@ -181,29 +172,27 @@
 </head>
 <body>
 
-    <div id="wrapper">
-        <div class="remote-title">BOOMERANG VISION</div>
+    <div class="remote-title">BOOMERANG VISION</div>
 
-        <div id="remote-screen"></div>
+    <div id="remote-screen"></div>
 
-        <div class="mode-grid" id="mode-buttons">
-            <button data-mode="letters" class="active-mode">Letras</button>
-            <button data-mode="numbers">Números</button>
-            <button data-mode="pediatric">Figuras</button>
-            <button data-mode="e_directional">E direc.</button>
-        </div>
+    <div class="mode-grid" id="mode-buttons">
+        <button data-mode="letters" class="active-mode">Letras</button>
+        <button data-mode="numbers">Números</button>
+        <button data-mode="pediatric">Figuras</button>
+        <button data-mode="e_directional">E direc.</button>
+    </div>
 
-        <div class="dpad">
-            <div class="empty"></div><button onclick="enviar('ArrowUp')">▲</button><div class="empty"></div>
-            <button onclick="enviar('ArrowLeft')">◀</button><div class="empty"></div><button onclick="enviar('ArrowRight')">▶</button>
-            <div class="empty"></div><button onclick="enviar('ArrowDown')">▼</button><div class="empty"></div>
-        </div>
+    <div class="dpad">
+        <div class="empty"></div><button onclick="enviar('ArrowUp')">▲</button><div class="empty"></div>
+        <button onclick="enviar('ArrowLeft')">◀</button><div class="empty"></div><button onclick="enviar('ArrowRight')">▶</button>
+        <div class="empty"></div><button onclick="enviar('ArrowDown')">▼</button><div class="empty"></div>
+    </div>
 
-        <div class="function-btns" id="func-buttons">
-            <button id="btn-resaltar" onclick="enviar('KeyR')">🔦 Resaltar</button>
-            <button id="btn-individual" onclick="enviar('KeyU')">👤 Individual</button>
-            <button id="btn-bic" class="special" onclick="enviar('KeyB')"></button>
-        </div>
+    <div class="function-btns" id="func-buttons">
+        <button id="btn-resaltar" onclick="enviar('KeyR')">🔦 Resaltar</button>
+        <button id="btn-individual" onclick="enviar('KeyU')">👤 Individual</button>
+        <button id="btn-bic" class="special" onclick="enviar('KeyB')"></button>
     </div>
 
     <script>
@@ -299,40 +288,6 @@
         });
 
         socket.on('connect', () => socket.emit('requestScreenUpdate'));
-
-        // ══════════════════════════════════════════
-        // ESCALADO PERFECTO (centrado, simétrico, sin cortes)
-        // ══════════════════════════════════════════
-        (function() {
-            const wrapper = document.getElementById('wrapper');
-            const DESIGN_WIDTH = 412; // Ancho de referencia para la escala
-
-            function applyScale() {
-                const vw = window.innerWidth;
-                const vh = window.innerHeight;
-                const scale = vw / DESIGN_WIDTH;
-
-                // Aplicamos la escala
-                wrapper.style.transform = `scale(${scale})`;
-                wrapper.style.transformOrigin = 'top left';
-
-                // Fijamos dimensiones para que el centrado funcione
-                wrapper.style.width = DESIGN_WIDTH + 'px';
-                // Dejamos que la altura la determine el contenido (height: auto)
-                wrapper.style.height = 'auto';
-
-                // Centramos con márgenes automáticos (funciona con position:absolute)
-                // Ya tiene position: absolute, top:0, left:0, right:0, bottom:0 y margin:auto
-                // Eso centra perfectamente, pero necesitamos reajustar la altura del body para el escalado
-                document.body.style.height = (vh / scale) + 'px';
-            }
-
-            window.addEventListener('resize', applyScale);
-            window.addEventListener('orientationchange', function() {
-                setTimeout(applyScale, 100);
-            });
-            applyScale();
-        })();
     </script>
 </body>
 </html>

@@ -29,14 +29,18 @@
             -webkit-user-select: none;
         }
 
-        /* ═══════════ CONTENEDOR PRINCIPAL (flex vertical) ═══════════ */
-        body {
+        /* ═══════════ NUEVO CONTENEDOR DE ESCALADO ═══════════ */
+        #wrapper {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            margin: auto;
+            /* El ancho se fija en JS, el alto se ajusta solo */
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: flex-start;
             padding: 0 6px;
-            /* El JS se encargará del escalado y centrado */
+            transform-origin: top left;
         }
 
         /* Título BOOMERANG VISION */
@@ -176,27 +180,30 @@
     </style>
 </head>
 <body>
-    <div class="remote-title">BOOMERANG VISION</div>
 
-    <div id="remote-screen"></div>
+    <div id="wrapper">
+        <div class="remote-title">BOOMERANG VISION</div>
 
-    <div class="mode-grid" id="mode-buttons">
-        <button data-mode="letters" class="active-mode">Letras</button>
-        <button data-mode="numbers">Números</button>
-        <button data-mode="pediatric">Figuras</button>
-        <button data-mode="e_directional">E direc.</button>
-    </div>
+        <div id="remote-screen"></div>
 
-    <div class="dpad">
-        <div class="empty"></div><button onclick="enviar('ArrowUp')">▲</button><div class="empty"></div>
-        <button onclick="enviar('ArrowLeft')">◀</button><div class="empty"></div><button onclick="enviar('ArrowRight')">▶</button>
-        <div class="empty"></div><button onclick="enviar('ArrowDown')">▼</button><div class="empty"></div>
-    </div>
+        <div class="mode-grid" id="mode-buttons">
+            <button data-mode="letters" class="active-mode">Letras</button>
+            <button data-mode="numbers">Números</button>
+            <button data-mode="pediatric">Figuras</button>
+            <button data-mode="e_directional">E direc.</button>
+        </div>
 
-    <div class="function-btns" id="func-buttons">
-        <button id="btn-resaltar" onclick="enviar('KeyR')">🔦 Resaltar</button>
-        <button id="btn-individual" onclick="enviar('KeyU')">👤 Individual</button>
-        <button id="btn-bic" class="special" onclick="enviar('KeyB')"></button>
+        <div class="dpad">
+            <div class="empty"></div><button onclick="enviar('ArrowUp')">▲</button><div class="empty"></div>
+            <button onclick="enviar('ArrowLeft')">◀</button><div class="empty"></div><button onclick="enviar('ArrowRight')">▶</button>
+            <div class="empty"></div><button onclick="enviar('ArrowDown')">▼</button><div class="empty"></div>
+        </div>
+
+        <div class="function-btns" id="func-buttons">
+            <button id="btn-resaltar" onclick="enviar('KeyR')">🔦 Resaltar</button>
+            <button id="btn-individual" onclick="enviar('KeyU')">👤 Individual</button>
+            <button id="btn-bic" class="special" onclick="enviar('KeyB')"></button>
+        </div>
     </div>
 
     <script>
@@ -293,33 +300,31 @@
 
         socket.on('connect', () => socket.emit('requestScreenUpdate'));
 
-        // ═══════════════════════════════════════════════════
-        // ESCALADO PRECISO (centrado perfecto, sin huecos)
-        // ═══════════════════════════════════════════════════
+        // ══════════════════════════════════════════
+        // ESCALADO PERFECTO (centrado, simétrico, sin cortes)
+        // ══════════════════════════════════════════
         (function() {
-            const DESIGN_WIDTH = 412; // ancho de referencia en px (ajústalo si es necesario)
+            const wrapper = document.getElementById('wrapper');
+            const DESIGN_WIDTH = 412; // Ancho de referencia para la escala
 
             function applyScale() {
                 const vw = window.innerWidth;
                 const vh = window.innerHeight;
                 const scale = vw / DESIGN_WIDTH;
 
-                // Escalamos el body completo
-                document.body.style.transform = `scale(${scale})`;
-                document.body.style.transformOrigin = 'top left';
+                // Aplicamos la escala
+                wrapper.style.transform = `scale(${scale})`;
+                wrapper.style.transformOrigin = 'top left';
 
-                // Ancho fijo real (para que ocupe el espacio correcto antes del escalado)
-                document.body.style.width = DESIGN_WIDTH + 'px';
-                // Altura necesaria para llenar la ventana después del escalado
+                // Fijamos dimensiones para que el centrado funcione
+                wrapper.style.width = DESIGN_WIDTH + 'px';
+                // Dejamos que la altura la determine el contenido (height: auto)
+                wrapper.style.height = 'auto';
+
+                // Centramos con márgenes automáticos (funciona con position:absolute)
+                // Ya tiene position: absolute, top:0, left:0, right:0, bottom:0 y margin:auto
+                // Eso centra perfectamente, pero necesitamos reajustar la altura del body para el escalado
                 document.body.style.height = (vh / scale) + 'px';
-
-                // Posicionamiento absoluto para centrar
-                document.body.style.position = 'absolute';
-                document.body.style.left = '50%';
-                // Margen negativo basado en el ancho sin escalar (se ajusta automáticamente)
-                document.body.style.marginLeft = -(DESIGN_WIDTH / 2) + 'px';
-                document.body.style.top = '0';
-                document.body.style.marginTop = '0';
             }
 
             window.addEventListener('resize', applyScale);

@@ -34,13 +34,13 @@
 
         /* ═══════════ CONTENEDOR DE ESCALADO ═══════════ */
         #scaled-content {
-            /* El ancho se establecerá dinámicamente con JS */
             transform-origin: top left;
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
-            padding: 6px;
+            justify-content: flex-start;   /* tiramos hacia arriba */
+            padding: 0 6px;               /* solo padding lateral */
+            margin: 0 auto;
         }
 
         /* Título BOOMERANG VISION */
@@ -51,7 +51,8 @@
             color: #ccc;
             letter-spacing: 2px;
             text-align: center;
-            margin-bottom: 20px;   /* 20px abajo del título */
+            margin-top: 12px;              /* pequeño respiro superior */
+            margin-bottom: 16px;
         }
 
         /* Contenedor principal */
@@ -66,7 +67,7 @@
             justify-content: center;
             background: #000;
             border-radius: 12px;
-            margin-bottom: 20px;    /* separación inferior */
+            margin-bottom: 16px;
             padding: 8px 4px;
             overflow: hidden;
         }
@@ -117,7 +118,7 @@
             gap: 6px;
             width: 100%;
             max-width: 400px;
-            margin-bottom: 20px;   /* 20px abajo de los botones de modo */
+            margin-bottom: 16px;
         }
         .mode-grid button {
             font-size: 13px;
@@ -140,7 +141,7 @@
             height: 60vmin;
             max-width: 220px;
             max-height: 220px;
-            margin-bottom: 20px;   /* 20px abajo de las flechas */
+            margin-bottom: 16px;
         }
         .dpad button {
             font-size: 28px;
@@ -159,6 +160,7 @@
             max-width: 400px;
             gap: 6px;
             margin-top: 0;
+            margin-bottom: 10px;          /* cerca del borde inferior */
         }
         .function-btns button {
             flex: 1;
@@ -302,7 +304,6 @@
         // ══════════════════════════════════════
         (function() {
             const wrapper = document.getElementById('scaled-content');
-            // Ancho fijo de referencia (píxeles CSS). Ajústalo si el diseño se ve muy pequeño/grande.
             const DESIGN_WIDTH = 412;
 
             function applyScale() {
@@ -310,15 +311,9 @@
                 const vh = window.innerHeight;
                 const scale = vw / DESIGN_WIDTH;
 
-                // 1. Escalar el contenido
                 wrapper.style.transform = `scale(${scale})`;
                 wrapper.style.transformOrigin = 'top left';
-
-                // 2. Fijar el ancho del contenedor al ancho de diseño
                 wrapper.style.width = DESIGN_WIDTH + 'px';
-
-                // 3. Centrar horizontalmente: el body usa flexbox, así que no necesitamos left negativo
-                // 4. Altura: ajustamos el alto del body para que no sobre/bajo
                 document.body.style.height = (vh / scale) + 'px';
             }
 

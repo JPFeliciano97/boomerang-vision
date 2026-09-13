@@ -82,12 +82,11 @@
             flex-shrink: 0;
         }
         .remote-text {
-            font-family: 'Arial Black', Impact, sans-serif;
+            font-family: 'OpticianSans', 'Arial Black', Impact, sans-serif;
             font-weight: normal;
             color: #fff;
             line-height: 1;
             display: block;
-            font-size: 36px;
         }
         .remote-line.dimmed .remote-text,
         .remote-line.dimmed img { opacity: 0.10; }
@@ -218,9 +217,19 @@
             document.getElementById('btn-bic')?.classList.toggle('active-func', state.bichromatic);
         }
 
-        const BASE_FONT_SIZE = 36;
-        const SCALE_E = 0.739;
-        const SCALE_FIG = 0.769;
+        /* El espejo no está a escala: es una vista previa y todas las líneas se
+           dibujan igual de grandes. Lo que sí tiene que cuadrar es que letras y
+           figuras midan aprox. lo mismo entre sí, con el mismo criterio que la
+           pantalla del paciente: INK_PX es la altura de la tinta, no el
+           cuadratín. Aquí basta el ratio nominal de la fuente (las redondas
+           salen un 6% mayores); la medida por glifo solo hace falta en la
+           pantalla del paciente, que es la que mide. */
+        const INK_PX = 20;
+        const CAP_HEIGHT_RATIO = 0.5;   // Optician Sans: mayúsculas = 500/1000 del cuadratín
+        function optotypeBoxPx(aspect, ink){
+            return aspect >= 1 ? { w: ink, h: ink/aspect }
+                               : { w: ink*aspect, h: ink };
+        }
 
         socket.on('screenUpdate', (data) => {
             const container = document.getElementById('remote-screen');
@@ -259,14 +268,13 @@
                         const span = document.createElement('span');
                         span.className = 'remote-text';
                         span.textContent = ch.char;
-                        span.style.fontSize = BASE_FONT_SIZE + 'px';
+                        span.style.fontSize = (INK_PX / CAP_HEIGHT_RATIO) + 'px';
                         row.appendChild(span);
                     } else {
                         const img = document.createElement('img');
-                        let scale = ch.key === 'E_0' ? SCALE_E : SCALE_FIG;
-                        const size = BASE_FONT_SIZE * scale;
-                        img.style.height = size + 'px';
-                        img.style.width = size + 'px';
+                        const box = optotypeBoxPx(ch.aspect || 1, INK_PX);
+                        img.style.height = box.h + 'px';
+                        img.style.width = box.w + 'px';
                         img.style.display = 'block';
                         if (ch.rot) img.style.transform = `rotate(${ch.rot}deg)`;
                         img.src = ch.uri || '';

@@ -224,6 +224,51 @@
             line-height: 1.6; padding: 10px 2px 0;
         }
 
+        /* ═══════════ CONTROLES DEL PELLI-ROBSON ═══════════ */
+        .lectura {
+            display: flex; align-items: flex-end; justify-content: space-between;
+            background: #1a1a1a; border: 1px solid #2b2b2b; border-radius: 10px;
+            padding: 13px;
+        }
+        .lectura .et {
+            font-size: 9px; text-transform: uppercase; letter-spacing: 0.9px; color: #5e5e5e;
+        }
+        .lectura .grande {
+            font-family: monospace; font-size: 32px; color: #fff; line-height: 1.05; margin-top: 2px;
+        }
+        .lectura .nivel { font-family: monospace; font-size: 17px; color: #f1c40f; margin-top: 3px; }
+        .lectura .mini { font-family: monospace; font-size: 10px; color: #666; margin-top: 3px; }
+
+        .pareja { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px; }
+        .pareja button {
+            display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+            height: 54px; border: 1px solid #3a3a3a; border-radius: 8px; background: #2b2b2b;
+            color: #fff; font: inherit;
+        }
+        .pareja button:disabled { opacity: 0.3; }
+        .pareja .flecha { font-size: 15px; line-height: 1; }
+        .pareja .mini { font-size: 9px; text-transform: uppercase; letter-spacing: 0.8px; color: #999; }
+
+        .pista { font-size: 11px; color: #7a7a7a; line-height: 1.5; text-align: center; padding: 8px 2px 0; }
+        .pista strong { color: #aaa; }
+
+        .lista-niv { display: flex; flex-direction: column; gap: 4px; }
+        .lista-niv button {
+            display: flex; align-items: center; gap: 9px; width: 100%; min-height: 42px;
+            background: #1a1a1a; border: 1px solid #2b2b2b; border-radius: 8px;
+            padding: 8px 11px; color: inherit; font: inherit; text-align: left;
+        }
+        .lista-niv button.sel { border-color: #f1c40f; background: rgba(241,196,15,0.08); }
+        .lista-niv .n { font-family: monospace; font-size: 10px; color: #555; width: 10px; flex-shrink: 0; }
+        .lista-niv .tri {
+            font-family: 'OpticianSans', 'Arial Black', Impact, sans-serif;
+            font-feature-settings: 'ss01'; font-size: 15px; letter-spacing: 4px;
+            line-height: 1; flex-grow: 1;
+        }
+        .lista-niv .log { font-family: monospace; font-size: 11px; flex-shrink: 0; }
+        .lista-niv .pct { font-family: monospace; font-size: 9px; color: #555; width: 32px; text-align: right; flex-shrink: 0; }
+        .lista-niv .limite { color: #d9863f; }
+
         /* Botones de modo */
         .mode-grid {
             display: grid;
@@ -368,6 +413,37 @@
             <div class="nota-geo" id="amsler-geo"></div>
         </div>
 
+        <!-- Panel del Pelli-Robson -->
+        <div id="panel-pelli" class="bloque oculto">
+            <div class="lectura">
+                <div>
+                    <div class="et">Fila en curso</div>
+                    <div class="grande" id="pelli-log">0,00</div>
+                    <div class="et" style="margin-top:2px;">log CS de esa fila</div>
+                </div>
+                <div style="text-align:right;">
+                    <div class="et">Nivel</div>
+                    <div class="nivel"><span id="pelli-fila">1</span><span style="color:#555;">/8</span></div>
+                    <div class="mini" id="pelli-pct"></div>
+                </div>
+            </div>
+            <div class="pareja">
+                <button onclick="enviar('P:fila:arriba')" id="pelli-arriba">
+                    <span class="flecha">▲</span><span class="mini">más visible</span>
+                </button>
+                <button onclick="enviar('P:fila:abajo')" id="pelli-abajo">
+                    <span class="flecha">▼</span><span class="mini">más tenue</span>
+                </button>
+            </div>
+            <div class="pista">El umbral es el log CS de la <strong>última fila que lea bien</strong>. Se empieza arriba y se baja.</div>
+            <div class="grupo-tit">Los ocho niveles · 0,30 log por paso</div>
+            <div id="pelli-niveles" class="lista-niv"></div>
+            <button class="conmut" onclick="enviar('P:nuevas')" style="justify-content:center;">
+                <span class="et">Letras nuevas en las ocho filas</span>
+            </button>
+            <div class="nota-geo" id="pelli-geo"></div>
+        </div>
+
         <!-- Panel de un módulo declarado pero sin construir -->
         <div id="panel-pendiente" class="bloque oculto">
             <div style="background:#1a1a1a; border:1px solid #2b2b2b; border-radius:10px; padding:14px;">
@@ -507,12 +583,14 @@
             pintarCabecera(info, data);
             ver($r('panel-optotipos'), mod === 'optotipos');
             ver($r('panel-amsler'),    mod === 'amsler');
+            ver($r('panel-pelli'),     mod === 'contraste');
             ver($r('panel-pendiente'), !info.hecho);
 
             const espejo = $r('remote-screen');
             espejo.innerHTML = '';
             if (mod === 'optotipos')   { espejoOptotipos(espejo, data); updateFuncButtons(data); }
             else if (mod === 'amsler') { espejoAmsler(espejo, data); pintarAmsler(data); }
+            else if (mod === 'contraste') { espejoPelli(espejo, data); pintarPelli(data); }
             else                       { espejoPendiente(espejo, info); }
         });
 
@@ -639,6 +717,77 @@
                 'cuadro ' + (a.cuadroMM ?? 0) + ' mm = ' + (a.gradoReal ?? 1) + '\u00b0  ·  campo \u00b1' + (a.gradosX ?? 0)
               + '\u00b0 \u00d7 \u00b1' + (a.gradosY ?? 0) + '\u00b0  ·  ' + (a.areaPct ?? 0)
               + '% del \u00e1rea de la rejilla de \u00b110\u00b0';
+        }
+
+        /* ═══════════ PELLI-ROBSON ═══════════
+           El espejo enseña las ocho filas con su tinta y marca la que está en
+           curso. La marca es SOLO del mando: en la pantalla del paciente las
+           ocho filas van iguales, o señalarle una sería decirle por dónde va.
+
+           Las tintas del espejo se aplanan a un mínimo legible porque el panel
+           de un móvil no distingue el 253 del 254 sobre blanco; la pantalla del
+           paciente sí emite el código real, y el panel lo dice. */
+        function espejoPelli(espejo, data) {
+            const p = data.pelli || {};
+            const caja = document.createElement('div');
+            caja.style.cssText = 'display:flex; flex-direction:column; gap:3px; padding:6px 0;';
+            (p.niveles || []).forEach(n => {
+                const fila = document.createElement('div');
+                const activa = n.n === p.fila;
+                fila.style.cssText = 'display:flex; align-items:center; gap:7px; padding:1px 6px 1px 3px;'
+                                   + 'border-radius:4px; background:' + (activa ? 'rgba(241,196,15,0.16)' : 'transparent') + ';';
+                const marca = document.createElement('div');
+                marca.style.cssText = 'width:3px; height:12px; border-radius:2px; flex-shrink:0; background:'
+                                    + (activa ? '#f1c40f' : '#3a3a3a') + ';';
+                const txt = document.createElement('div');
+                txt.textContent = n.chars;
+                // mínimo 0,10 de opacidad: por debajo el móvil no lo dibuja
+                const op = Math.max(0.10, Math.pow(10, -parseFloat(n.log)));
+                txt.style.cssText = "font-family:'OpticianSans','Arial Black',sans-serif;"
+                                  + "font-feature-settings:'ss01'; font-size:12px; letter-spacing:9px;"
+                                  + 'line-height:1; color:rgba(255,255,255,' + op.toFixed(3) + ');';
+                fila.appendChild(marca); fila.appendChild(txt);
+                caja.appendChild(fila);
+            });
+            espejo.appendChild(caja);
+        }
+
+        function pintarPelli(data) {
+            const p = data.pelli || {};
+            const niv = (p.niveles || []).find(n => n.n === p.fila) || { log: '0.00', pct: '100', codigo: 0 };
+            $r('pelli-log').textContent = String(niv.log).replace('.', ',');
+            $r('pelli-fila').textContent = p.fila ?? 1;
+            $r('pelli-pct').textContent = String(niv.pct).replace('.', ',') + ' % de contraste';
+            $r('pelli-arriba').disabled = (p.fila ?? 1) <= 1;
+            $r('pelli-abajo').disabled  = (p.fila ?? 1) >= (p.niveles || []).length;
+
+            const cont = $r('pelli-niveles');
+            cont.innerHTML = '';
+            (p.niveles || []).forEach(n => {
+                const b = document.createElement('button');
+                b.className = n.n === p.fila ? 'sel' : '';
+                b.innerHTML = '<span class="n"></span><span class="tri"></span>'
+                            + '<span class="log"></span><span class="pct"></span>';
+                b.querySelector('.n').textContent = n.n;
+                const tri = b.querySelector('.tri');
+                tri.textContent = n.chars;
+                tri.style.color = 'rgba(255,255,255,' + Math.max(0.14, Math.pow(10, -parseFloat(n.log))).toFixed(3) + ')';
+                const log = b.querySelector('.log');
+                log.textContent = String(n.log).replace('.', ',');
+                log.className = 'log' + (n.alLimite ? ' limite' : '');
+                log.style.color = n.n === p.fila ? '#fff' : (n.alLimite ? '#d9863f' : '#8a8a8a');
+                b.querySelector('.pct').textContent = String(n.pct).replace('.', ',') + '%';
+                b.addEventListener('click', () => enviar('P:fila:' + n.n));
+                cont.appendChild(b);
+            });
+
+            const alLimite = (p.niveles || []).filter(n => n.alLimite).map(n => n.n);
+            $r('pelli-geo').textContent =
+                'letra ' + (p.letraMM ?? 0) + ' mm = ' + (p.grados ?? 0) + '\u00b0 a 1 m  \u00b7  '
+              + 'el espejo aplana las tintas por debajo del 10 %; la pantalla emite el c\u00f3digo real'
+              + (alLimite.length ? '  \u00b7  niveles ' + alLimite.join(' y ') + ' salen a '
+                 + alLimite.map(n => 255 - (p.niveles.find(x => x.n === n).codigo)).join(' y ')
+                 + ' c\u00f3digos del blanco: ah\u00ed manda el panel, no la prueba' : '');
         }
 
         /* El espejo de optotipos: el de siempre, ahora en su propia función. */

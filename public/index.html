@@ -513,7 +513,7 @@
                deja al paciente acercado, así que el mando avisa. */
             const MODULOS = [
                 { id:'optotipos', titulo:'Optotipos',        sub:'Letras · números · LEA · E direccional', grupo:'Agudeza visual',           hecho:true,  distFija:null },
-                { id:'contraste', titulo:'Pelli-Robson',     sub:'8 niveles · 0,30 log',                   grupo:'Sensibilidad al contraste', hecho:false, distFija:1 },
+                { id:'contraste', titulo:'Pelli-Robson',     sub:'8 niveles · 0,30 log',                   grupo:'Sensibilidad al contraste', hecho:true,  distFija:1 },
                 { id:'worth',     titulo:'Luces de Worth',   sub:'Fusión y supresión · gafa rojo-verde',   grupo:'Binocularidad',            hecho:false, distFija:null },
                 { id:'schober',   titulo:'Schober',          sub:'Cruz y anillos · forias',                grupo:'Binocularidad',            hecho:false, distFija:null },
                 { id:'color',     titulo:'Pseudoisocromático', sub:'Láminas de puntos · cribado',          grupo:'Visión del color',         hecho:false, distFija:null },
@@ -653,6 +653,98 @@
                     `(${g.areaPct}% del campo)`;
             }
 
+            /* ═══════════ PELLI-ROBSON ═══════════
+               Ocho niveles a la vez con pasos de 0,30 log, de log CS 0,00 a
+               2,10. Con 16 pasos de 0,15 se gana resolución pero no caben en
+               pantalla, y el número de filas es justo lo que fija el tamaño de
+               letra: ocho letras más siete separaciones de media letra son 11,5
+               alturas, así que el alto de la pantalla dividido por 11,5 ES la
+               letra. De ahí sale el 1 m fijo: a 6 m esa letra daría 0,25° y el
+               paciente fallaría por agudeza y no por contraste.
+
+               La tinta no es una opacidad: es el código que hay que pedirle al
+               panel para que la letra tenga el contraste de Weber del nivel. Con
+               gamma 2,2, código = 255·(1−c)^(1/2,2). Los dos niveles más tenues
+               salen en el 253 y el 254 de 255, o sea a uno y dos pasos del
+               blanco: ahí manda el panel y no la prueba, y el módulo lo dice. */
+            const PELLI_FILAS = 8;
+            const PELLI_PASO_LOG = 0.30;
+            const PELLI_ALTURAS = 11.5;      // 8 letras + 7 huecos de media letra
+            /* Y un cuarto de letra de margen arriba y abajo. Sin él las ocho
+               filas ocupan el alto EXACTO de la ventana y la primera y la
+               última quedan pegadas al borde -- de hecho la tinta de la
+               primera empieza en el píxel 0 y se ve cortada. El margen cuesta
+               un 4% de tamaño de letra y lo vale. */
+            const PELLI_MARGEN = 0.25;
+            const PELLI_SLOAN = 'CDHKNORSVZ';
+            const PELLI_GAMMA = 2.2;
+
+            function pelliNivel(i){            // i de 1 a 8
+                const log = (i - 1) * PELLI_PASO_LOG;
+                const contraste = 1 / Math.pow(10, log);
+                const codigo = Math.round(255 * Math.pow(1 - contraste, 1 / PELLI_GAMMA));
+                return { n: i, log, contraste, codigo };
+            }
+            // Tripletes deterministas: la semilla vive en el estado, así que un
+            // repintado no le cambia las letras al paciente a media medida.
+            function pelliTriplete(fila, semilla){
+                let t = '';
+                for (let j = 0; j < 3; j++) t += PELLI_SLOAN[(fila * 37 + j * 11 + semilla * 53) % 10];
+                return t;
+            }
+            function pelliGeometria(){
+                const altoMM = state.cssPxPerMM > 0 ? window.innerHeight / state.cssPxPerMM : 0;
+                const letraMM = altoMM / (PELLI_ALTURAS + 2 * PELLI_MARGEN);
+                const D = distanciaModulo() * 1000;
+                const grados = 2 * Math.atan(letraMM / 2 / D) * 180 / Math.PI;
+                return { altoMM, letraMM, grados, letraPx: letraMM * state.cssPxPerMM };
+            }
+
+            function renderPelli(){
+                d.moduloArea.style.background = '#ffffff';
+                if (!state.isCalibrated) { d.moduloArea.innerHTML = ''; return; }
+                const g = pelliGeometria();
+                const h = g.letraPx;
+                const cont = document.createElement('div');
+                cont.style.cssText = 'display:flex; flex-direction:column; align-items:center;';
+                for (let i = 1; i <= PELLI_FILAS; i++) {
+                    const niv = pelliNivel(i);
+                    const fila = document.createElement('div');
+                    // separación entre letras: un ancho de optotipo, como en la
+                    // cartilla; entre filas, media letra
+                    fila.style.cssText = 'display:flex; align-items:center; justify-content:center; gap:' + h + 'px;'
+                                       + (i > 1 ? ' margin-top:' + (h / 2) + 'px;' : '');
+                    const tinta = `rgb(${niv.codigo},${niv.codigo},${niv.codigo})`;
+                    for (const ch of pelliTriplete(i, state.pelliSemilla)) {
+                        fila.appendChild(spanOptotipo(ch, h, true, tinta));
+                    }
+                    cont.appendChild(fila);
+                }
+                d.moduloArea.innerHTML = '';
+                d.moduloArea.appendChild(cont);
+                const act = pelliNivel(state.pelliFila);
+                d.moduloNombre.textContent =
+                    `Pelli-Robson · letra ${g.letraMM.toFixed(1)} mm = ${g.grados.toFixed(2)}° a ${distanciaModulo()} m · `
+                  + `fila ${act.n}/8 · log CS ${act.log.toFixed(2)} · ${(act.contraste * 100).toFixed(1)}% · código ${act.codigo}`;
+            }
+
+            function pelliComando(resto){
+                const [que, valor] = resto.split(':');
+                if (que === 'fila') {
+                    // el mando manda un número, o arriba/abajo para el paso
+                    let n = valor === 'arriba' ? state.pelliFila - 1
+                          : valor === 'abajo'  ? state.pelliFila + 1
+                          : parseInt(valor, 10);
+                    n = Math.min(PELLI_FILAS, Math.max(1, n));
+                    if (!(n >= 1 && n <= PELLI_FILAS)) return;
+                    state.pelliFila = n;
+                } else if (que === 'nuevas') {
+                    state.pelliSemilla = (state.pelliSemilla + 1) % 1000;
+                } else return;
+                renderScreen();
+                saveToStorage();
+            }
+
             const LETTERS = ['A','C','D','E','H','K','N','O','R','S','V','Z'];
             const NUMBERS = ['0','1','2','3','4','5','6','7','8','9'];
 
@@ -694,6 +786,7 @@
                 // módulo activo y estado de los que no son optotipos
                 modulo:'optotipos', recordarVolver:false,
                 amslerLamina:'blanco', amslerDiagonales:false, amslerOjo:'OD',
+                pelliFila:1, pelliSemilla:0,
             };
 
             const $ = id => document.getElementById(id);
@@ -972,6 +1065,27 @@
                 return state.lineChars[key];
             }
 
+            /* Un carácter dibujado a una altura de tinta dada. La caja del
+               <span> se hace coincidir exactamente con la tinta: font-size sale
+               de la métrica medida del glifo y los huecos laterales se
+               descuentan con márgenes negativos, así las separaciones de la
+               norma se aplican tal cual sobre la tinta y no sobre el cuadratín.
+               Lo comparten el optotipo y el Pelli-Robson. */
+            function spanOptotipo(ch, h_css, conSS01, color){
+                const span = document.createElement('span');
+                span.className = 'optotype-text';
+                span.textContent = ch;
+                const cm = charMetrics(ch);
+                const fs = h_css / cm.ratio;
+                if (conSS01) span.style.fontFeatureSettings = "'ss01'";
+                span.style.fontSize = fs + 'px';
+                span.style.lineHeight = String(cm.ratio);            // alto de caja = tinta
+                span.style.marginLeft = (-cm.left * fs) + 'px';      // descontar el hueco
+                span.style.marginRight = (-cm.right * fs) + 'px';    // lateral del glifo
+                if (color) span.style.color = color;
+                return span;
+            }
+
             /* El repartidor: decide qué capa se dibuja. El módulo de optotipos
                conserva su render entero e intacto; los demás dibujan en
                #modulo-area. Todo lo que llamaba a renderScreen() sigue valiendo. */
@@ -999,6 +1113,8 @@
                     d.moduloArea.style.background = '#000000';
                     d.moduloArea.innerHTML = '';
                     d.moduloNombre.textContent = 'sin estímulo · el mando está en el menú';
+                } else if (m.id === 'contraste') {
+                    renderPelli();
                 } else if (m.id === 'amsler') {
                     renderAmsler();
                 } else {
@@ -1090,6 +1206,25 @@
                     datos.highlightLineIdx = indiceResaltadoLocal();
                     datos.singleCharMode = state.singleCharMode;
                     datos.bichromatic = state.bichromatic;
+                } else if (m.id === 'contraste') {
+                    const g = state.isCalibrated ? pelliGeometria() : null;
+                    datos.pelli = {
+                        fila: state.pelliFila,
+                        letraMM: g ? +g.letraMM.toFixed(1) : 0,
+                        grados: g ? +g.grados.toFixed(2) : 0,
+                        niveles: Array.from({ length: PELLI_FILAS }, (_, k) => {
+                            const v = pelliNivel(k + 1);
+                            return {
+                                n: v.n,
+                                log: v.log.toFixed(2),
+                                pct: v.contraste * 100 >= 10 ? (v.contraste * 100).toFixed(0) : (v.contraste * 100).toFixed(1),
+                                codigo: v.codigo,
+                                chars: pelliTriplete(v.n, state.pelliSemilla),
+                                // el suelo del panel: a 1 y 2 códigos del blanco
+                                alLimite: 255 - v.codigo <= 2
+                            };
+                        })
+                    };
                 } else if (m.id === 'amsler') {
                     const g = state.isCalibrated ? amslerGeometria() : null;
                     datos.amsler = {
@@ -1160,17 +1295,7 @@
                     
                     chars.forEach(ch => {
                         if (ch.type === 'text') {
-                            const span = document.createElement('span');
-                            span.className = 'optotype-text';
-                            span.textContent = ch.char;
-                            const cm = charMetrics(ch.char);
-                            const fs = h_css / cm.ratio;
-                            if (usaSS01()) span.style.fontFeatureSettings = "'ss01'";
-                            span.style.fontSize = fs + 'px';
-                            span.style.lineHeight = String(cm.ratio);            // alto de caja = tinta
-                            span.style.marginLeft = (-cm.left * fs) + 'px';      // descontar el hueco
-                            span.style.marginRight = (-cm.right * fs) + 'px';    // lateral del glifo
-                            row.appendChild(span);
+                            row.appendChild(spanOptotipo(ch.char, h_css, usaSS01()));
                         } else {
                             const img = document.createElement('img');
                             const box = optotypeBoxPx(SVG_ASPECT[ch.key] || 1, h_css);
@@ -1254,7 +1379,8 @@
                     singleCharMode:state.singleCharMode, currentScreenIdx:state.currentScreenIdx,
                     // preferencias del Amsler; el módulo activo NO se guarda,
                     // igual que el modo de optotipo: cada sesión arranca limpia
-                    amslerLamina:state.amslerLamina, amslerDiagonales:state.amslerDiagonales
+                    amslerLamina:state.amslerLamina, amslerDiagonales:state.amslerDiagonales,
+                    pelliFila:state.pelliFila
                 })); }catch(e){}
             }
 
@@ -1290,6 +1416,7 @@
                         state.currentScreenIdx=Math.min(SCREENS.length-1, Math.max(0, saved.currentScreenIdx));
                     if(AMSLER_LAMINAS.some(l=>l.id===saved.amslerLamina)) state.amslerLamina=saved.amslerLamina;
                     if(typeof saved.amslerDiagonales==='boolean') state.amslerDiagonales=saved.amslerDiagonales;
+                    if(typeof saved.pelliFila==='number' && saved.pelliFila>=1 && saved.pelliFila<=PELLI_FILAS) state.pelliFila=saved.pelliFila;
                 } else {
                     state.bichromatic=false;
                 }
@@ -1618,6 +1745,8 @@
                         emitirEspejo();
                     } else if (cmd.startsWith('A:')) {
                         if (state.modulo === 'amsler') amslerComando(cmd.slice(2));
+                    } else if (cmd.startsWith('P:')) {
+                        if (state.modulo === 'contraste') pelliComando(cmd.slice(2));
                     } else if (cmd.startsWith('Mode:')) {
                         // los modos de optotipo solo aplican a su módulo
                         if (state.modulo !== 'optotipos') return;

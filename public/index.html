@@ -528,7 +528,7 @@
                 { id:'contraste', titulo:'Pelli-Robson',     sub:'8 niveles · 0,30 log',                   grupo:'Sensibilidad al contraste', hecho:true,  distFija:1 },
                 { id:'worth',     titulo:'Luces de Worth',   sub:'Fusión y supresión · gafa rojo-verde',   grupo:'Binocularidad',            hecho:true,  distFija:null },
                 { id:'schober',   titulo:'Schober',          sub:'Cruz y anillos · forias',                grupo:'Binocularidad',            hecho:true,  distFija:null },
-                { id:'color',     titulo:'Pseudoisocromático', sub:'Láminas de puntos · cribado',          grupo:'Visión del color',         hecho:false, distFija:null },
+                { id:'color',     titulo:'Pseudoisocromático', sub:'Láminas de puntos · cribado',          grupo:'Visión del color',         hecho:true,  distFija:1 },
                 { id:'amsler',    titulo:'Rejilla de Amsler', sub:'3 láminas · 1 cuadro = 1°',             grupo:'Mácula',                   hecho:true,  distFija:1 },
                 { id:'relax',     titulo:'Relax acomodativo', sub:'Para retinoscopía y fondo de ojo',      grupo:'Fijación',                 hecho:true,  distFija:null },
                 { id:'infantil',  titulo:'Fijación infantil', sub:'Secuencias animadas',                   grupo:'Fijación',                 hecho:true,  distFija:null }
@@ -1056,6 +1056,254 @@
                 renderScreen(); saveToStorage();
             }
 
+            /* ═══════════ LÁMINAS PSEUDOISOCROMÁTICAS ═══════════
+               NO son las cartillas de Ishihara. Esas son una obra publicada con
+               derechos y no se reproducen aquí. Lo que sí es ciencia publicada
+               es el MÉTODO, y es lo que está implementado: las líneas de
+               confusión del espacio CIE 1931.
+
+               Un dicromático confunde todos los colores que caen en una recta
+               del diagrama xy que pasa por su punto copuntual. Los puntos de
+               Judd son (0,747, 0,253) para el protán, (1,080, −0,080) para el
+               deután y (0,171, 0,000) para el tritán. Así que para hacer que
+               una cifra desaparezca para un protán basta pintarla con un color
+               de la recta que une el fondo con el copuntual protán: el
+               observador normal ve dos colores distintos y el protán ve uno.
+
+               Las dos condiciones que hacen "pseudoisocromática" a una lámina:
+                 1. figura y fondo en la misma línea de confusión
+                 2. figura y fondo a la MISMA luminancia -- si no, la cifra se
+                    lee por luminancia y el test no mide color
+               La segunda sale gratis parametrizando la recta a Y constante.
+
+               LO QUE ESTO NO ES: no está validado contra ninguna población, la
+               numeración es propia y no la de Ishihara, y sobre todo depende de
+               lo que el monitor emita de verdad. Sin un colorímetro las
+               cromaticidades son las nominales de sRGB, que es una suposición.
+               Sirve para cribar -- ¿ve una cifra o no? -- y no para clasificar
+               el tipo ni el grado. El módulo lo dice en el mando. */
+            const COPUNTUALES = {
+                protan: { x: 0.747, y: 0.253,  nombre: 'protán' },
+                deutan: { x: 1.080, y: -0.080, nombre: 'deután' },
+                tritan: { x: 0.171, y: 0.000,  nombre: 'tritán' }
+            };
+            const COLOR_Y = 0.45;        // luminancia común de figura y fondo
+
+            // xyY -> sRGB lineal
+            function xyYaLineal(x, y, Y){
+                if (y <= 1e-6) return null;
+                const X = x * Y / y, Z = (1 - x - y) * Y / y;
+                return [ 3.2406*X - 1.5372*Y - 0.4986*Z,
+                        -0.9689*X + 1.8758*Y + 0.0415*Z,
+                         0.0557*X - 0.2040*Y + 1.0570*Z ];
+            }
+            function enGamut(x, y, Y){
+                const c = xyYaLineal(x, y, Y);
+                return !!c && c.every(v => v >= -1e-4 && v <= 1 + 1e-4);
+            }
+            function xyYaCSS(x, y, Y){
+                const c = xyYaLineal(x, y, Y) || [0,0,0];
+                const g = v => { v = Math.max(0, Math.min(1, v));
+                    return Math.round(255 * (v <= 0.0031308 ? 12.92*v : 1.055*Math.pow(v, 1/2.4) - 0.055)); };
+                return `rgb(${g(c[0])},${g(c[1])},${g(c[2])})`;
+            }
+            /* Camina la línea de confusión desde el fondo hacia el copuntual
+               hasta salir del gamut, y se queda al 85% del recorrido: así la
+               separación es la máxima que el monitor puede dar sin recortar,
+               que es lo que recorta el color y rompe la isoluminancia. */
+            function porLaLineaDeConfusion(fondo, eje, Y){
+                const C = COPUNTUALES[eje];
+                const dx = C.x - fondo.x, dy = C.y - fondo.y;
+                let t = 0;
+                while (t < 1.2 && enGamut(fondo.x + (t + 0.005) * dx, fondo.y + (t + 0.005) * dy, Y)) t += 0.005;
+                let u = 0;
+                while (u > -1.2 && enGamut(fondo.x + (u - 0.005) * dx, fondo.y + (u - 0.005) * dy, Y)) u -= 0.005;
+                const s = (Math.abs(t) >= Math.abs(u) ? t : u) * 0.85;
+                return { x: fondo.x + s * dx, y: fondo.y + s * dy, t: s };
+            }
+
+            /* Las láminas. La cifra y el eje son decisiones propias: no se
+               replica la secuencia de ninguna cartilla comercial.
+                 demo     -> la ve todo el mundo; confirma que entiende la tarea
+                 oculta   -> desaparece para el eje indicado
+               No hay lámina de clasificación: ver el comentario de renderColor,
+               con esta pantalla los dos ejes dan el mismo color. */
+            const COLOR_LAMINAS = [
+                { id:1, tipo:'demo',      eje:'deutan', digito:'8',  resp:'8',
+                  que:'Demostración · la ve cualquiera' },
+                { id:2, tipo:'oculta',    eje:'protan', digito:'5',  resp:'5',
+                  que:'Desaparece para el protán' },
+                { id:3, tipo:'oculta',    eje:'protan', digito:'26', resp:'26',
+                  que:'Desaparece para el protán' },
+                { id:4, tipo:'oculta',    eje:'deutan', digito:'3',  resp:'3',
+                  que:'Desaparece para el deután' },
+                { id:5, tipo:'oculta',    eje:'deutan', digito:'97', resp:'97',
+                  que:'Desaparece para el deután' },
+                { id:6, tipo:'oculta',    eje:'tritan', digito:'6',  resp:'6',
+                  que:'Desaparece para el tritán' },
+                { id:7, tipo:'oculta',    eje:'tritan', digito:'45', resp:'45',
+                  que:'Desaparece para el tritán' }
+            ];
+
+            /* Determinista y por POSICIÓN, no secuencial. Con un generador
+               lineal recorrido en orden de rejilla los valores consecutivos
+               quedan correlacionados y el jitter de luminancia dibujaba bandas
+               diagonales en el fondo: un patrón regular en una lámina que tiene
+               que parecer un mosaico al azar. Con un hash de la celda cada
+               punto es independiente de sus vecinos. */
+            function hashCelda(a, b, c, k){
+                let h = (a * 374761393 + b * 668265263 + c * 2246822519 + k * 3266489917) | 0;
+                h = (h ^ (h >>> 13)) | 0;
+                h = Math.imul(h, 1274126177) | 0;
+                h = (h ^ (h >>> 16)) | 0;
+                return (h >>> 0) / 4294967296;
+            }
+
+            /* Esto es un test DE CERCA y por eso trae 1 m fijo, como el Amsler.
+               La cartilla de papel mide unos 14 cm y se lee a 75 cm, o sea unos
+               10°, con puntos de 2 a 7 mm -- de 9' a 32' de arco. Desde la silla
+               de lejos la lámina más grande que cabe son 2,6° y sus puntos 1,4':
+               el paciente fallaría por no resolver los puntos, no por color.
+
+               El mosaico va en rejilla hexagonal con jitter, no por muestreo
+               aleatorio con rechazo: el rechazo se rendía al 37% de cobertura y
+               la lámina salía más agujero que punto. La rejilla da un 70% largo
+               y sigue pareciendo aleatoria porque el radio y la posición de cada
+               punto se sortean dentro de su celda. */
+            const COLOR_PUNTOS_ANCHO = 30;      // puntos a lo ancho de la lámina
+            function colorGeometria(){
+                /* La lámina ocupa el alto de la pantalla, no un ángulo fijo: a
+                   1 m eso son 15,3° contra los 10° de la cartilla de papel, y
+                   más grande es mejor porque los puntos crecen con ella y el
+                   límite real de este test es que el punto se resuelva. */
+                const techo = gradosQueCaben(0.94);
+                const grados = techo > 0 ? techo : 12;
+                const mm = anguloAMM(grados, distanciaModulo());
+                const px = mm * state.cssPxPerMM;
+                const paso = px / COLOR_PUNTOS_ANCHO;
+                const dMinPx = 0.68 * paso, dMaxPx = 0.96 * paso;
+                const enMin = pxv => {
+                    const q = pxv / (state.cssPxPerMM || 1);
+                    return 2 * Math.atan(q / 2 / (distanciaModulo() * 1000)) * 180 / Math.PI * 60;
+                };
+                return { grados, mm, px, paso,
+                         minMin: enMin(dMinPx), maxMin: enMin(dMaxPx) };
+            }
+
+            function renderColor(){
+                d.moduloArea.style.background = '#101010';
+                if (!state.isCalibrated) { d.moduloArea.innerHTML = ''; return; }
+                const lam = COLOR_LAMINAS.find(l => l.id === state.colorLamina) || COLOR_LAMINAS[0];
+                const g = colorGeometria();
+                const D = Math.round(g.px);
+
+                /* El fondo se desplaza del neutro PERPENDICULAR al eje de la
+                   lámina, para que tenga color sin comerse la separación que
+                   necesita la figura a lo largo del eje. */
+                const C = COPUNTUALES[lam.eje];
+                const vx = C.x - 0.310, vy = C.y - 0.330;
+                const n = Math.hypot(vx, vy);
+                const fondo = { x: 0.310 - vy / n * 0.055, y: 0.330 + vx / n * 0.055 };
+                const figura = porLaLineaDeConfusion(fondo, lam.eje, COLOR_Y);
+                /* Aquí había una lámina de clasificación, con una cifra por el
+                   eje protán y otra por el deután, para distinguir un tipo del
+                   otro. Está quitada porque MEDIDO no funciona: en la parte del
+                   gamut sRGB que se puede alcanzar las dos líneas de confusión
+                   son casi paralelas y los dos colores de figura quedan a
+                   Δxy 0,023 -- el mismo color a ojo. Una lámina de clasificación
+                   que no clasifica es peor que no tenerla. Este juego criba; no
+                   distingue protán de deután. */
+                /* La de demostración no va por ninguna línea de confusión: se
+                   desplaza perpendicular, que es la dirección que TODOS
+                   distinguen, dicromáticos incluidos. */
+                const figuraDemo = lam.tipo === 'demo'
+                    ? { x: fondo.x + vy / n * 0.10, y: fondo.y - vx / n * 0.10 } : null;
+
+                const mascara = (txt, dx) => {
+                    const c = document.createElement('canvas');
+                    c.width = D; c.height = D;
+                    const k = c.getContext('2d');
+                    k.fillStyle = '#000'; k.fillRect(0, 0, D, D);
+                    k.fillStyle = '#fff';
+                    k.textAlign = 'center'; k.textBaseline = 'middle';
+                    /* Cifra grande a propósito: con 30 puntos a lo ancho, una
+                       cifra del 46% del disco deja el trazo en 2,8 puntos y se
+                       lee como un borrón. Al 60% el trazo son 3,6 y la cifra
+                       tiene forma. */
+                    k.font = `${Math.round(D * 0.60)}px ${OPTOTYPE_FONT}, Arial Black, sans-serif`;
+                    k.fillText(txt, D / 2 + (dx || 0), D / 2);
+                    return k.getImageData(0, 0, D, D).data;
+                };
+                const m1 = mascara(lam.digito, 0);
+
+                const lienzo = document.createElement('canvas');
+                lienzo.width = D; lienzo.height = D;
+                lienzo.style.borderRadius = '50%';
+                const k = lienzo.getContext('2d');
+                /* El disco se rellena de color papel. Antes quedaba casi negro y
+                   el 55% de la lámina era hueco: los espacios entre puntos se
+                   leían como agujeros en vez de como el fondo de la cartilla,
+                   que es lo que son. No afecta a lo que se mide -- la
+                   discriminación es entre el punto de figura y el de fondo -- pero
+                   cambia por completo a qué se parece. */
+                k.clearRect(0, 0, D, D);
+                k.fillStyle = '#f2f0ec';
+                k.beginPath(); k.arc(D/2, D/2, D/2, 0, Math.PI * 2); k.fill();
+
+
+                const enFigura = (x, y) => {
+                    const xi = Math.round(x), yi = Math.round(y);
+                    if (xi < 0 || yi < 0 || xi >= D || yi >= D) return false;
+                    return m1[(yi * D + xi) * 4] > 127;
+                };
+                const paso = g.paso;
+                const filaAlto = paso * Math.sqrt(3) / 2;
+                const R = D / 2 - paso * 0.50;
+                let puntos = 0;
+                for (let fila = 0; fila * filaAlto <= D; fila++) {
+                    const cy = fila * filaAlto + paso * 0.5;
+                    const desfase = (fila % 2) * paso / 2;
+                    for (let col = 0; col * paso + desfase <= D; col++) {
+                        const cx = col * paso + desfase + paso * 0.5;
+                        const sem = lam.id * 101 + state.colorSemilla * 7919;
+                        const jx = (hashCelda(col, fila, 1, sem) - 0.5) * paso * 0.22;
+                        const jy = (hashCelda(col, fila, 2, sem) - 0.5) * paso * 0.22;
+                        const x = cx + jx, y = cy + jy;
+                        if ((x - D/2) ** 2 + (y - D/2) ** 2 > R * R) continue;
+                        const r = paso * (0.34 + hashCelda(col, fila, 3, sem) * 0.14);
+                        puntos++;
+                        const base = enFigura(x, y) ? (figuraDemo || figura) : fondo;
+                    /* Jitter SOLO de luminancia y muy pequeño: rompe el borde
+                       duro de la cifra, que si no se lee por la forma del
+                       mosaico en vez de por el color. No se toca la
+                       cromaticidad, que es lo que se está midiendo. */
+                        const Yj = COLOR_Y * (0.88 + hashCelda(col, fila, 4, sem) * 0.24);
+                        k.fillStyle = xyYaCSS(base.x, base.y, Math.min(0.95, Yj));
+                        k.beginPath(); k.arc(x, y, r, 0, Math.PI * 2); k.fill();
+                    }
+                }
+
+                d.moduloArea.innerHTML = '';
+                d.moduloArea.appendChild(lienzo);
+                d.moduloNombre.textContent = `Color · lámina ${lam.id}/${COLOR_LAMINAS.length} · ${lam.que} · `
+                    + `${g.grados.toFixed(1)}° = ${g.mm.toFixed(0)} mm a ${distanciaModulo()} m · `
+                    + `${puntos} puntos de ${g.minMin.toFixed(0)}′ a ${g.maxMin.toFixed(0)}′`
+                    + (state.colorResp ? ` · RESPUESTA ${lam.resp}` : '');
+            }
+
+            function colorComando(resto){
+                const [que, valor] = resto.split(':');
+                if (que === 'lam') {
+                    const n = valor === 'sig' ? state.colorLamina + 1
+                            : valor === 'ant' ? state.colorLamina - 1 : parseInt(valor, 10);
+                    if (!(n >= 1 && n <= COLOR_LAMINAS.length)) return;
+                    state.colorLamina = n; state.colorResp = false;
+                } else if (que === 'resp') state.colorResp = !state.colorResp;
+                else if (que === 'nueva') state.colorSemilla = (state.colorSemilla + 1) % 1000;
+                else return;
+                renderScreen(); saveToStorage();
+            }
+
             const LETTERS = ['A','C','D','E','H','K','N','O','R','S','V','Z'];
             const NUMBERS = ['0','1','2','3','4','5','6','7','8','9'];
 
@@ -1102,6 +1350,7 @@
                 schoberAnillos:'5', schoberInvertido:false, schoberOjoRojo:'OD',
                 relaxTipo:'difusa', relaxLuz:'35',
                 infSecuencia:'rebote', infVelocidad:'media', infCongelado:false,
+                colorLamina:1, colorResp:false, colorSemilla:0,
             };
 
             const $ = id => document.getElementById(id);
@@ -1434,6 +1683,8 @@
                     renderWorth();
                 } else if (m.id === 'schober') {
                     renderSchober();
+                } else if (m.id === 'color') {
+                    renderColor();
                 } else if (m.id === 'relax') {
                     renderRelax();
                 } else if (m.id === 'infantil') {
@@ -1621,6 +1872,24 @@
                             { donde: 'Abajo',          que: 'Hiperforia ' + ojoCruz, nota: 'el ojo de la cruz sube', color: '#bbb' },
                             { donde: 'Arriba',         que: 'Hiperforia ' + otroOjo, nota: 'el de los anillos sube', color: '#bbb' }
                         ]
+                    };
+                } else if (m.id === 'color') {
+                    const g = state.isCalibrated ? colorGeometria() : null;
+                    const lam = COLOR_LAMINAS.find(l => l.id === state.colorLamina) || COLOR_LAMINAS[0];
+                    datos.color = {
+                        lamina: state.colorLamina,
+                        total: COLOR_LAMINAS.length,
+                        laminas: COLOR_LAMINAS.map(l => ({ id:l.id, tipo:l.tipo, eje:l.eje,
+                                                           nombre: COPUNTUALES[l.eje].nombre, que:l.que })),
+                        tipo: lam.tipo, eje: lam.eje, ejeNombre: COPUNTUALES[lam.eje].nombre,
+                        que: lam.que,
+                        resp: lam.resp,
+                        mostrarResp: state.colorResp,
+                        grados: g ? +g.grados.toFixed(1) : 0,
+                        mm: g ? +g.mm.toFixed(0) : 0,
+                        minMin: g ? +g.minMin.toFixed(1) : 0,
+                        maxMin: g ? +g.maxMin.toFixed(1) : 0,
+                        puntoChico: g ? g.minMin < 5 : false
                     };
                 } else if (m.id === 'relax') {
                     const g = state.isCalibrated ? relaxGeometria() : null;
@@ -1827,6 +2096,7 @@
                 state.worthOjoRojo = 'OD';
                 state.schoberOjoRojo = 'OD';
                 state.infCongelado = false;
+                state.colorResp = false;
                 if(saved){
                     // Nada de resolución ni DPR guardados: los da el navegador en
                     // cada arranque. Del almacenamiento solo sale lo que ninguna
@@ -2188,6 +2458,8 @@
                         if (state.modulo === 'worth') worthComando(cmd.slice(2));
                     } else if (cmd.startsWith('S:')) {
                         if (state.modulo === 'schober') schoberComando(cmd.slice(2));
+                    } else if (cmd.startsWith('C:')) {
+                        if (state.modulo === 'color') colorComando(cmd.slice(2));
                     } else if (cmd.startsWith('R:')) {
                         if (state.modulo === 'relax') relaxComando(cmd.slice(2));
                     } else if (cmd.startsWith('I:')) {

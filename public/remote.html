@@ -319,6 +319,10 @@
         }
         .aviso .tit { font-size: 12px; color: #ddd; font-weight: 600; }
         .aviso .txt { font-size: 11px; color: #7a7a7a; margin-top: 5px; line-height: 1.5; }
+        .aviso.limite { background: rgba(243,156,18,0.07); border-color: rgba(243,156,18,0.3); }
+        .aviso.limite .tit { color: #f0b26b; }
+        .aviso.limite .txt { color: #a8895f; }
+        .aviso.limite strong { color: #c9a870; }
 
         /* Botones de modo */
         .mode-grid {
@@ -554,6 +558,39 @@
             </div>
         </div>
 
+        <!-- Panel de las láminas de color -->
+        <div id="panel-color" class="bloque oculto">
+            <div class="lectura">
+                <div>
+                    <div class="et">Lámina</div>
+                    <div class="grande"><span id="color-n">1</span><span style="color:#555;font-size:20px;">/<span id="color-total">7</span></span></div>
+                    <div class="et" id="color-que" style="margin-top:2px; text-transform:none; letter-spacing:0; font-size:10.5px; color:#8a8a8a;"></div>
+                </div>
+                <div style="text-align:right; flex-shrink:0;">
+                    <div class="et">Eje</div>
+                    <div class="nivel" id="color-eje">—</div>
+                </div>
+            </div>
+            <div class="pareja">
+                <button onclick="enviar('C:lam:ant')" id="color-ant"><span class="flecha">‹</span><span class="mini">anterior</span></button>
+                <button onclick="enviar('C:lam:sig')" id="color-sig"><span class="flecha">›</span><span class="mini">siguiente</span></button>
+            </div>
+            <button class="conmut" id="color-resp" onclick="enviar('C:resp')">
+                <span class="et">Respuesta correcta</span>
+                <span class="val" id="color-resp-val">oculta</span>
+            </button>
+            <button class="conmut" onclick="enviar('C:nueva')" style="justify-content:center;">
+                <span class="et">Remezclar los puntos</span>
+            </button>
+            <div class="grupo-tit">Las láminas</div>
+            <div class="lista-niv" id="color-lista"></div>
+            <div class="nota-geo" id="color-geo"></div>
+            <div class="aviso limite">
+                <div class="tit">Esto es cribado, y hay que decirlo</div>
+                <div class="txt">No son las cartillas de Ishihara: son láminas generadas con las líneas de confusión del CIE, con numeración propia y sin validar contra ninguna población. Y sobre todo, el color depende de lo que emita <strong>este</strong> monitor — sin colorímetro las cromaticidades son las nominales de sRGB, que es una suposición. Sirve para <strong>detectar</strong>, no para clasificar. Medido: en el gamut sRGB alcanzable las líneas de confusión protán y deután quedan a Δxy 0,023 una de otra, o sea el mismo color — con esta pantalla no hay forma de distinguir un tipo del otro. Un resultado dudoso se confirma con láminas impresas.</div>
+            </div>
+        </div>
+
         <!-- Panel de un módulo declarado pero sin construir -->
         <div id="panel-pendiente" class="bloque oculto">
             <div style="background:#1a1a1a; border:1px solid #2b2b2b; border-radius:10px; padding:14px;">
@@ -712,6 +749,7 @@
             ver($r('panel-pelli'),     mod === 'contraste');
             ver($r('panel-worth'),     mod === 'worth');
             ver($r('panel-schober'),   mod === 'schober');
+            ver($r('panel-color'),     mod === 'color');
             ver($r('panel-relax'),     mod === 'relax');
             ver($r('panel-infantil'),  mod === 'infantil');
             ver($r('panel-pendiente'), !info.hecho);
@@ -723,6 +761,7 @@
             else if (mod === 'contraste') { espejoPelli(espejo, data); pintarPelli(data); }
             else if (mod === 'worth')     { espejoWorth(espejo, data); pintarWorth(data); }
             else if (mod === 'schober')   { espejoSchober(espejo, data); pintarSchober(data); }
+            else if (mod === 'color')     { espejoColor(espejo, data); pintarColor(data); }
             else if (mod === 'relax')     { espejoRelax(espejo, data); pintarRelax(data); }
             else if (mod === 'infantil')  { espejoInfantil(espejo, data); pintarInfantil(data); }
             else                       { espejoPendiente(espejo, info); }
@@ -1025,6 +1064,57 @@
                 d.querySelector('.c').textContent = f.c || '';
                 cont.appendChild(d);
             });
+        }
+
+        /* ═══════════ COLOR ═══════════
+           El espejo NO reproduce la lámina: mostrar los mismos colores en el
+           panel del móvil sería mentir dos veces -- ese panel tiene otro gamut y
+           otra calibración, y además el optometrista no tiene que ver la cifra
+           para dirigir el test, tiene que saber cuál es. Así que el espejo dice
+           qué lámina está puesta y qué se espera. */
+        function espejoColor(espejo, data) {
+            const c = data.color || {};
+            const caja = document.createElement('div');
+            caja.style.cssText = 'text-align:center; padding:10px 14px;';
+            caja.innerHTML =
+                '<div style="font-family:monospace; font-size:34px; color:#fff; line-height:1;">'
+              + (c.mostrarResp ? c.resp : '· ·') + '</div>'
+              + '<div style="font-size:10px; text-transform:uppercase; letter-spacing:1px; color:#5e5e5e; margin-top:8px;">'
+              + (c.mostrarResp ? 'respuesta esperada' : 'respuesta oculta') + '</div>'
+              + '<div style="font-size:11px; color:#8a8a8a; margin-top:12px; line-height:1.5; max-width:230px;">'
+              + (c.que || '') + '</div>';
+            espejo.appendChild(caja);
+        }
+
+        function pintarColor(data) {
+            const c = data.color || {};
+            $r('color-n').textContent = c.lamina ?? 1;
+            $r('color-total').textContent = c.total ?? 0;
+            $r('color-que').textContent = c.que || '';
+            $r('color-eje').textContent = c.tipo === 'demo' ? 'demo' : (c.ejeNombre || '—');
+            $r('color-ant').disabled = (c.lamina ?? 1) <= 1;
+            $r('color-sig').disabled = (c.lamina ?? 1) >= (c.total ?? 1);
+            $r('color-resp').classList.toggle('on', !!c.mostrarResp);
+            $r('color-resp-val').textContent = c.mostrarResp ? c.resp : 'oculta';
+
+            const cont = $r('color-lista');
+            cont.innerHTML = '';
+            (c.laminas || []).forEach(l => {
+                const b = document.createElement('button');
+                b.className = l.id === c.lamina ? 'sel' : '';
+                b.innerHTML = '<span class="n"></span><span class="tri" style="font-family:inherit;font-size:12px;'
+                            + 'letter-spacing:0;color:#bbb;"></span><span class="pct" style="width:52px;"></span>';
+                b.querySelector('.n').textContent = l.id;
+                b.querySelector('.tri').textContent = l.que;
+                b.querySelector('.pct').textContent = l.tipo === 'demo' ? 'demo' : l.nombre;
+                b.addEventListener('click', () => enviar('C:lam:' + l.id));
+                cont.appendChild(b);
+            });
+
+            $r('color-geo').textContent =
+                (c.grados ?? 0) + '\u00b0 = ' + (c.mm ?? 0) + ' mm a ' + (data.cal?.distanciaModulo ?? '—') + ' m'
+              + '  \u00b7  puntos de ' + (c.minMin ?? 0) + '\u2032 a ' + (c.maxMin ?? 0) + '\u2032'
+              + (c.puntoChico ? '  \u00b7  POR DEBAJO DE 5\u2032: un fallo puede ser de agudeza y no de color' : '');
         }
 
         /* ═══════════ RELAX ═══════════ */

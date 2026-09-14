@@ -211,7 +211,7 @@
     <div class="mode-grid" id="mode-buttons">
         <button data-mode="letters" class="active-mode">Letras</button>
         <button data-mode="numbers">Números</button>
-        <button data-mode="pediatric">Figuras</button>
+        <button data-mode="pediatric">LEA</button>
         <button data-mode="e_directional">E direc.</button>
     </div>
 
@@ -333,8 +333,7 @@
         const INK_PX = 20;
         const CAP_HEIGHT_RATIO = 0.5;   // Optician Sans: mayúsculas = 500/1000 del cuadratín
         function optotypeBoxPx(aspect, ink){
-            return aspect >= 1 ? { w: ink, h: ink/aspect }
-                               : { w: ink*aspect, h: ink };
+            return { w: ink * aspect, h: ink };   // la altura manda, igual que en la pantalla
         }
 
         socket?.on('screenUpdate', (data) => {

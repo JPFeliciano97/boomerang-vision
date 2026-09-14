@@ -178,8 +178,12 @@
         .optotype-line.dimmed .optotype-text,
         .optotype-line.dimmed img { opacity: 0.10; }
         .line-annotation-left, .line-annotation-right {
-            font-family: 'Segoe UI', 'Helvetica Neue', sans-serif;
-            font-weight: 600;
+            /* Las cifras de agudeza en la misma tipografía que los optotipos.
+               Optician Sans tiene un solo peso: pedirle 600 hacía que el
+               navegador la engordara por su cuenta. */
+            font-family: 'OpticianSans', 'Segoe UI', 'Helvetica Neue', sans-serif;
+            font-weight: normal;
+            letter-spacing: 0.5px;
             line-height: 1;
             width: 80px; flex-shrink: 0;
             font-size: clamp(12px, 2vw, 24px);

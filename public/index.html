@@ -596,38 +596,56 @@
                 d.moduloArea.style.background = lam.fondo;
                 if (!state.isCalibrated) { d.moduloArea.innerHTML = ''; return; }
                 const g = amslerGeometria();
+                const dprAhora = liveDpr();
                 const w = g.cx * 2 * g.ladoPx, h = g.cy * 2 * g.ladoPx;
-                // El trazo no es clínico, pero sí tiene que ser el mismo en toda
-                // la rejilla: 1 px de dispositivo, sin medios píxeles que
-                // aparenten una línea más gruesa que otra.
-                const trazo = Math.max(1, Math.round(liveDpr())) / liveDpr();
-                // Con el paso ya entero en px de dispositivo, las coordenadas
-                // salen exactas: nada de toFixed(3) que reintroduzca fracciones.
+
+                /* El grosor sale del cuadro, no de un píxel fijo. La cartilla de
+                   papel dibuja la línea a razón de una veintena del lado del
+                   cuadro; un píxel suelto a 3,8 px/mm son 0,26 mm sobre un
+                   cuadro de 17,6, o sea 1:67, mucho más fino que la lámina. Se
+                   fuerza a un número PAR de píxeles de dispositivo para que el
+                   medio trazo del centrado caiga en píxel entero. */
+                const trazoDev = Math.max(2, Math.round(g.ladoPx * dprAhora / 20 / 2) * 2);
+                const trazo = trazoDev / dprAhora;
+
+                /* El SVG ocupa la ventana entera y la rejilla se centra DENTRO,
+                   en coordenadas que yo controlo. Posicionar el SVG por CSS no
+                   servía: a DPR fraccionario el navegador cuantiza la posición
+                   del elemento a 1/64 de píxel CSS, así que 41/1,5 acababa en
+                   40,992 px de dispositivo y el borde de arriba y el de abajo
+                   se redondeaban a lados distintos. Con el SVG anclado en 0,0
+                   —inset:0, exacto— el único redondeo que queda es el mío. */
+                const aDev = v => Math.round(v * dprAhora) / dprAhora;
+                const W = window.innerWidth, H = window.innerHeight;
+                const ox = aDev((W - w) / 2), oy = aDev((H - h) / 2);
+
                 const lineas = [];
                 for (let i = 0; i <= g.cx * 2; i++) {
-                    const x = i * g.ladoPx;
-                    lineas.push(`<line x1="${x}" y1="0" x2="${x}" y2="${h}"/>`);
+                    const x = ox + i * g.ladoPx;
+                    lineas.push(`<line x1="${x}" y1="${oy}" x2="${x}" y2="${oy + h}"/>`);
                 }
                 for (let j = 0; j <= g.cy * 2; j++) {
-                    const y = j * g.ladoPx;
-                    lineas.push(`<line x1="0" y1="${y}" x2="${w}" y2="${y}"/>`);
+                    const y = oy + j * g.ladoPx;
+                    lineas.push(`<line x1="${ox}" y1="${y}" x2="${ox + w}" y2="${y}"/>`);
                 }
                 /* Las diagonales no son horizontales ni verticales, así que
-                   crispEdges no les sirve: se dibujan con antialias en su propio
-                   grupo para que no salgan escalonadas. */
+                   crispEdges no les sirve: van con antialias en su propio grupo
+                   para que no salgan escalonadas. */
                 const diag = state.amslerDiagonales
                     ? `<g stroke="${lam.linea}" stroke-width="${trazo}" opacity="0.5" shape-rendering="geometricPrecision">
-                         <line x1="0" y1="0" x2="${w}" y2="${h}"/>
-                         <line x1="${w}" y1="0" x2="0" y2="${h}"/>
+                         <line x1="${ox}" y1="${oy}" x2="${ox + w}" y2="${oy + h}"/>
+                         <line x1="${ox + w}" y1="${oy}" x2="${ox}" y2="${oy + h}"/>
                        </g>` : '';
                 // El punto de fijación central: sin él el paciente no sabe dónde
                 // mirar y el defecto se mueve con la mirada.
-                const rPunto = Math.max(2, g.ladoPx * 0.09);
+                const rPunto = Math.max(trazo, g.ladoPx * 0.09);
                 d.moduloArea.innerHTML =
-                    `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" shape-rendering="crispEdges">
+                    `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"
+                          shape-rendering="crispEdges"
+                          style="position:absolute; inset:0; display:block;">
                        <g stroke="${lam.linea}" stroke-width="${trazo}" fill="none">${lineas.join('')}</g>
                        ${diag}
-                       <circle cx="${w/2}" cy="${h/2}" r="${rPunto.toFixed(2)}" fill="${lam.punto}" stroke="none" shape-rendering="geometricPrecision"/>
+                       <circle cx="${ox + w/2}" cy="${oy + h/2}" r="${rPunto.toFixed(2)}" fill="${lam.punto}" stroke="none" shape-rendering="geometricPrecision"/>
                      </svg>`;
                 d.moduloNombre.textContent =
                     `Amsler · ${lam.nombre} · ojo ${state.amslerOjo} · cuadro ${g.ladoMM.toFixed(2)} mm = ` +

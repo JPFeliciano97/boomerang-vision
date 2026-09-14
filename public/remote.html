@@ -192,6 +192,16 @@
             font-size: 8px; text-transform: uppercase; letter-spacing: 1px; color: #5e5e5e;
         }
         .cabecera .dist .val { font-family: monospace; font-size: 13px; margin-top: 2px; }
+        /* Mover la silla es cosa del que está al lado del paciente, o sea del
+           que tiene el móvil. Sin esto la distancia solo se podía cambiar en el
+           PC, y los módulos que miden contra ella (Worth, Schober, relajación,
+           fijación) seguían calculando con la distancia vieja. */
+        .cabecera .dist .pasos { display: flex; gap: 4px; margin-top: 4px; }
+        .cabecera .dist .pasos button {
+            width: 30px; height: 26px; padding: 0; font-size: 15px; line-height: 1;
+            border: 1px solid #2f2f2f; border-radius: 6px; background: #232323; color: #bbb;
+        }
+        .cabecera .dist .pasos button:active { background: #2980b9; color: #fff; }
 
         /* ═══════════ CONTROLES DEL AMSLER ═══════════ */
         .lista-lam { display: flex; flex-direction: column; gap: 6px; }
@@ -428,6 +438,10 @@
             <div class="dist">
                 <div class="et" id="mod-dist-et">Distancia</div>
                 <div class="val" id="mod-dist-val"></div>
+                <div class="pasos oculto" id="mod-dist-pasos">
+                    <button onclick="enviar('D:menos')" title="Acercar 0,5 m">−</button>
+                    <button onclick="enviar('D:mas')" title="Alejar 0,5 m">+</button>
+                </div>
             </div>
         </div>
 
@@ -818,6 +832,9 @@
             const val = $r('mod-dist-val');
             val.textContent = (data.cal?.distanciaModulo ?? '—') + ' m';
             val.style.color = fija ? '#f0b26b' : '#2980b9';
+            /* Un módulo que fija su distancia (Amsler y color, a 1 m) no la
+               negocia: ahí los pasos no pintan nada. En el menú tampoco. */
+            $r('mod-dist-pasos').classList.toggle('oculto', fija || info.id === 'menu');
         }
 
         function espejoPendiente(espejo, info) {

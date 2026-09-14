@@ -134,10 +134,14 @@
 
         #dpr-input { width: 70px; }
 
-        /* Los controles del optotipo no significan nada en otro módulo. */
-        #calibration-bar.modo-modulo .mode-selector,
-        #calibration-bar.modo-modulo .cal-group,
-        #calibration-bar.modo-modulo .cal-sep { display:none; }
+        /* Los controles del optotipo no significan nada en otro módulo. La
+           DISTANCIA sí: Worth, Schober, relajación y fijación infantil calculan
+           su estímulo físico contra state.testDistanceM, así que el campo se
+           queda a la vista. Solo se esconde en los módulos que fijan ellos la
+           distancia (Amsler y color, a 1 m), donde la de sala no interviene. */
+        #calibration-bar.modo-modulo .mode-selector { display:none; }
+        #calibration-bar.dist-fija .cal-group,
+        #calibration-bar.dist-fija .cal-sep { display:none; }
 
         /* ═══ SECUENCIAS DE FIJACIÓN INFANTIL ═══
            El recorrido y el rebote se mueven en vw/vh a propósito: lo que atrae
@@ -699,9 +703,21 @@
             }
             // Tripletes deterministas: la semilla vive en el estado, así que un
             // repintado no le cambia las letras al paciente a media medida.
+            //
+            // El índice tiene que pasar por un hash. La primera versión era
+            // lineal en j ((fila*37 + j*11 + semilla*53) % 10) y como 11 % 10 = 1
+            // salían siempre tres letras SEGUIDAS del alfabeto Sloan: solo existían
+            // diez tripletes, y subir la semilla desplazaba la cartilla entera una
+            // fila en vez de cambiar las letras. Medido: 10 tripletes posibles.
+            // Con el hash y el sorteo sin reposición salen 716 de los 720
+            // tripletes posibles, sin letra repetida dentro del triplete.
             function pelliTriplete(fila, semilla){
+                let h = (Math.imul(fila + 1, 2654435761) ^ Math.imul(semilla + 1, 40503) ^ 0x9e3779b9) >>> 0;
+                const paso = () => { h = (Math.imul(h, 1664525) + 1013904223) >>> 0; return h >>> 16; };
+                paso();                                   // descarta el primer valor, muy pegado a la semilla
+                const bolsa = PELLI_SLOAN.split('');      // sin reposición: tres letras distintas
                 let t = '';
-                for (let j = 0; j < 3; j++) t += PELLI_SLOAN[(fila * 37 + j * 11 + semilla * 53) % 10];
+                for (let j = 0; j < 3; j++) t += bolsa.splice(paso() % bolsa.length, 1)[0];
                 return t;
             }
             function pelliGeometria(){
@@ -1650,25 +1666,55 @@
                 return span;
             }
 
+            /* Distancia de sala desde el mando. El operador está junto al paciente,
+               no junto al teclado: si mueve la silla para que quepa el rombo de
+               Worth, tiene que poder decirlo desde el móvil, o el estímulo se
+               sigue calculando contra la distancia vieja. Paso de 0,5 m, que es
+               como se mueve una silla; el campo del PC admite el decimal fino. */
+            const DIST_MIN = 0.5, DIST_MAX = 10, DIST_PASO = 0.5;
+            function distanciaComando(valor){
+                const actual = state.testDistanceM;
+                let d2 = valor === 'mas'   ? actual + DIST_PASO
+                       : valor === 'menos' ? actual - DIST_PASO
+                       : parseFloat(valor);
+                if (!isFinite(d2)) return;
+                d2 = Math.min(DIST_MAX, Math.max(DIST_MIN, Math.round(d2 * 10) / 10));
+                if (d2 === actual) { emitirEspejo(); return; }
+                state.testDistanceM = d2;
+                d.testDistance.value = d2;
+                resolveCalibration();
+                state.lineChars = {};   // la línea cambia de tamaño: sus letras se resortean
+                renderScreen();
+                saveToStorage();
+            }
+
             /* El repartidor: decide qué capa se dibuja. El módulo de optotipos
                conserva su render entero e intacto; los demás dibujan en
                #modulo-area. Todo lo que llamaba a renderScreen() sigue valiendo. */
+            let moduloPintado = null;   // último módulo dibujado, para no repetir el repliegue
             function renderScreen(){
                 const m = moduloActual();
                 const esOpto = m.id === 'optotipos';
                 d.linesContainer.classList.toggle('oculto', !esOpto);
                 d.moduloArea.classList.toggle('oculto', esOpto);
                 d.calBar.classList.toggle('modo-modulo', !esOpto);
+                d.calBar.classList.toggle('dist-fija', !esOpto && m.distFija != null);
                 document.body.classList.toggle('en-modulo', !esOpto);
                 /* El fondo bicromático es del optotipo: dejarlo puesto en otro
                    módulo pintaría media rejilla de Amsler sobre rojo y media
                    sobre verde. Se apaga sin tocar la preferencia guardada. */
                 d.testArea.classList.toggle('bichromatic', esOpto && state.bichromatic);
-                /* Al entrar en un módulo la barra se repliega sola; al volver a
+                /* Al ENTRAR en un módulo la barra se repliega sola; al volver a
                    optotipos vuelve. Es la misma clase del botón ▲, así que el
-                   estado del icono se mantiene coherente. */
-                d.calBar.classList.toggle('collapsed', !esOpto);
-                d.btnToggle.textContent = esOpto ? '▲' : '▼';
+                   estado del icono se mantiene coherente.
+                   Solo al cambiar de módulo: renderScreen() corre en cada flecha y
+                   en cada comando del mando, y forzar la clase en todos los
+                   repintados deshacía el ▲/▼ que acababa de pulsar el operador. */
+                if (m.id !== moduloPintado) {
+                    d.calBar.classList.toggle('collapsed', !esOpto);
+                    d.btnToggle.textContent = esOpto ? '▲' : '▼';
+                    moduloPintado = m.id;
+                }
                 if (esOpto) {
                     d.testArea.style.background = '';
                     d.moduloNombre.textContent = '';
@@ -2073,7 +2119,7 @@
                     // preferencias del Amsler; el módulo activo NO se guarda,
                     // igual que el modo de optotipo: cada sesión arranca limpia
                     amslerLamina:state.amslerLamina, amslerDiagonales:state.amslerDiagonales,
-                    pelliFila:state.pelliFila, worthTam:state.worthTam,
+                    worthTam:state.worthTam,
                     schoberAnillos:state.schoberAnillos, schoberInvertido:state.schoberInvertido,
                     relaxTipo:state.relaxTipo, relaxLuz:state.relaxLuz,
                     infSecuencia:state.infSecuencia, infVelocidad:state.infVelocidad
@@ -2097,6 +2143,13 @@
                 state.schoberOjoRojo = 'OD';
                 state.infCongelado = false;
                 state.colorResp = false;
+                /* La fila de contraste es una MEDIDA a medio hacer, no una
+                   preferencia: se guardaba en localStorage y la sesión siguiente
+                   arrancaba en la fila del paciente anterior y la anunciaba como
+                   «fila en curso». Los demás valores guardados (tamaño de Worth,
+                   anillos de Schober, secuencia infantil) sí son preferencias del
+                   gabinete y sobreviven a propósito. */
+                state.pelliFila = 1;
                 if(saved){
                     // Nada de resolución ni DPR guardados: los da el navegador en
                     // cada arranque. Del almacenamiento solo sale lo que ninguna
@@ -2116,7 +2169,6 @@
                         state.currentScreenIdx=Math.min(SCREENS.length-1, Math.max(0, saved.currentScreenIdx));
                     if(AMSLER_LAMINAS.some(l=>l.id===saved.amslerLamina)) state.amslerLamina=saved.amslerLamina;
                     if(typeof saved.amslerDiagonales==='boolean') state.amslerDiagonales=saved.amslerDiagonales;
-                    if(typeof saved.pelliFila==='number' && saved.pelliFila>=1 && saved.pelliFila<=PELLI_FILAS) state.pelliFila=saved.pelliFila;
                     if(WORTH_TAMANOS.some(t=>t.id===saved.worthTam)) state.worthTam=saved.worthTam;
                     if(['3','5','7'].includes(saved.schoberAnillos)) state.schoberAnillos=saved.schoberAnillos;
                     if(typeof saved.schoberInvertido==='boolean') state.schoberInvertido=saved.schoberInvertido;
@@ -2447,6 +2499,8 @@
                 socket.on('comando', (cmd) => {
                     if (cmd.startsWith('Modulo:')) {
                         entrarModulo(cmd.slice(7));
+                    } else if (cmd.startsWith('D:')) {
+                        distanciaComando(cmd.slice(2));
                     } else if (cmd === 'VolverDicho') {
                         state.recordarVolver = false;
                         emitirEspejo();

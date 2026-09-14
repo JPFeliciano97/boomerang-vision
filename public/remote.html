@@ -294,6 +294,32 @@
         .tabla .f .b { font-size: 12.5px; flex-grow: 1; font-weight: 600; }
         .tabla .f .c { font-family: monospace; font-size: 9px; color: #5e5e5e; flex-shrink: 0; }
 
+        /* ═══════════ FIJACIÓN: RELAX E INFANTIL ═══════════ */
+        @keyframes esp-rebote    { from { transform: translateY(-16px); } to { transform: translateY(16px); } }
+        @keyframes esp-recorrido { from { transform: translateX(-22px) rotate(-12deg); } to { transform: translateX(22px) rotate(12deg); } }
+        @keyframes esp-molinete  { from { transform: rotate(0deg); } to { transform: rotate(180deg); } }
+        @keyframes esp-destellos { from { transform: scale(0.75); opacity: 0.6; } to { transform: scale(1.1); opacity: 1; } }
+
+        .cuarteto { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+        .cuarteto button {
+            display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+            padding: 11px 12px; border-radius: 9px; min-height: 54px;
+            background: #1a1a1a; border: 1px solid #2b2b2b; color: inherit; font: inherit; text-align: left;
+        }
+        .cuarteto button.sel { border-color: #f1c40f; background: #232323; }
+        .cuarteto .n { font-size: 13px; font-weight: 600; color: #e8e8e8; }
+        .cuarteto .s { font-size: 10.5px; color: #777; }
+
+        .conmut.grande { min-height: 58px; margin-top: 10px; }
+        .conmut.grande .et { font-size: 14px; font-weight: 700; letter-spacing: 0.6px; }
+
+        .aviso {
+            margin-top: 12px; padding: 11px 12px; border-radius: 9px;
+            background: #141414; border: 1px solid #262626;
+        }
+        .aviso .tit { font-size: 12px; color: #ddd; font-weight: 600; }
+        .aviso .txt { font-size: 11px; color: #7a7a7a; margin-top: 5px; line-height: 1.5; }
+
         /* Botones de modo */
         .mode-grid {
             display: grid;
@@ -498,6 +524,36 @@
             <div class="nota-geo" id="schober-geo"></div>
         </div>
 
+        <!-- Panel del relax acomodativo -->
+        <div id="panel-relax" class="bloque oculto">
+            <div class="grupo-tit">Estímulo</div>
+            <div class="lista-lam" id="relax-tipos"></div>
+            <div class="grupo-tit">Luz</div>
+            <div class="trio" id="relax-luces"></div>
+            <div class="nota-geo" id="relax-geo"></div>
+            <div class="aviso">
+                <div class="tit">Es lo contrario de un optotipo</div>
+                <div class="txt">Grande, sin bordes nítidos y con poca luz: no hay ningún detalle que el ojo pueda intentar enfocar, así que el paciente no acomoda mientras usted trabaja.</div>
+            </div>
+        </div>
+
+        <!-- Panel de la fijación infantil -->
+        <div id="panel-infantil" class="bloque oculto">
+            <div class="grupo-tit">Secuencia</div>
+            <div class="cuarteto" id="inf-secuencias"></div>
+            <div class="grupo-tit">Velocidad</div>
+            <div class="trio" id="inf-velocidades"></div>
+            <button class="conmut grande" id="inf-congelar" onclick="enviar('I:congelar')">
+                <span class="et" id="inf-congelar-et">CONGELAR</span>
+                <span class="val" id="inf-congelar-val">en movimiento</span>
+            </button>
+            <div class="nota-geo" id="inf-geo"></div>
+            <div class="aviso">
+                <div class="tit">Sin sonido, por decisión</div>
+                <div class="txt">En un consultorio pequeño el audio distrae al niño más de lo que lo atrae, y molesta en la sala de al lado. Congelar deja la figura quieta en el centro para el instante de la medida.</div>
+            </div>
+        </div>
+
         <!-- Panel de un módulo declarado pero sin construir -->
         <div id="panel-pendiente" class="bloque oculto">
             <div style="background:#1a1a1a; border:1px solid #2b2b2b; border-radius:10px; padding:14px;">
@@ -610,6 +666,22 @@
            cuadratín. Los dos modos de texto llegan ya con ss01, donde todo
            glifo mide 0,500 em exactos, así que el ratio nominal no aproxima
            nada: es el valor. Los otros dos modos son SVG con su viewBox. */
+        /* Las figuras del espejo: las mismas que dibuja la pantalla, a tamaño
+           de vista previa. El espejo no está a escala. */
+        const FIG_INF = {
+            rebote: '<circle cx="30" cy="30" r="26" fill="#e8574c"/><circle cx="30" cy="30" r="9" fill="#fff"/>',
+            molinete: '<path d="M30 30L30 2A28 28 0 0 1 54 16Z" fill="#e8574c"/>'
+                    + '<path d="M30 30L54 16A28 28 0 0 1 54 44Z" fill="#f0b26b"/>'
+                    + '<path d="M30 30L54 44A28 28 0 0 1 30 58Z" fill="#7fb069"/>'
+                    + '<path d="M30 30L30 58A28 28 0 0 1 6 44Z" fill="#4f9bd9"/>'
+                    + '<path d="M30 30L6 44A28 28 0 0 1 6 16Z" fill="#9b6bbf"/>'
+                    + '<path d="M30 30L6 16A28 28 0 0 1 30 2Z" fill="#e8c84c"/>',
+            recorrido: '<circle cx="30" cy="30" r="25" fill="#f0b26b"/>'
+                     + '<circle cx="22" cy="24" r="4" fill="#2a2a2a"/><circle cx="38" cy="24" r="4" fill="#2a2a2a"/>'
+                     + '<path d="M20 38 Q30 47 40 38" stroke="#2a2a2a" stroke-width="3.5" fill="none" stroke-linecap="round"/>',
+            destellos: '<path d="M30 2l7.7 17.1L56 21.3l-13.1 12.2L46 52l-16-9.8L14 52l3.1-18.5L4 21.3l18.3-2.2z" fill="#7fb069"/>'
+        };
+
         const INK_PX = 20;
         const CAP_HEIGHT_RATIO = 0.5;   // Optician Sans: mayúsculas = 500/1000 del cuadratín
         function optotypeBoxPx(aspect, ink){
@@ -640,6 +712,8 @@
             ver($r('panel-pelli'),     mod === 'contraste');
             ver($r('panel-worth'),     mod === 'worth');
             ver($r('panel-schober'),   mod === 'schober');
+            ver($r('panel-relax'),     mod === 'relax');
+            ver($r('panel-infantil'),  mod === 'infantil');
             ver($r('panel-pendiente'), !info.hecho);
 
             const espejo = $r('remote-screen');
@@ -649,6 +723,8 @@
             else if (mod === 'contraste') { espejoPelli(espejo, data); pintarPelli(data); }
             else if (mod === 'worth')     { espejoWorth(espejo, data); pintarWorth(data); }
             else if (mod === 'schober')   { espejoSchober(espejo, data); pintarSchober(data); }
+            else if (mod === 'relax')     { espejoRelax(espejo, data); pintarRelax(data); }
+            else if (mod === 'infantil')  { espejoInfantil(espejo, data); pintarInfantil(data); }
             else                       { espejoPendiente(espejo, info); }
         });
 
@@ -949,6 +1025,96 @@
                 d.querySelector('.c').textContent = f.c || '';
                 cont.appendChild(d);
             });
+        }
+
+        /* ═══════════ RELAX ═══════════ */
+        function espejoRelax(espejo, data) {
+            const r = data.relax || {};
+            const luz = (parseInt(r.luz, 10) || 35) / 100;
+            const L = 120;
+            espejo.innerHTML = r.tipo === 'punto'
+                ? '<div style="width:14px;height:14px;border-radius:50%;background:rgba(255,255,255,' + luz.toFixed(2) + ');"></div>'
+                : '<div style="width:' + L + 'px;height:' + L + 'px;border-radius:50%;background:radial-gradient(circle,'
+                  + 'rgba(255,255,255,' + luz.toFixed(2) + ') 0%, rgba(255,255,255,' + (luz*0.55).toFixed(2) + ') 45%,'
+                  + 'rgba(255,255,255,0) 100%);"></div>';
+        }
+        function pintarRelax(data) {
+            const r = data.relax || {};
+            const tipos = $r('relax-tipos');
+            tipos.innerHTML = '';
+            (r.tipos || []).forEach(t => {
+                const b = document.createElement('button');
+                b.className = t.id === r.tipo ? 'sel' : '';
+                b.innerHTML = '<div class="muestra"></div><div class="txt"><div class="tit"></div><div class="sub"></div></div>';
+                const luz = (parseInt(r.luz, 10) || 35) / 100;
+                b.querySelector('.muestra').style.cssText = 'background:#000; display:flex; align-items:center; justify-content:center;';
+                b.querySelector('.muestra').innerHTML = t.id === 'punto'
+                    ? '<div style="width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,' + luz.toFixed(2) + ');"></div>'
+                    : '<div style="width:30px;height:30px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,'
+                      + luz.toFixed(2) + ') 0%,rgba(255,255,255,0) 100%);"></div>';
+                b.querySelector('.tit').textContent = t.nombre;
+                b.querySelector('.sub').textContent = t.sub;
+                b.addEventListener('click', () => enviar('R:tipo:' + t.id));
+                tipos.appendChild(b);
+            });
+            const luces = $r('relax-luces');
+            luces.innerHTML = '';
+            (r.luces || []).forEach(l => {
+                const b = document.createElement('button');
+                b.className = l === r.luz ? 'sel' : '';
+                b.innerHTML = '<span class="g">' + l + '%</span>';
+                b.addEventListener('click', () => enviar('R:luz:' + l));
+                luces.appendChild(b);
+            });
+            $r('relax-geo').textContent = (r.grados ?? 0) + '\u00b0 = ' + (r.mm ?? 0) + ' mm a '
+                + (data.cal?.distanciaModulo ?? '—') + ' m  \u00b7  ' + (r.luz ?? 0) + '% de blanco'
+                + (r.limitado ? '  \u00b7  se pidieron ' + r.pedido + '\u00b0 y no caben a esta distancia' : '');
+        }
+
+        /* ═══════════ FIJACIÓN INFANTIL ═══════════ */
+        function espejoInfantil(espejo, data) {
+            const i = data.infantil || {};
+            const caja = document.createElement('div');
+            caja.style.cssText = 'width:64px; height:64px; display:flex; align-items:center; justify-content:center;'
+                + (i.congelado ? '' : ' animation:esp-' + (i.secuencia || 'rebote') + ' ' + (i.seg || 1.5) + 's ease-in-out infinite alternate;');
+            caja.innerHTML = '<svg width="52" height="52" viewBox="0 0 60 60">' + (FIG_INF[i.secuencia] || '') + '</svg>';
+            espejo.appendChild(caja);
+            if (i.congelado) {
+                const t = document.createElement('div');
+                t.style.cssText = 'font-family:monospace; font-size:10px; color:#f1c40f; letter-spacing:1px; margin-top:10px;';
+                t.textContent = 'CONGELADO';
+                espejo.appendChild(t);
+            }
+        }
+        function pintarInfantil(data) {
+            const i = data.infantil || {};
+            const secs = $r('inf-secuencias');
+            secs.innerHTML = '';
+            (i.secuencias || []).forEach(s => {
+                const b = document.createElement('button');
+                b.className = s.id === i.secuencia ? 'sel' : '';
+                b.innerHTML = '<span class="n"></span><span class="s"></span>';
+                b.querySelector('.n').textContent = s.nombre;
+                b.querySelector('.s').textContent = s.sub;
+                b.addEventListener('click', () => enviar('I:sec:' + s.id));
+                secs.appendChild(b);
+            });
+            const vels = $r('inf-velocidades');
+            vels.innerHTML = '';
+            (i.velocidades || []).forEach(v => {
+                const b = document.createElement('button');
+                b.className = v.id === i.velocidad ? 'sel' : '';
+                b.innerHTML = '<span class="g">' + v.nombre + '</span><span class="mm">' + v.seg + ' s</span>';
+                b.addEventListener('click', () => enviar('I:vel:' + v.id));
+                vels.appendChild(b);
+            });
+            const cong = $r('inf-congelar');
+            cong.classList.toggle('on', !!i.congelado);
+            $r('inf-congelar-et').textContent = i.congelado ? 'REANUDAR' : 'CONGELAR';
+            $r('inf-congelar-val').textContent = i.congelado ? 'quieta en el centro' : 'en movimiento';
+            $r('inf-geo').textContent = (i.grados ?? 0) + '\u00b0 = ' + (i.mm ?? 0) + ' mm a '
+                + (data.cal?.distanciaModulo ?? '—') + ' m'
+                + (i.limitado ? '  \u00b7  se pidieron ' + i.pedido + '\u00b0, pero la figura tiene que caber Y recorrer' : '');
         }
 
         /* El espejo de optotipos: el de siempre, ahora en su propia función. */

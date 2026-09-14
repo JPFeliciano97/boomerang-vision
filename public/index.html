@@ -139,6 +139,18 @@
         #calibration-bar.modo-modulo .cal-group,
         #calibration-bar.modo-modulo .cal-sep { display:none; }
 
+        /* ═══ SECUENCIAS DE FIJACIÓN INFANTIL ═══
+           El recorrido y el rebote se mueven en vw/vh a propósito: lo que atrae
+           a un niño es que la figura CRUCE la pantalla, y eso es relativo a la
+           pantalla, no una medida física. El tamaño de la figura sí es físico. */
+        @keyframes bv-rebote    { from { transform: translateY(-32vh); } to { transform: translateY(32vh); } }
+        @keyframes bv-recorrido { from { transform: translateX(-38vw) rotate(-12deg); } to { transform: translateX(38vw) rotate(12deg); } }
+        @keyframes bv-molinete  { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @keyframes bv-destellos {
+            0%, 100% { transform: scale(0.72); opacity: 0.55; }
+            50%      { transform: scale(1.12); opacity: 1; }
+        }
+
         #test-area {
             flex:1; position:relative; cursor:none; overflow:hidden;
             background:#FFFFFF; transition:background 0.2s;
@@ -518,8 +530,8 @@
                 { id:'schober',   titulo:'Schober',          sub:'Cruz y anillos · forias',                grupo:'Binocularidad',            hecho:true,  distFija:null },
                 { id:'color',     titulo:'Pseudoisocromático', sub:'Láminas de puntos · cribado',          grupo:'Visión del color',         hecho:false, distFija:null },
                 { id:'amsler',    titulo:'Rejilla de Amsler', sub:'3 láminas · 1 cuadro = 1°',             grupo:'Mácula',                   hecho:true,  distFija:1 },
-                { id:'relax',     titulo:'Relax acomodativo', sub:'Para retinoscopía y fondo de ojo',      grupo:'Fijación',                 hecho:false, distFija:null },
-                { id:'infantil',  titulo:'Fijación infantil', sub:'Secuencias animadas',                   grupo:'Fijación',                 hecho:false, distFija:null }
+                { id:'relax',     titulo:'Relax acomodativo', sub:'Para retinoscopía y fondo de ojo',      grupo:'Fijación',                 hecho:true,  distFija:null },
+                { id:'infantil',  titulo:'Fijación infantil', sub:'Secuencias animadas',                   grupo:'Fijación',                 hecho:true,  distFija:null }
             ];
             const MODULO = {};
             MODULOS.forEach(m => MODULO[m.id] = m);
@@ -776,6 +788,16 @@
                 { id: 'max',  label: 'máx',   grados: null }
             ];
             function anguloAMM(grados, metros){ return 2 * metros * 1000 * Math.tan(grados * Math.PI / 360); }
+            /* El ángulo más grande que cabe en la pantalla a la distancia del
+               módulo, dejando un margen. Varios estímulos se piden en grados y
+               a 6 m se pasan de largo: una diana de 5° son 524 mm y la pantalla
+               tiene 299 de alto. Se limitan a lo que cabe y se informa el
+               ángulo real, que es lo que hace el resto de la suite. */
+            function gradosQueCaben(margen){
+                if (!(state.cssPxPerMM > 0)) return 0;
+                const ladoMM = Math.min(window.innerWidth, window.innerHeight) / state.cssPxPerMM * (margen || 0.94);
+                return 2 * Math.atan(ladoMM / 2 / (distanciaModulo() * 1000)) * 180 / Math.PI;
+            }
             function worthTecho(){
                 const D = distanciaModulo();
                 const ladoMM = state.cssPxPerMM > 0
@@ -906,6 +928,134 @@
                 renderScreen(); saveToStorage();
             }
 
+            /* ═══════════ RELAX ACOMODATIVO ═══════════
+               Lo contrario de un optotipo. Para retinoscopía y fondo de ojo hace
+               falta que el paciente NO acomode, y acomoda en cuanto hay un
+               detalle que intentar enfocar. Así que el estímulo es grande, sin
+               bordes nítidos y con poca luz: nada donde agarrarse.
+
+               El tamaño se declara en grados como todo lo demás, no en píxeles,
+               porque un blanco de 5° a 6 m y uno de 5° a 1 m son el mismo
+               estímulo para el ojo y tamaños de pantalla muy distintos. */
+            const RELAX_TIPOS = [
+                { id: 'difusa', nombre: 'Diana difusa',  sub: 'sin bordes · nada que enfocar' },
+                { id: 'punto',  nombre: 'Punto único',   sub: 'para dirigir la mirada' }
+            ];
+            const RELAX_LUCES = ['15', '35', '60'];      // % de blanco
+            const RELAX_GRADOS = 5;                      // el blanco difuso
+            const RELAX_GRADOS_PUNTO = 0.5;
+
+            function relaxGeometria(){
+                const pedido = state.relaxTipo === 'punto' ? RELAX_GRADOS_PUNTO : RELAX_GRADOS;
+                const techo = gradosQueCaben(0.92);
+                const grados = techo > 0 ? Math.min(pedido, techo) : pedido;
+                const mm = anguloAMM(grados, distanciaModulo());
+                return { grados, pedido, limitado: grados < pedido - 0.001, mm, px: mm * state.cssPxPerMM };
+            }
+            function renderRelax(){
+                d.moduloArea.style.background = '#000000';
+                if (!state.isCalibrated) { d.moduloArea.innerHTML = ''; return; }
+                const g = relaxGeometria();
+                const luz = (parseInt(state.relaxLuz, 10) || 35) / 100;
+                if (state.relaxTipo === 'punto') {
+                    const c = Math.round(255 * luz);
+                    d.moduloArea.innerHTML =
+                        `<div style="width:${g.px.toFixed(1)}px; height:${g.px.toFixed(1)}px; border-radius:50%;`
+                      + ` background:rgb(${c},${c},${c});"></div>`;
+                } else {
+                    /* Degradado radial que llega a cero: sin borde no hay contorno
+                       que enfocar. Con un círculo de borde duro el ojo acomoda
+                       sobre el propio borde y el relax se pierde. */
+                    d.moduloArea.innerHTML =
+                        `<div style="width:${g.px.toFixed(1)}px; height:${g.px.toFixed(1)}px; border-radius:50%;`
+                      + ` background:radial-gradient(circle, rgba(255,255,255,${luz.toFixed(2)}) 0%,`
+                      + ` rgba(255,255,255,${(luz * 0.55).toFixed(2)}) 45%, rgba(255,255,255,0) 100%);"></div>`;
+                }
+                const t = RELAX_TIPOS.find(x => x.id === state.relaxTipo) || RELAX_TIPOS[0];
+                d.moduloNombre.textContent = `Relax · ${t.nombre} · ${g.grados.toFixed(2)}° = ${g.mm.toFixed(0)} mm a `
+                    + `${distanciaModulo()} m${g.limitado ? ` (se pidió ${g.pedido}° y no cabe)` : ''} · `
+                    + `${state.relaxLuz}% de blanco`;
+            }
+            function relaxComando(resto){
+                const [que, valor] = resto.split(':');
+                if (que === 'tipo' && RELAX_TIPOS.some(t => t.id === valor)) state.relaxTipo = valor;
+                else if (que === 'luz' && RELAX_LUCES.includes(valor)) state.relaxLuz = valor;
+                else return;
+                renderScreen(); saveToStorage();
+            }
+
+            /* ═══════════ FIJACIÓN INFANTIL ═══════════
+               Cuatro secuencias con velocidad regulable, y un botón de CONGELAR
+               que deja la figura quieta en el centro: un niño sigue el
+               movimiento, pero para medir hace falta que mire a un punto.
+
+               Sin sonido por decisión, no por omisión: en un consultorio
+               pequeño el audio distrae al niño más de lo que lo atrae, y
+               molesta en la sala de al lado. */
+            const INF_SECUENCIAS = [
+                { id: 'rebote',    nombre: 'Rebote',    sub: 'sube y baja' },
+                { id: 'molinete',  nombre: 'Molinete',  sub: 'gira' },
+                { id: 'recorrido', nombre: 'Recorrido', sub: 'cruza la pantalla' },
+                { id: 'destellos', nombre: 'Destellos', sub: 'late en el centro' }
+            ];
+            const INF_VELOCIDADES = [
+                { id: 'lenta', nombre: 'Lenta', seg: 2.6 },
+                { id: 'media', nombre: 'Media', seg: 1.5 },
+                { id: 'rapida', nombre: 'Rápida', seg: 0.85 }
+            ];
+            const INF_GRADOS = 3;
+            const INF_FIGURAS = {
+                rebote: `<circle cx="30" cy="30" r="26" fill="#e8574c"/><circle cx="30" cy="30" r="9" fill="#fff"/>`,
+                molinete: `<g><path d="M30 30L30 2A28 28 0 0 1 54 16Z" fill="#e8574c"/>`
+                         + `<path d="M30 30L54 16A28 28 0 0 1 54 44Z" fill="#f0b26b"/>`
+                         + `<path d="M30 30L54 44A28 28 0 0 1 30 58Z" fill="#7fb069"/>`
+                         + `<path d="M30 30L30 58A28 28 0 0 1 6 44Z" fill="#4f9bd9"/>`
+                         + `<path d="M30 30L6 44A28 28 0 0 1 6 16Z" fill="#9b6bbf"/>`
+                         + `<path d="M30 30L6 16A28 28 0 0 1 30 2Z" fill="#e8c84c"/></g>`,
+                recorrido: `<circle cx="30" cy="30" r="25" fill="#f0b26b"/>`
+                         + `<circle cx="22" cy="24" r="4" fill="#2a2a2a"/><circle cx="38" cy="24" r="4" fill="#2a2a2a"/>`
+                         + `<path d="M20 38 Q30 47 40 38" stroke="#2a2a2a" stroke-width="3.5" fill="none" stroke-linecap="round"/>`,
+                destellos: `<path d="M30 2l7.7 17.1L56 21.3l-13.1 12.2L46 52l-16-9.8L14 52l3.1-18.5L4 21.3l18.3-2.2z" fill="#7fb069"/>`
+            };
+
+            function infGeometria(){
+                /* Margen más generoso: la figura se MUEVE, así que además de
+                   caber tiene que tener por dónde recorrer la pantalla. */
+                const techo = gradosQueCaben(0.42);
+                const grados = techo > 0 ? Math.min(INF_GRADOS, techo) : INF_GRADOS;
+                const mm = anguloAMM(grados, distanciaModulo());
+                return { grados, pedido: INF_GRADOS, limitado: grados < INF_GRADOS - 0.001,
+                         mm, px: mm * state.cssPxPerMM };
+            }
+            function renderInfantil(){
+                d.moduloArea.style.background = '#0a0a0a';
+                if (!state.isCalibrated) { d.moduloArea.innerHTML = ''; return; }
+                const g = infGeometria();
+                const sec = INF_SECUENCIAS.find(x => x.id === state.infSecuencia) || INF_SECUENCIAS[0];
+                const vel = INF_VELOCIDADES.find(v => v.id === state.infVelocidad) || INF_VELOCIDADES[1];
+                const dur = vel.seg + 's';
+                // Congelado: la figura queda quieta y CENTRADA, no parada a medio
+                // recorrido, porque el instante de la medida quiere un punto fijo.
+                const anim = state.infCongelado ? 'none'
+                    : `bv-${sec.id} ${dur} ${sec.id === 'molinete' ? 'linear' : 'ease-in-out'} infinite`
+                      + (sec.id === 'rebote' || sec.id === 'recorrido' ? ' alternate' : '');
+                d.moduloArea.innerHTML =
+                    `<svg width="${g.px.toFixed(1)}" height="${g.px.toFixed(1)}" viewBox="0 0 60 60"
+                          style="animation:${anim}; transform-origin:50% 50%;">${INF_FIGURAS[sec.id]}</svg>`;
+                d.moduloNombre.textContent = `Fijación infantil · ${sec.nombre} · ${vel.nombre} · `
+                    + `${g.grados.toFixed(2)}° = ${g.mm.toFixed(0)} mm a ${distanciaModulo()} m`
+                    + (g.limitado ? ` (se pidió ${g.pedido}° y no cabe con recorrido)` : '')
+                    + (state.infCongelado ? ' · CONGELADO en el centro' : '');
+            }
+            function infComando(resto){
+                const [que, valor] = resto.split(':');
+                if (que === 'sec' && INF_SECUENCIAS.some(x => x.id === valor)) state.infSecuencia = valor;
+                else if (que === 'vel' && INF_VELOCIDADES.some(v => v.id === valor)) state.infVelocidad = valor;
+                else if (que === 'congelar') state.infCongelado = !state.infCongelado;
+                else return;
+                renderScreen(); saveToStorage();
+            }
+
             const LETTERS = ['A','C','D','E','H','K','N','O','R','S','V','Z'];
             const NUMBERS = ['0','1','2','3','4','5','6','7','8','9'];
 
@@ -950,6 +1100,8 @@
                 pelliFila:1, pelliSemilla:0,
                 worthTam:'2', worthOjoRojo:'OD',
                 schoberAnillos:'5', schoberInvertido:false, schoberOjoRojo:'OD',
+                relaxTipo:'difusa', relaxLuz:'35',
+                infSecuencia:'rebote', infVelocidad:'media', infCongelado:false,
             };
 
             const $ = id => document.getElementById(id);
@@ -1282,6 +1434,10 @@
                     renderWorth();
                 } else if (m.id === 'schober') {
                     renderSchober();
+                } else if (m.id === 'relax') {
+                    renderRelax();
+                } else if (m.id === 'infantil') {
+                    renderInfantil();
                 } else if (m.id === 'amsler') {
                     renderAmsler();
                 } else {
@@ -1466,6 +1622,33 @@
                             { donde: 'Arriba',         que: 'Hiperforia ' + otroOjo, nota: 'el de los anillos sube', color: '#bbb' }
                         ]
                     };
+                } else if (m.id === 'relax') {
+                    const g = state.isCalibrated ? relaxGeometria() : null;
+                    datos.relax = {
+                        tipo: state.relaxTipo,
+                        tipos: RELAX_TIPOS,
+                        luz: state.relaxLuz,
+                        luces: RELAX_LUCES,
+                        grados: g ? +g.grados.toFixed(2) : 0,
+                        pedido: g ? g.pedido : 0,
+                        limitado: g ? g.limitado : false,
+                        mm: g ? +g.mm.toFixed(0) : 0
+                    };
+                } else if (m.id === 'infantil') {
+                    const g = state.isCalibrated ? infGeometria() : null;
+                    const vel = INF_VELOCIDADES.find(v => v.id === state.infVelocidad) || INF_VELOCIDADES[1];
+                    datos.infantil = {
+                        secuencia: state.infSecuencia,
+                        secuencias: INF_SECUENCIAS,
+                        velocidad: state.infVelocidad,
+                        velocidades: INF_VELOCIDADES,
+                        seg: vel.seg,
+                        congelado: state.infCongelado,
+                        grados: g ? +g.grados.toFixed(2) : 0,
+                        pedido: g ? g.pedido : 0,
+                        limitado: g ? g.limitado : false,
+                        mm: g ? +g.mm.toFixed(0) : 0
+                    };
                 } else if (m.id === 'amsler') {
                     const g = state.isCalibrated ? amslerGeometria() : null;
                     datos.amsler = {
@@ -1622,7 +1805,9 @@
                     // igual que el modo de optotipo: cada sesión arranca limpia
                     amslerLamina:state.amslerLamina, amslerDiagonales:state.amslerDiagonales,
                     pelliFila:state.pelliFila, worthTam:state.worthTam,
-                    schoberAnillos:state.schoberAnillos, schoberInvertido:state.schoberInvertido
+                    schoberAnillos:state.schoberAnillos, schoberInvertido:state.schoberInvertido,
+                    relaxTipo:state.relaxTipo, relaxLuz:state.relaxLuz,
+                    infSecuencia:state.infSecuencia, infVelocidad:state.infVelocidad
                 })); }catch(e){}
             }
 
@@ -1641,6 +1826,7 @@
                 state.amslerOjo = 'OD';
                 state.worthOjoRojo = 'OD';
                 state.schoberOjoRojo = 'OD';
+                state.infCongelado = false;
                 if(saved){
                     // Nada de resolución ni DPR guardados: los da el navegador en
                     // cada arranque. Del almacenamiento solo sale lo que ninguna
@@ -1664,6 +1850,10 @@
                     if(WORTH_TAMANOS.some(t=>t.id===saved.worthTam)) state.worthTam=saved.worthTam;
                     if(['3','5','7'].includes(saved.schoberAnillos)) state.schoberAnillos=saved.schoberAnillos;
                     if(typeof saved.schoberInvertido==='boolean') state.schoberInvertido=saved.schoberInvertido;
+                    if(RELAX_TIPOS.some(t=>t.id===saved.relaxTipo)) state.relaxTipo=saved.relaxTipo;
+                    if(RELAX_LUCES.includes(saved.relaxLuz)) state.relaxLuz=saved.relaxLuz;
+                    if(INF_SECUENCIAS.some(x=>x.id===saved.infSecuencia)) state.infSecuencia=saved.infSecuencia;
+                    if(INF_VELOCIDADES.some(v=>v.id===saved.infVelocidad)) state.infVelocidad=saved.infVelocidad;
                 } else {
                     state.bichromatic=false;
                 }
@@ -1998,6 +2188,10 @@
                         if (state.modulo === 'worth') worthComando(cmd.slice(2));
                     } else if (cmd.startsWith('S:')) {
                         if (state.modulo === 'schober') schoberComando(cmd.slice(2));
+                    } else if (cmd.startsWith('R:')) {
+                        if (state.modulo === 'relax') relaxComando(cmd.slice(2));
+                    } else if (cmd.startsWith('I:')) {
+                        if (state.modulo === 'infantil') infComando(cmd.slice(2));
                     } else if (cmd.startsWith('Mode:')) {
                         // los modos de optotipo solo aplican a su módulo
                         if (state.modulo !== 'optotipos') return;

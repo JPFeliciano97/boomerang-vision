@@ -134,6 +134,23 @@
 
         #dpr-input { width: 70px; }
 
+        /* Los controles del optotipo no significan nada en otro módulo. */
+        #calibration-bar.modo-modulo .mode-selector,
+        #calibration-bar.modo-modulo .cal-group,
+        #calibration-bar.modo-modulo .cal-sep { display:none; }
+
+        /* ═══ SECUENCIAS DE FIJACIÓN INFANTIL ═══
+           El recorrido y el rebote se mueven en vw/vh a propósito: lo que atrae
+           a un niño es que la figura CRUCE la pantalla, y eso es relativo a la
+           pantalla, no una medida física. El tamaño de la figura sí es físico. */
+        @keyframes bv-rebote    { from { transform: translateY(-32vh); } to { transform: translateY(32vh); } }
+        @keyframes bv-recorrido { from { transform: translateX(-38vw) rotate(-12deg); } to { transform: translateX(38vw) rotate(12deg); } }
+        @keyframes bv-molinete  { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @keyframes bv-destellos {
+            0%, 100% { transform: scale(0.72); opacity: 0.55; }
+            50%      { transform: scale(1.12); opacity: 1; }
+        }
+
         #test-area {
             flex:1; position:relative; cursor:none; overflow:hidden;
             background:#FFFFFF; transition:background 0.2s;
@@ -144,6 +161,35 @@
         #test-area.bichromatic .bichromatic-half { display:block; }
         #half-r { left:0; width:50%; background:#FF0000; }
         #half-g { right:0; width:50%; background:#00FF00; }
+
+        /* ═══ MÓDULOS QUE NO SON OPTOTIPOS ═══
+           Cada módulo dibuja su estímulo aquí, centrado y a tamaño físico. Es
+           una capa hermana de #lines-container, no un reemplazo: el módulo de
+           optotipos sigue usando la suya intacta. */
+        /* Fija y a pantalla completa, no dentro de #test-area: el estímulo de
+           un módulo tiene que disponer del alto entero del monitor. Con la
+           barra y el pie descontados se perdía un grado de campo en el Amsler,
+           que es justo lo que esta prueba mide. z-index 90 la deja por debajo
+           de la barra (100), así que pulsar H la trae de vuelta encima si hace
+           falta, y por debajo de la calibración (300), que sigue funcionando. */
+        #modulo-area {
+            position:fixed; inset:0; z-index:90;
+            display:flex; align-items:center; justify-content:center;
+            overflow:hidden;
+        }
+        #modulo-area.oculto, #lines-container.oculto { display:none; }
+        /* En un módulo la pantalla es el estímulo y nada más. La barra se
+           repliega con la misma clase que ya usaba el botón ▲, así que H sigue
+           sirviendo para asomarla. */
+        body.en-modulo #footer,
+        body.en-modulo #shortcuts-toggle { display:none; }
+        /* El panel de atajos y el de calibración siguen por encima de la capa
+           (181 y 300 contra 90), así que ? y C funcionan igual desde el teclado. */
+        #modulo-nombre {
+            font-family:'OpticianSans','Segoe UI',sans-serif;
+            font-size:11px; letter-spacing:1.6px; color:#7a7a7a;
+            text-transform:uppercase; white-space:nowrap;
+        }
 
         #lines-container {
             position:absolute;
@@ -339,6 +385,7 @@
         <!-- Columna central: botón toggle + info -->
         <div class="center-group">
             <button class="btn-sm toggle-btn" id="btn-toggle-cal">▲</button>
+            <span id="modulo-nombre"></span>
             <span id="info-span"></span>
         </div>
 
@@ -358,6 +405,7 @@
         <div class="bichromatic-half" id="half-r"></div>
         <div class="bichromatic-half" id="half-g"></div>
         <div id="lines-container"></div>
+        <div id="modulo-area" class="oculto"></div>
     </div>
 
     <div id="footer">
@@ -463,6 +511,799 @@
             };
             for (let [k,v] of Object.entries(LEA_SVGS)) registerOptotype('P_'+k, v);
 
+            /* ═══════════ LOS MÓDULOS DE LA SUITE ═══════════
+               El de optotipos es el que ya estaba y sigue igual. Los demás se
+               declaran aquí desde el principio, hechos o no, porque el mando
+               tiene que poder listarlos y decir cuáles todavía no están: un
+               menú que esconde lo que falta miente sobre el estado del sistema.
+
+               distFija: metros a los que el módulo se hace SIEMPRE, ignorando
+               la distancia de la sala. Solo dos la traen, y por motivos
+               distintos: el Amsler porque a 6 m la pantalla cubriría el 2% del
+               área de la rejilla, y el Pelli-Robson porque mostrar sus ocho
+               niveles a la vez obliga a letras de 26 mm. Salir de uno de estos
+               deja al paciente acercado, así que el mando avisa. */
+            const MODULOS = [
+                { id:'optotipos', titulo:'Optotipos',        sub:'Letras · números · LEA · E direccional', grupo:'Agudeza visual',           hecho:true,  distFija:null },
+                { id:'contraste', titulo:'Pelli-Robson',     sub:'8 niveles · 0,30 log',                   grupo:'Sensibilidad al contraste', hecho:true,  distFija:1 },
+                { id:'worth',     titulo:'Luces de Worth',   sub:'Fusión y supresión · gafa rojo-verde',   grupo:'Binocularidad',            hecho:true,  distFija:null },
+                { id:'schober',   titulo:'Schober',          sub:'Cruz y anillos · forias',                grupo:'Binocularidad',            hecho:true,  distFija:null },
+                { id:'color',     titulo:'Pseudoisocromático', sub:'Láminas de puntos · cribado',          grupo:'Visión del color',         hecho:true,  distFija:1 },
+                { id:'amsler',    titulo:'Rejilla de Amsler', sub:'3 láminas · 1 cuadro = 1°',             grupo:'Mácula',                   hecho:true,  distFija:1 },
+                { id:'relax',     titulo:'Relax acomodativo', sub:'Para retinoscopía y fondo de ojo',      grupo:'Fijación',                 hecho:true,  distFija:null },
+                { id:'infantil',  titulo:'Fijación infantil', sub:'Secuencias animadas',                   grupo:'Fijación',                 hecho:true,  distFija:null }
+            ];
+            const MODULO = {};
+            MODULOS.forEach(m => MODULO[m.id] = m);
+            /* El menú del mando es también un estado de la pantalla: mientras
+               el optometrista elige, el paciente no debe estar leyendo nada. Eso
+               es exactamente la «pantalla en negro» entre test y test, así que
+               sale gratis en vez de ser un botón aparte. No entra en MODULOS
+               porque no es un test y no se lista. */
+            MODULO.menu = { id:'menu', titulo:'Sin estímulo', sub:'el mando está en el menú', grupo:'', hecho:true, distFija:null };
+            function moduloActual(){ return MODULO[state.modulo] || MODULO.optotipos; }
+            // La distancia con la que calcula el módulo activo: la de la sala,
+            // salvo los que traen la suya fija.
+            function distanciaModulo(){
+                const f = moduloActual().distFija;
+                return f == null ? state.testDistanceM : f;
+            }
+
+            /* ═══════════ REJILLA DE AMSLER ═══════════
+               Un cuadro subtiende 1° y la rejilla completa ±10°, que es la
+               definición de la prueba: la lámina de papel mide 10 cm de lado
+               con cuadros de 5 mm porque se lee a 30 cm. En pantalla el cuadro
+               se calcula para la distancia real, así que a 1 m mide 17,45 mm.
+
+               A 1 m los ±10° piden 353 mm de lado y el monitor tiene 299 de
+               alto: entra el campo horizontal completo y se recorta el vertical.
+               Se dibujan los cuadros ENTEROS que caben y se dice cuánto campo
+               se está cubriendo, en vez de escalar la rejilla y falsear el
+               ángulo que es lo único que esta prueba mide. */
+            const AMSLER_LAMINAS = [
+                { id:'blanco', nombre:'Blanco sobre negro', fondo:'#000000', linea:'rgba(255,255,255,0.88)', punto:'#ffffff', uso:'Estándar · máxima sensibilidad' },
+                { id:'negro',  nombre:'Negro sobre blanco', fondo:'#ffffff', linea:'rgba(0,0,0,0.82)',       punto:'#000000', uso:'La más familiar en consulta' },
+                { id:'rojo',   nombre:'Rojo sobre negro',   fondo:'#000000', linea:'rgba(255,0,0,0.92)',     punto:'#ff3b3b', uso:'Desaturación al rojo' }
+            ];
+            const AMSLER_SEMICAMPO = 10;    // grados a cada lado, por definición
+
+            /* El paso se redondea a un número ENTERO de píxeles de dispositivo,
+               y esto no es cosmética. Con el paso fraccionario (52,57 px) unas
+               líneas caen sobre el borde del píxel y otras a caballo entre dos,
+               así que salen alternando intensidad: la rejilla parece tener
+               líneas gruesas y finas. En un test donde se le pide al paciente
+               que diga si alguna línea se ve distinta, eso no es un detalle
+               feo, es un falso positivo dibujado por nosotros.
+
+               Al ser todas las líneas múltiplos del mismo paso entero comparten
+               fase de subpíxel y se dibujan idénticas. El coste es que el cuadro
+               deja de medir 1,000° exactos; se calcula el ángulo que realmente
+               queda y se informa, que es menos del 1% de diferencia. */
+            function amslerGeometria(){
+                const D = distanciaModulo() * 1000;
+                const idealMM = 2 * D * Math.tan(Math.PI / 360);          // 1° de arco
+                const dpr = liveDpr();
+                const idealPx = idealMM * state.cssPxPerMM;
+                const ladoPx = Math.max(2, Math.round(idealPx * dpr)) / dpr;
+                const ladoMM = state.cssPxPerMM > 0 ? ladoPx / state.cssPxPerMM : idealMM;
+                const gradoReal = 2 * Math.atan(ladoMM / 2 / D) * 180 / Math.PI;
+                /* Se mide la ventana, no #test-area: la capa del módulo es fija
+                   a pantalla completa, así que no depende de si la barra está
+                   plegada ni de la transición de 0,3 s de su plegado. */
+                const anchoPx = window.innerWidth, altoPx = window.innerHeight;
+                // cuadros enteros a cada lado del centro, sin pasar de ±10°
+                const porLado = n => Math.max(1, Math.min(AMSLER_SEMICAMPO, Math.floor((n / 2) / ladoPx)));
+                const cx = porLado(anchoPx), cy = porLado(altoPx);
+                return {
+                    ladoMM, ladoPx, cx, cy, gradoReal,
+                    gradosX: +(cx * gradoReal).toFixed(1),
+                    gradosY: +(cy * gradoReal).toFixed(1),
+                    // fracción del área de la rejilla de ±10° que se cubre
+                    areaPct: Math.round((cx / AMSLER_SEMICAMPO) * (cy / AMSLER_SEMICAMPO) * 100)
+                };
+            }
+
+            function renderAmsler(){
+                const lam = AMSLER_LAMINAS.find(l => l.id === state.amslerLamina) || AMSLER_LAMINAS[0];
+                d.moduloArea.style.background = lam.fondo;
+                if (!state.isCalibrated) { d.moduloArea.innerHTML = ''; return; }
+                const g = amslerGeometria();
+                const dprAhora = liveDpr();
+                const w = g.cx * 2 * g.ladoPx, h = g.cy * 2 * g.ladoPx;
+
+                /* El grosor sale del cuadro, no de un píxel fijo. La cartilla de
+                   papel dibuja la línea a razón de una veintena del lado del
+                   cuadro; un píxel suelto a 3,8 px/mm son 0,26 mm sobre un
+                   cuadro de 17,6, o sea 1:67, mucho más fino que la lámina. Se
+                   fuerza a un número PAR de píxeles de dispositivo para que el
+                   medio trazo del centrado caiga en píxel entero. */
+                const trazoDev = Math.max(2, Math.round(g.ladoPx * dprAhora / 20 / 2) * 2);
+                const trazo = trazoDev / dprAhora;
+
+                /* El SVG ocupa la ventana entera y la rejilla se centra DENTRO,
+                   en coordenadas que yo controlo. Posicionar el SVG por CSS no
+                   servía: a DPR fraccionario el navegador cuantiza la posición
+                   del elemento a 1/64 de píxel CSS, así que 41/1,5 acababa en
+                   40,992 px de dispositivo y el borde de arriba y el de abajo
+                   se redondeaban a lados distintos. Con el SVG anclado en 0,0
+                   —inset:0, exacto— el único redondeo que queda es el mío. */
+                const aDev = v => Math.round(v * dprAhora) / dprAhora;
+                const W = window.innerWidth, H = window.innerHeight;
+                const ox = aDev((W - w) / 2), oy = aDev((H - h) / 2);
+
+                const lineas = [];
+                for (let i = 0; i <= g.cx * 2; i++) {
+                    const x = ox + i * g.ladoPx;
+                    lineas.push(`<line x1="${x}" y1="${oy}" x2="${x}" y2="${oy + h}"/>`);
+                }
+                for (let j = 0; j <= g.cy * 2; j++) {
+                    const y = oy + j * g.ladoPx;
+                    lineas.push(`<line x1="${ox}" y1="${y}" x2="${ox + w}" y2="${y}"/>`);
+                }
+                /* Las diagonales no son horizontales ni verticales, así que
+                   crispEdges no les sirve: van con antialias en su propio grupo
+                   para que no salgan escalonadas. */
+                const diag = state.amslerDiagonales
+                    ? `<g stroke="${lam.linea}" stroke-width="${trazo}" opacity="0.5" shape-rendering="geometricPrecision">
+                         <line x1="${ox}" y1="${oy}" x2="${ox + w}" y2="${oy + h}"/>
+                         <line x1="${ox + w}" y1="${oy}" x2="${ox}" y2="${oy + h}"/>
+                       </g>` : '';
+                // El punto de fijación central: sin él el paciente no sabe dónde
+                // mirar y el defecto se mueve con la mirada.
+                const rPunto = Math.max(trazo, g.ladoPx * 0.09);
+                d.moduloArea.innerHTML =
+                    `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"
+                          shape-rendering="crispEdges"
+                          style="position:absolute; inset:0; display:block;">
+                       <g stroke="${lam.linea}" stroke-width="${trazo}" fill="none">${lineas.join('')}</g>
+                       ${diag}
+                       <circle cx="${ox + w/2}" cy="${oy + h/2}" r="${rPunto.toFixed(2)}" fill="${lam.punto}" stroke="none" shape-rendering="geometricPrecision"/>
+                     </svg>`;
+                d.moduloNombre.textContent =
+                    `Amsler · ${lam.nombre} · ojo ${state.amslerOjo} · cuadro ${g.ladoMM.toFixed(2)} mm = ` +
+                    `${g.gradoReal.toFixed(3)}° a ${distanciaModulo()} m · ±${g.gradosX}° × ±${g.gradosY}° ` +
+                    `(${g.areaPct}% del campo)`;
+            }
+
+            /* ═══════════ PELLI-ROBSON ═══════════
+               Ocho niveles a la vez con pasos de 0,30 log, de log CS 0,00 a
+               2,10. Con 16 pasos de 0,15 se gana resolución pero no caben en
+               pantalla, y el número de filas es justo lo que fija el tamaño de
+               letra: ocho letras más siete separaciones de media letra son 11,5
+               alturas, así que el alto de la pantalla dividido por 11,5 ES la
+               letra. De ahí sale el 1 m fijo: a 6 m esa letra daría 0,25° y el
+               paciente fallaría por agudeza y no por contraste.
+
+               La tinta no es una opacidad: es el código que hay que pedirle al
+               panel para que la letra tenga el contraste de Weber del nivel. Con
+               gamma 2,2, código = 255·(1−c)^(1/2,2). Los dos niveles más tenues
+               salen en el 253 y el 254 de 255, o sea a uno y dos pasos del
+               blanco: ahí manda el panel y no la prueba, y el módulo lo dice. */
+            const PELLI_FILAS = 8;
+            const PELLI_PASO_LOG = 0.30;
+            const PELLI_ALTURAS = 11.5;      // 8 letras + 7 huecos de media letra
+            /* Y un cuarto de letra de margen arriba y abajo. Sin él las ocho
+               filas ocupan el alto EXACTO de la ventana y la primera y la
+               última quedan pegadas al borde -- de hecho la tinta de la
+               primera empieza en el píxel 0 y se ve cortada. El margen cuesta
+               un 4% de tamaño de letra y lo vale. */
+            const PELLI_MARGEN = 0.25;
+            const PELLI_SLOAN = 'CDHKNORSVZ';
+            const PELLI_GAMMA = 2.2;
+
+            function pelliNivel(i){            // i de 1 a 8
+                const log = (i - 1) * PELLI_PASO_LOG;
+                const contraste = 1 / Math.pow(10, log);
+                const codigo = Math.round(255 * Math.pow(1 - contraste, 1 / PELLI_GAMMA));
+                return { n: i, log, contraste, codigo };
+            }
+            // Tripletes deterministas: la semilla vive en el estado, así que un
+            // repintado no le cambia las letras al paciente a media medida.
+            function pelliTriplete(fila, semilla){
+                let t = '';
+                for (let j = 0; j < 3; j++) t += PELLI_SLOAN[(fila * 37 + j * 11 + semilla * 53) % 10];
+                return t;
+            }
+            function pelliGeometria(){
+                const altoMM = state.cssPxPerMM > 0 ? window.innerHeight / state.cssPxPerMM : 0;
+                const letraMM = altoMM / (PELLI_ALTURAS + 2 * PELLI_MARGEN);
+                const D = distanciaModulo() * 1000;
+                const grados = 2 * Math.atan(letraMM / 2 / D) * 180 / Math.PI;
+                return { altoMM, letraMM, grados, letraPx: letraMM * state.cssPxPerMM };
+            }
+
+            function renderPelli(){
+                d.moduloArea.style.background = '#ffffff';
+                if (!state.isCalibrated) { d.moduloArea.innerHTML = ''; return; }
+                const g = pelliGeometria();
+                const h = g.letraPx;
+                const cont = document.createElement('div');
+                cont.style.cssText = 'display:flex; flex-direction:column; align-items:center;';
+                for (let i = 1; i <= PELLI_FILAS; i++) {
+                    const niv = pelliNivel(i);
+                    const fila = document.createElement('div');
+                    // separación entre letras: un ancho de optotipo, como en la
+                    // cartilla; entre filas, media letra
+                    fila.style.cssText = 'display:flex; align-items:center; justify-content:center; gap:' + h + 'px;'
+                                       + (i > 1 ? ' margin-top:' + (h / 2) + 'px;' : '');
+                    const tinta = `rgb(${niv.codigo},${niv.codigo},${niv.codigo})`;
+                    for (const ch of pelliTriplete(i, state.pelliSemilla)) {
+                        fila.appendChild(spanOptotipo(ch, h, true, tinta));
+                    }
+                    cont.appendChild(fila);
+                }
+                d.moduloArea.innerHTML = '';
+                d.moduloArea.appendChild(cont);
+                const act = pelliNivel(state.pelliFila);
+                d.moduloNombre.textContent =
+                    `Pelli-Robson · letra ${g.letraMM.toFixed(1)} mm = ${g.grados.toFixed(2)}° a ${distanciaModulo()} m · `
+                  + `fila ${act.n}/8 · log CS ${act.log.toFixed(2)} · ${(act.contraste * 100).toFixed(1)}% · código ${act.codigo}`;
+            }
+
+            function pelliComando(resto){
+                const [que, valor] = resto.split(':');
+                if (que === 'fila') {
+                    // el mando manda un número, o arriba/abajo para el paso
+                    let n = valor === 'arriba' ? state.pelliFila - 1
+                          : valor === 'abajo'  ? state.pelliFila + 1
+                          : parseInt(valor, 10);
+                    n = Math.min(PELLI_FILAS, Math.max(1, n));
+                    if (!(n >= 1 && n <= PELLI_FILAS)) return;
+                    state.pelliFila = n;
+                } else if (que === 'nuevas') {
+                    state.pelliSemilla = (state.pelliSemilla + 1) % 1000;
+                } else return;
+                renderScreen();
+                saveToStorage();
+            }
+
+            /* ═══════════ GAFA ROJO-VERDE: WORTH Y SCHOBER ═══════════
+               Los dos usan los primarios puros del monitor, que es para lo que
+               están hechos los filtros: el rojo del panel pasa el filtro rojo y
+               lo bloquea el verde, y al revés. Nada de rojos "bonitos". */
+            const ROJO_PURO = '#ff0000', VERDE_PURO = '#00ff00';
+
+            /* ── Worth ──
+               Cuatro puntos en rombo: arriba rojo, los dos laterales verdes,
+               abajo blanco. El blanco lo ven los dos ojos y es la referencia.
+
+               El tamaño se pide en grados y NO todos caben: el rombo ocupa 3,4
+               diámetros de punto de alto (es la proporción que usa la suite,
+               no una norma), así que el punto más grande que entra son el alto
+               de la pantalla entre 3,4. Eso pone un techo angular que baja con
+               la distancia, y el 1,25° clásico del farol deja de caber pasados
+               los 4 m. El módulo ofrece los tres tamaños de siempre y dice
+               cuál es imposible aquí, en vez de dibujar un rombo recortado. */
+            const WORTH_ROMBO = 3.4;
+            const WORTH_TAMANOS = [
+                { id: '1.25', label: '1,25°', grados: 1.25 },
+                { id: '2',    label: '2°',    grados: 2 },
+                { id: '3',    label: '3°',    grados: 3 },
+                /* El cuarto no es un tamaño clásico: es el mayor que cabe a la
+                   distancia de la sala. Sin él el módulo es un callejón sin
+                   salida desde la silla de lejos, donde el techo son 0,84° y
+                   los tres de arriba no entran: el optometrista entraría al
+                   test para leer un cartel rojo. Con él puede hacerlo desde
+                   donde está, sabiendo el ángulo exacto que está usando. */
+                { id: 'max',  label: 'máx',   grados: null }
+            ];
+            function anguloAMM(grados, metros){ return 2 * metros * 1000 * Math.tan(grados * Math.PI / 360); }
+            /* El ángulo más grande que cabe en la pantalla a la distancia del
+               módulo, dejando un margen. Varios estímulos se piden en grados y
+               a 6 m se pasan de largo: una diana de 5° son 524 mm y la pantalla
+               tiene 299 de alto. Se limitan a lo que cabe y se informa el
+               ángulo real, que es lo que hace el resto de la suite. */
+            function gradosQueCaben(margen){
+                if (!(state.cssPxPerMM > 0)) return 0;
+                const ladoMM = Math.min(window.innerWidth, window.innerHeight) / state.cssPxPerMM * (margen || 0.94);
+                return 2 * Math.atan(ladoMM / 2 / (distanciaModulo() * 1000)) * 180 / Math.PI;
+            }
+            function worthTecho(){
+                const D = distanciaModulo();
+                const ladoMM = state.cssPxPerMM > 0
+                    ? Math.min(window.innerWidth, window.innerHeight) / state.cssPxPerMM / WORTH_ROMBO : 0;
+                // un 2% de holgura: justo en el techo el rombo toca el borde
+                const g = 2 * Math.atan(ladoMM / 2 / (D * 1000)) * 180 / Math.PI;
+                return { mm: ladoMM, grados: g * 0.98 };
+            }
+            function worthGrados(tam){
+                return tam.grados == null ? worthTecho().grados : tam.grados;
+            }
+            function worthGeometria(){
+                const D = distanciaModulo();
+                const tam = WORTH_TAMANOS.find(t => t.id === state.worthTam) || WORTH_TAMANOS[1];
+                const puntoMM = anguloAMM(worthGrados(tam), D);
+                const rombosMM = WORTH_ROMBO * puntoMM;
+                const altoMM = state.cssPxPerMM > 0 ? window.innerHeight / state.cssPxPerMM : 0;
+                const anchoMM = state.cssPxPerMM > 0 ? window.innerWidth / state.cssPxPerMM : 0;
+                const cabe = rombosMM <= altoMM && rombosMM <= anchoMM;
+                const maxMM = Math.min(altoMM, anchoMM) / WORTH_ROMBO;
+                const maxG = 2 * Math.atan(maxMM / 2 / (D * 1000)) * 180 / Math.PI;
+                const distMax = (maxMM / 2) / Math.tan(worthGrados(tam) * Math.PI / 360) / 1000;
+                return { tam, grados: worthGrados(tam), puntoMM, rombosMM, cabe, maxG, distMax,
+                         puntoPx: puntoMM * state.cssPxPerMM, rombosPx: rombosMM * state.cssPxPerMM };
+            }
+            function renderWorth(){
+                d.moduloArea.style.background = '#000000';
+                if (!state.isCalibrated) { d.moduloArea.innerHTML = ''; return; }
+                const g = worthGeometria();
+                if (!g.cabe) {
+                    d.moduloArea.innerHTML =
+                        '<div style="font-family:\'OpticianSans\',sans-serif;color:#5a2a2a;font-size:15px;'
+                      + 'letter-spacing:2px;text-align:center;line-height:2;">NO CABE A ' + distanciaModulo()
+                      + ' M<br><span style="font-size:11px;color:#452020;">EL PUNTO DE ' + g.tam.label
+                      + ' PIDE ' + g.puntoMM.toFixed(0) + ' MM</span></div>';
+                    d.moduloNombre.textContent = 'Worth · no cabe a ' + distanciaModulo() + ' m · techo '
+                        + g.maxG.toFixed(2) + '° · para ' + g.tam.label + ' hay que estar a ' + g.distMax.toFixed(1) + ' m o menos';
+                    return;
+                }
+                const r = g.puntoPx / 2, L = g.rombosPx;
+                const c = (L / 2).toFixed(2);
+                const borde = (L / 2 - r).toFixed(2);
+                d.moduloArea.innerHTML =
+                    `<svg width="${L}" height="${L}" viewBox="0 0 ${L} ${L}" shape-rendering="geometricPrecision">
+                       <circle cx="${c}" cy="${r.toFixed(2)}" r="${r.toFixed(2)}" fill="${ROJO_PURO}"/>
+                       <circle cx="${r.toFixed(2)}" cy="${c}" r="${r.toFixed(2)}" fill="${VERDE_PURO}"/>
+                       <circle cx="${(L - r).toFixed(2)}" cy="${c}" r="${r.toFixed(2)}" fill="${VERDE_PURO}"/>
+                       <circle cx="${c}" cy="${(L - r).toFixed(2)}" r="${r.toFixed(2)}" fill="#ffffff"/>
+                     </svg>`;
+                d.moduloNombre.textContent = `Worth · punto ${g.puntoMM.toFixed(0)} mm = ${g.grados.toFixed(2)}° a `
+                    + `${distanciaModulo()} m${g.tam.grados == null ? ' (el máximo que cabe)' : ''} · `
+                    + `rombo ${g.rombosMM.toFixed(0)} mm · rojo en ${state.worthOjoRojo}`;
+            }
+
+            /* ── Schober ──
+               Anillos concéntricos de un color y cruz del otro. El paso entre
+               anillos ES una dioptría prismática: 1Δ desplaza 1 cm a 1 m, o sea
+               D/100 mm a D mm. De lejos el paso crece y en la media pantalla
+               caben menos anillos, así que el rango medible se estrecha justo
+               cuando el paso se hace más grande. */
+            function schoberGeometria(){
+                const D = distanciaModulo() * 1000;
+                const pasoMM = D / 100;                       // 1Δ
+                const pasoPx = pasoMM * state.cssPxPerMM;
+                const pedidos = parseInt(state.schoberAnillos, 10) || 5;
+                const medio = Math.min(window.innerWidth, window.innerHeight) / 2;
+                const caben = pasoPx > 0 ? Math.max(0, Math.floor(medio / pasoPx)) : 0;
+                const anillos = Math.min(pedidos, caben);
+                return { pasoMM, pasoPx, pedidos, caben, anillos };
+            }
+            function renderSchober(){
+                d.moduloArea.style.background = '#000000';
+                if (!state.isCalibrated) { d.moduloArea.innerHTML = ''; return; }
+                const g = schoberGeometria();
+                if (g.anillos < 1) {
+                    d.moduloArea.innerHTML =
+                        '<div style="font-family:\'OpticianSans\',sans-serif;color:#5a2a2a;font-size:15px;'
+                      + 'letter-spacing:2px;text-align:center;">NI UN ANILLO CABE A ' + distanciaModulo() + ' M</div>';
+                    d.moduloNombre.textContent = 'Schober · 1Δ son ' + g.pasoMM.toFixed(0)
+                        + ' mm a ' + distanciaModulo() + ' m y no cabe en la pantalla';
+                    return;
+                }
+                const cAnillo = state.schoberInvertido ? ROJO_PURO : VERDE_PURO;
+                const cCruz   = state.schoberInvertido ? VERDE_PURO : ROJO_PURO;
+                const R = g.anillos * g.pasoPx;          // radio del anillo exterior
+                /* Fino a propósito: lo que se juzga es dónde cae el centro de
+                   la cruz respecto a un anillo, y un trazo gordo es ambigüedad
+                   añadida. A 6 m el paso son 181 px, así que 1/30 deja la línea
+                   en 6 px: un 3% del paso, o sea 0,03Δ de incertidumbre. */
+                const trazo = Math.max(2, Math.round(g.pasoPx / 30));
+                /* La cruz pasa de largo del último anillo: así se ve hacia qué
+                   lado cae incluso cuando el desplazamiento se sale del rango
+                   que los anillos pueden cuantificar. */
+                const brazo = R * 1.12;
+                const S = 2 * brazo;                     // lienzo cuadrado, centro en S/2
+                let anillos = '';
+                for (let i = 1; i <= g.anillos; i++) {
+                    anillos += `<circle cx="0" cy="0" r="${(i * g.pasoPx).toFixed(2)}" fill="none" `
+                             + `stroke="${cAnillo}" stroke-width="${trazo}"/>`;
+                }
+                d.moduloArea.innerHTML =
+                    `<svg width="${S.toFixed(2)}" height="${S.toFixed(2)}" viewBox="0 0 ${S.toFixed(2)} ${S.toFixed(2)}"
+                          shape-rendering="geometricPrecision">
+                       <g transform="translate(${(S/2).toFixed(2)},${(S/2).toFixed(2)})">
+                         ${anillos}
+                         <path d="M0 ${(-brazo).toFixed(2)}V${brazo.toFixed(2)}M${(-brazo).toFixed(2)} 0H${brazo.toFixed(2)}"
+                               stroke="${cCruz}" stroke-width="${(trazo * 1.5).toFixed(2)}"/>
+                       </g>
+                     </svg>`;
+                d.moduloNombre.textContent = `Schober · 1Δ = ${g.pasoMM.toFixed(0)} mm a ${distanciaModulo()} m · `
+                    + `±${g.anillos}Δ de rango` + (g.anillos < g.pedidos ? ` (se pidieron ${g.pedidos} y caben ${g.caben})` : '')
+                    + ` · cruz ${state.schoberInvertido ? 'verde' : 'roja'} · filtro rojo en ${state.schoberOjoRojo}`;
+            }
+
+            function worthComando(resto){
+                const [que, valor] = resto.split(':');
+                if (que === 'tam' && WORTH_TAMANOS.some(t => t.id === valor)) state.worthTam = valor;
+                else if (que === 'ojo') state.worthOjoRojo = state.worthOjoRojo === 'OD' ? 'OI' : 'OD';
+                else return;
+                renderScreen(); saveToStorage();
+            }
+            function schoberComando(resto){
+                const [que, valor] = resto.split(':');
+                if (que === 'anillos' && ['3','5','7'].includes(valor)) state.schoberAnillos = valor;
+                else if (que === 'inv') state.schoberInvertido = !state.schoberInvertido;
+                else if (que === 'ojo') state.schoberOjoRojo = state.schoberOjoRojo === 'OD' ? 'OI' : 'OD';
+                else return;
+                renderScreen(); saveToStorage();
+            }
+
+            /* ═══════════ RELAX ACOMODATIVO ═══════════
+               Lo contrario de un optotipo. Para retinoscopía y fondo de ojo hace
+               falta que el paciente NO acomode, y acomoda en cuanto hay un
+               detalle que intentar enfocar. Así que el estímulo es grande, sin
+               bordes nítidos y con poca luz: nada donde agarrarse.
+
+               El tamaño se declara en grados como todo lo demás, no en píxeles,
+               porque un blanco de 5° a 6 m y uno de 5° a 1 m son el mismo
+               estímulo para el ojo y tamaños de pantalla muy distintos. */
+            const RELAX_TIPOS = [
+                { id: 'difusa', nombre: 'Diana difusa',  sub: 'sin bordes · nada que enfocar' },
+                { id: 'punto',  nombre: 'Punto único',   sub: 'para dirigir la mirada' }
+            ];
+            const RELAX_LUCES = ['15', '35', '60'];      // % de blanco
+            const RELAX_GRADOS = 5;                      // el blanco difuso
+            const RELAX_GRADOS_PUNTO = 0.5;
+
+            function relaxGeometria(){
+                const pedido = state.relaxTipo === 'punto' ? RELAX_GRADOS_PUNTO : RELAX_GRADOS;
+                const techo = gradosQueCaben(0.92);
+                const grados = techo > 0 ? Math.min(pedido, techo) : pedido;
+                const mm = anguloAMM(grados, distanciaModulo());
+                return { grados, pedido, limitado: grados < pedido - 0.001, mm, px: mm * state.cssPxPerMM };
+            }
+            function renderRelax(){
+                d.moduloArea.style.background = '#000000';
+                if (!state.isCalibrated) { d.moduloArea.innerHTML = ''; return; }
+                const g = relaxGeometria();
+                const luz = (parseInt(state.relaxLuz, 10) || 35) / 100;
+                if (state.relaxTipo === 'punto') {
+                    const c = Math.round(255 * luz);
+                    d.moduloArea.innerHTML =
+                        `<div style="width:${g.px.toFixed(1)}px; height:${g.px.toFixed(1)}px; border-radius:50%;`
+                      + ` background:rgb(${c},${c},${c});"></div>`;
+                } else {
+                    /* Degradado radial que llega a cero: sin borde no hay contorno
+                       que enfocar. Con un círculo de borde duro el ojo acomoda
+                       sobre el propio borde y el relax se pierde. */
+                    d.moduloArea.innerHTML =
+                        `<div style="width:${g.px.toFixed(1)}px; height:${g.px.toFixed(1)}px; border-radius:50%;`
+                      + ` background:radial-gradient(circle, rgba(255,255,255,${luz.toFixed(2)}) 0%,`
+                      + ` rgba(255,255,255,${(luz * 0.55).toFixed(2)}) 45%, rgba(255,255,255,0) 100%);"></div>`;
+                }
+                const t = RELAX_TIPOS.find(x => x.id === state.relaxTipo) || RELAX_TIPOS[0];
+                d.moduloNombre.textContent = `Relax · ${t.nombre} · ${g.grados.toFixed(2)}° = ${g.mm.toFixed(0)} mm a `
+                    + `${distanciaModulo()} m${g.limitado ? ` (se pidió ${g.pedido}° y no cabe)` : ''} · `
+                    + `${state.relaxLuz}% de blanco`;
+            }
+            function relaxComando(resto){
+                const [que, valor] = resto.split(':');
+                if (que === 'tipo' && RELAX_TIPOS.some(t => t.id === valor)) state.relaxTipo = valor;
+                else if (que === 'luz' && RELAX_LUCES.includes(valor)) state.relaxLuz = valor;
+                else return;
+                renderScreen(); saveToStorage();
+            }
+
+            /* ═══════════ FIJACIÓN INFANTIL ═══════════
+               Cuatro secuencias con velocidad regulable, y un botón de CONGELAR
+               que deja la figura quieta en el centro: un niño sigue el
+               movimiento, pero para medir hace falta que mire a un punto.
+
+               Sin sonido por decisión, no por omisión: en un consultorio
+               pequeño el audio distrae al niño más de lo que lo atrae, y
+               molesta en la sala de al lado. */
+            const INF_SECUENCIAS = [
+                { id: 'rebote',    nombre: 'Rebote',    sub: 'sube y baja' },
+                { id: 'molinete',  nombre: 'Molinete',  sub: 'gira' },
+                { id: 'recorrido', nombre: 'Recorrido', sub: 'cruza la pantalla' },
+                { id: 'destellos', nombre: 'Destellos', sub: 'late en el centro' }
+            ];
+            const INF_VELOCIDADES = [
+                { id: 'lenta', nombre: 'Lenta', seg: 2.6 },
+                { id: 'media', nombre: 'Media', seg: 1.5 },
+                { id: 'rapida', nombre: 'Rápida', seg: 0.85 }
+            ];
+            const INF_GRADOS = 3;
+            const INF_FIGURAS = {
+                rebote: `<circle cx="30" cy="30" r="26" fill="#e8574c"/><circle cx="30" cy="30" r="9" fill="#fff"/>`,
+                molinete: `<g><path d="M30 30L30 2A28 28 0 0 1 54 16Z" fill="#e8574c"/>`
+                         + `<path d="M30 30L54 16A28 28 0 0 1 54 44Z" fill="#f0b26b"/>`
+                         + `<path d="M30 30L54 44A28 28 0 0 1 30 58Z" fill="#7fb069"/>`
+                         + `<path d="M30 30L30 58A28 28 0 0 1 6 44Z" fill="#4f9bd9"/>`
+                         + `<path d="M30 30L6 44A28 28 0 0 1 6 16Z" fill="#9b6bbf"/>`
+                         + `<path d="M30 30L6 16A28 28 0 0 1 30 2Z" fill="#e8c84c"/></g>`,
+                recorrido: `<circle cx="30" cy="30" r="25" fill="#f0b26b"/>`
+                         + `<circle cx="22" cy="24" r="4" fill="#2a2a2a"/><circle cx="38" cy="24" r="4" fill="#2a2a2a"/>`
+                         + `<path d="M20 38 Q30 47 40 38" stroke="#2a2a2a" stroke-width="3.5" fill="none" stroke-linecap="round"/>`,
+                destellos: `<path d="M30 2l7.7 17.1L56 21.3l-13.1 12.2L46 52l-16-9.8L14 52l3.1-18.5L4 21.3l18.3-2.2z" fill="#7fb069"/>`
+            };
+
+            function infGeometria(){
+                /* Margen más generoso: la figura se MUEVE, así que además de
+                   caber tiene que tener por dónde recorrer la pantalla. */
+                const techo = gradosQueCaben(0.42);
+                const grados = techo > 0 ? Math.min(INF_GRADOS, techo) : INF_GRADOS;
+                const mm = anguloAMM(grados, distanciaModulo());
+                return { grados, pedido: INF_GRADOS, limitado: grados < INF_GRADOS - 0.001,
+                         mm, px: mm * state.cssPxPerMM };
+            }
+            function renderInfantil(){
+                d.moduloArea.style.background = '#0a0a0a';
+                if (!state.isCalibrated) { d.moduloArea.innerHTML = ''; return; }
+                const g = infGeometria();
+                const sec = INF_SECUENCIAS.find(x => x.id === state.infSecuencia) || INF_SECUENCIAS[0];
+                const vel = INF_VELOCIDADES.find(v => v.id === state.infVelocidad) || INF_VELOCIDADES[1];
+                const dur = vel.seg + 's';
+                // Congelado: la figura queda quieta y CENTRADA, no parada a medio
+                // recorrido, porque el instante de la medida quiere un punto fijo.
+                const anim = state.infCongelado ? 'none'
+                    : `bv-${sec.id} ${dur} ${sec.id === 'molinete' ? 'linear' : 'ease-in-out'} infinite`
+                      + (sec.id === 'rebote' || sec.id === 'recorrido' ? ' alternate' : '');
+                d.moduloArea.innerHTML =
+                    `<svg width="${g.px.toFixed(1)}" height="${g.px.toFixed(1)}" viewBox="0 0 60 60"
+                          style="animation:${anim}; transform-origin:50% 50%;">${INF_FIGURAS[sec.id]}</svg>`;
+                d.moduloNombre.textContent = `Fijación infantil · ${sec.nombre} · ${vel.nombre} · `
+                    + `${g.grados.toFixed(2)}° = ${g.mm.toFixed(0)} mm a ${distanciaModulo()} m`
+                    + (g.limitado ? ` (se pidió ${g.pedido}° y no cabe con recorrido)` : '')
+                    + (state.infCongelado ? ' · CONGELADO en el centro' : '');
+            }
+            function infComando(resto){
+                const [que, valor] = resto.split(':');
+                if (que === 'sec' && INF_SECUENCIAS.some(x => x.id === valor)) state.infSecuencia = valor;
+                else if (que === 'vel' && INF_VELOCIDADES.some(v => v.id === valor)) state.infVelocidad = valor;
+                else if (que === 'congelar') state.infCongelado = !state.infCongelado;
+                else return;
+                renderScreen(); saveToStorage();
+            }
+
+            /* ═══════════ LÁMINAS PSEUDOISOCROMÁTICAS ═══════════
+               NO son las cartillas de Ishihara. Esas son una obra publicada con
+               derechos y no se reproducen aquí. Lo que sí es ciencia publicada
+               es el MÉTODO, y es lo que está implementado: las líneas de
+               confusión del espacio CIE 1931.
+
+               Un dicromático confunde todos los colores que caen en una recta
+               del diagrama xy que pasa por su punto copuntual. Los puntos de
+               Judd son (0,747, 0,253) para el protán, (1,080, −0,080) para el
+               deután y (0,171, 0,000) para el tritán. Así que para hacer que
+               una cifra desaparezca para un protán basta pintarla con un color
+               de la recta que une el fondo con el copuntual protán: el
+               observador normal ve dos colores distintos y el protán ve uno.
+
+               Las dos condiciones que hacen "pseudoisocromática" a una lámina:
+                 1. figura y fondo en la misma línea de confusión
+                 2. figura y fondo a la MISMA luminancia -- si no, la cifra se
+                    lee por luminancia y el test no mide color
+               La segunda sale gratis parametrizando la recta a Y constante.
+
+               LO QUE ESTO NO ES: no está validado contra ninguna población, la
+               numeración es propia y no la de Ishihara, y sobre todo depende de
+               lo que el monitor emita de verdad. Sin un colorímetro las
+               cromaticidades son las nominales de sRGB, que es una suposición.
+               Sirve para cribar -- ¿ve una cifra o no? -- y no para clasificar
+               el tipo ni el grado. El módulo lo dice en el mando. */
+            const COPUNTUALES = {
+                protan: { x: 0.747, y: 0.253,  nombre: 'protán' },
+                deutan: { x: 1.080, y: -0.080, nombre: 'deután' },
+                tritan: { x: 0.171, y: 0.000,  nombre: 'tritán' }
+            };
+            const COLOR_Y = 0.45;        // luminancia común de figura y fondo
+
+            // xyY -> sRGB lineal
+            function xyYaLineal(x, y, Y){
+                if (y <= 1e-6) return null;
+                const X = x * Y / y, Z = (1 - x - y) * Y / y;
+                return [ 3.2406*X - 1.5372*Y - 0.4986*Z,
+                        -0.9689*X + 1.8758*Y + 0.0415*Z,
+                         0.0557*X - 0.2040*Y + 1.0570*Z ];
+            }
+            function enGamut(x, y, Y){
+                const c = xyYaLineal(x, y, Y);
+                return !!c && c.every(v => v >= -1e-4 && v <= 1 + 1e-4);
+            }
+            function xyYaCSS(x, y, Y){
+                const c = xyYaLineal(x, y, Y) || [0,0,0];
+                const g = v => { v = Math.max(0, Math.min(1, v));
+                    return Math.round(255 * (v <= 0.0031308 ? 12.92*v : 1.055*Math.pow(v, 1/2.4) - 0.055)); };
+                return `rgb(${g(c[0])},${g(c[1])},${g(c[2])})`;
+            }
+            /* Camina la línea de confusión desde el fondo hacia el copuntual
+               hasta salir del gamut, y se queda al 85% del recorrido: así la
+               separación es la máxima que el monitor puede dar sin recortar,
+               que es lo que recorta el color y rompe la isoluminancia. */
+            function porLaLineaDeConfusion(fondo, eje, Y){
+                const C = COPUNTUALES[eje];
+                const dx = C.x - fondo.x, dy = C.y - fondo.y;
+                let t = 0;
+                while (t < 1.2 && enGamut(fondo.x + (t + 0.005) * dx, fondo.y + (t + 0.005) * dy, Y)) t += 0.005;
+                let u = 0;
+                while (u > -1.2 && enGamut(fondo.x + (u - 0.005) * dx, fondo.y + (u - 0.005) * dy, Y)) u -= 0.005;
+                const s = (Math.abs(t) >= Math.abs(u) ? t : u) * 0.85;
+                return { x: fondo.x + s * dx, y: fondo.y + s * dy, t: s };
+            }
+
+            /* Las láminas. La cifra y el eje son decisiones propias: no se
+               replica la secuencia de ninguna cartilla comercial.
+                 demo     -> la ve todo el mundo; confirma que entiende la tarea
+                 oculta   -> desaparece para el eje indicado
+               No hay lámina de clasificación: ver el comentario de renderColor,
+               con esta pantalla los dos ejes dan el mismo color. */
+            const COLOR_LAMINAS = [
+                { id:1, tipo:'demo',      eje:'deutan', digito:'8',  resp:'8',
+                  que:'Demostración · la ve cualquiera' },
+                { id:2, tipo:'oculta',    eje:'protan', digito:'5',  resp:'5',
+                  que:'Desaparece para el protán' },
+                { id:3, tipo:'oculta',    eje:'protan', digito:'26', resp:'26',
+                  que:'Desaparece para el protán' },
+                { id:4, tipo:'oculta',    eje:'deutan', digito:'3',  resp:'3',
+                  que:'Desaparece para el deután' },
+                { id:5, tipo:'oculta',    eje:'deutan', digito:'97', resp:'97',
+                  que:'Desaparece para el deután' },
+                { id:6, tipo:'oculta',    eje:'tritan', digito:'6',  resp:'6',
+                  que:'Desaparece para el tritán' },
+                { id:7, tipo:'oculta',    eje:'tritan', digito:'45', resp:'45',
+                  que:'Desaparece para el tritán' }
+            ];
+
+            /* Determinista y por POSICIÓN, no secuencial. Con un generador
+               lineal recorrido en orden de rejilla los valores consecutivos
+               quedan correlacionados y el jitter de luminancia dibujaba bandas
+               diagonales en el fondo: un patrón regular en una lámina que tiene
+               que parecer un mosaico al azar. Con un hash de la celda cada
+               punto es independiente de sus vecinos. */
+            function hashCelda(a, b, c, k){
+                let h = (a * 374761393 + b * 668265263 + c * 2246822519 + k * 3266489917) | 0;
+                h = (h ^ (h >>> 13)) | 0;
+                h = Math.imul(h, 1274126177) | 0;
+                h = (h ^ (h >>> 16)) | 0;
+                return (h >>> 0) / 4294967296;
+            }
+
+            /* Esto es un test DE CERCA y por eso trae 1 m fijo, como el Amsler.
+               La cartilla de papel mide unos 14 cm y se lee a 75 cm, o sea unos
+               10°, con puntos de 2 a 7 mm -- de 9' a 32' de arco. Desde la silla
+               de lejos la lámina más grande que cabe son 2,6° y sus puntos 1,4':
+               el paciente fallaría por no resolver los puntos, no por color.
+
+               El mosaico va en rejilla hexagonal con jitter, no por muestreo
+               aleatorio con rechazo: el rechazo se rendía al 37% de cobertura y
+               la lámina salía más agujero que punto. La rejilla da un 70% largo
+               y sigue pareciendo aleatoria porque el radio y la posición de cada
+               punto se sortean dentro de su celda. */
+            const COLOR_PUNTOS_ANCHO = 30;      // puntos a lo ancho de la lámina
+            function colorGeometria(){
+                /* La lámina ocupa el alto de la pantalla, no un ángulo fijo: a
+                   1 m eso son 15,3° contra los 10° de la cartilla de papel, y
+                   más grande es mejor porque los puntos crecen con ella y el
+                   límite real de este test es que el punto se resuelva. */
+                const techo = gradosQueCaben(0.94);
+                const grados = techo > 0 ? techo : 12;
+                const mm = anguloAMM(grados, distanciaModulo());
+                const px = mm * state.cssPxPerMM;
+                const paso = px / COLOR_PUNTOS_ANCHO;
+                const dMinPx = 0.68 * paso, dMaxPx = 0.96 * paso;
+                const enMin = pxv => {
+                    const q = pxv / (state.cssPxPerMM || 1);
+                    return 2 * Math.atan(q / 2 / (distanciaModulo() * 1000)) * 180 / Math.PI * 60;
+                };
+                return { grados, mm, px, paso,
+                         minMin: enMin(dMinPx), maxMin: enMin(dMaxPx) };
+            }
+
+            function renderColor(){
+                d.moduloArea.style.background = '#101010';
+                if (!state.isCalibrated) { d.moduloArea.innerHTML = ''; return; }
+                const lam = COLOR_LAMINAS.find(l => l.id === state.colorLamina) || COLOR_LAMINAS[0];
+                const g = colorGeometria();
+                const D = Math.round(g.px);
+
+                /* El fondo se desplaza del neutro PERPENDICULAR al eje de la
+                   lámina, para que tenga color sin comerse la separación que
+                   necesita la figura a lo largo del eje. */
+                const C = COPUNTUALES[lam.eje];
+                const vx = C.x - 0.310, vy = C.y - 0.330;
+                const n = Math.hypot(vx, vy);
+                const fondo = { x: 0.310 - vy / n * 0.055, y: 0.330 + vx / n * 0.055 };
+                const figura = porLaLineaDeConfusion(fondo, lam.eje, COLOR_Y);
+                /* Aquí había una lámina de clasificación, con una cifra por el
+                   eje protán y otra por el deután, para distinguir un tipo del
+                   otro. Está quitada porque MEDIDO no funciona: en la parte del
+                   gamut sRGB que se puede alcanzar las dos líneas de confusión
+                   son casi paralelas y los dos colores de figura quedan a
+                   Δxy 0,023 -- el mismo color a ojo. Una lámina de clasificación
+                   que no clasifica es peor que no tenerla. Este juego criba; no
+                   distingue protán de deután. */
+                /* La de demostración no va por ninguna línea de confusión: se
+                   desplaza perpendicular, que es la dirección que TODOS
+                   distinguen, dicromáticos incluidos. */
+                const figuraDemo = lam.tipo === 'demo'
+                    ? { x: fondo.x + vy / n * 0.10, y: fondo.y - vx / n * 0.10 } : null;
+
+                const mascara = (txt, dx) => {
+                    const c = document.createElement('canvas');
+                    c.width = D; c.height = D;
+                    const k = c.getContext('2d');
+                    k.fillStyle = '#000'; k.fillRect(0, 0, D, D);
+                    k.fillStyle = '#fff';
+                    k.textAlign = 'center'; k.textBaseline = 'middle';
+                    /* Cifra grande a propósito: con 30 puntos a lo ancho, una
+                       cifra del 46% del disco deja el trazo en 2,8 puntos y se
+                       lee como un borrón. Al 60% el trazo son 3,6 y la cifra
+                       tiene forma. */
+                    k.font = `${Math.round(D * 0.60)}px ${OPTOTYPE_FONT}, Arial Black, sans-serif`;
+                    k.fillText(txt, D / 2 + (dx || 0), D / 2);
+                    return k.getImageData(0, 0, D, D).data;
+                };
+                const m1 = mascara(lam.digito, 0);
+
+                const lienzo = document.createElement('canvas');
+                lienzo.width = D; lienzo.height = D;
+                lienzo.style.borderRadius = '50%';
+                const k = lienzo.getContext('2d');
+                /* El disco se rellena de color papel. Antes quedaba casi negro y
+                   el 55% de la lámina era hueco: los espacios entre puntos se
+                   leían como agujeros en vez de como el fondo de la cartilla,
+                   que es lo que son. No afecta a lo que se mide -- la
+                   discriminación es entre el punto de figura y el de fondo -- pero
+                   cambia por completo a qué se parece. */
+                k.clearRect(0, 0, D, D);
+                k.fillStyle = '#f2f0ec';
+                k.beginPath(); k.arc(D/2, D/2, D/2, 0, Math.PI * 2); k.fill();
+
+
+                const enFigura = (x, y) => {
+                    const xi = Math.round(x), yi = Math.round(y);
+                    if (xi < 0 || yi < 0 || xi >= D || yi >= D) return false;
+                    return m1[(yi * D + xi) * 4] > 127;
+                };
+                const paso = g.paso;
+                const filaAlto = paso * Math.sqrt(3) / 2;
+                const R = D / 2 - paso * 0.50;
+                let puntos = 0;
+                for (let fila = 0; fila * filaAlto <= D; fila++) {
+                    const cy = fila * filaAlto + paso * 0.5;
+                    const desfase = (fila % 2) * paso / 2;
+                    for (let col = 0; col * paso + desfase <= D; col++) {
+                        const cx = col * paso + desfase + paso * 0.5;
+                        const sem = lam.id * 101 + state.colorSemilla * 7919;
+                        const jx = (hashCelda(col, fila, 1, sem) - 0.5) * paso * 0.22;
+                        const jy = (hashCelda(col, fila, 2, sem) - 0.5) * paso * 0.22;
+                        const x = cx + jx, y = cy + jy;
+                        if ((x - D/2) ** 2 + (y - D/2) ** 2 > R * R) continue;
+                        const r = paso * (0.34 + hashCelda(col, fila, 3, sem) * 0.14);
+                        puntos++;
+                        const base = enFigura(x, y) ? (figuraDemo || figura) : fondo;
+                    /* Jitter SOLO de luminancia y muy pequeño: rompe el borde
+                       duro de la cifra, que si no se lee por la forma del
+                       mosaico en vez de por el color. No se toca la
+                       cromaticidad, que es lo que se está midiendo. */
+                        const Yj = COLOR_Y * (0.88 + hashCelda(col, fila, 4, sem) * 0.24);
+                        k.fillStyle = xyYaCSS(base.x, base.y, Math.min(0.95, Yj));
+                        k.beginPath(); k.arc(x, y, r, 0, Math.PI * 2); k.fill();
+                    }
+                }
+
+                d.moduloArea.innerHTML = '';
+                d.moduloArea.appendChild(lienzo);
+                d.moduloNombre.textContent = `Color · lámina ${lam.id}/${COLOR_LAMINAS.length} · ${lam.que} · `
+                    + `${g.grados.toFixed(1)}° = ${g.mm.toFixed(0)} mm a ${distanciaModulo()} m · `
+                    + `${puntos} puntos de ${g.minMin.toFixed(0)}′ a ${g.maxMin.toFixed(0)}′`
+                    + (state.colorResp ? ` · RESPUESTA ${lam.resp}` : '');
+            }
+
+            function colorComando(resto){
+                const [que, valor] = resto.split(':');
+                if (que === 'lam') {
+                    const n = valor === 'sig' ? state.colorLamina + 1
+                            : valor === 'ant' ? state.colorLamina - 1 : parseInt(valor, 10);
+                    if (!(n >= 1 && n <= COLOR_LAMINAS.length)) return;
+                    state.colorLamina = n; state.colorResp = false;
+                } else if (que === 'resp') state.colorResp = !state.colorResp;
+                else if (que === 'nueva') state.colorSemilla = (state.colorSemilla + 1) % 1000;
+                else return;
+                renderScreen(); saveToStorage();
+            }
+
             const LETTERS = ['A','C','D','E','H','K','N','O','R','S','V','Z'];
             const NUMBERS = ['0','1','2','3','4','5','6','7','8','9'];
 
@@ -501,6 +1342,15 @@
                 highlightMode: false, highlightLineGlobalIdx:0,
                 singleCharMode: false,
                 lineChars:{},
+                // módulo activo y estado de los que no son optotipos
+                modulo:'optotipos', recordarVolver:false,
+                amslerLamina:'blanco', amslerDiagonales:false, amslerOjo:'OD',
+                pelliFila:1, pelliSemilla:0,
+                worthTam:'2', worthOjoRojo:'OD',
+                schoberAnillos:'5', schoberInvertido:false, schoberOjoRojo:'OD',
+                relaxTipo:'difusa', relaxLuz:'35',
+                infSecuencia:'rebote', infVelocidad:'media', infCongelado:false,
+                colorLamina:1, colorResp:false, colorSemilla:0,
             };
 
             const $ = id => document.getElementById(id);
@@ -511,6 +1361,7 @@
                 cardHandle:$('card-handle'), cardReadout:$('card-readout'),
                 cardLabel:$('card-label'), cardRefs:$('card-refs'),
                 infoSpan:$('info-span'), linesContainer:$('lines-container'),
+                moduloArea:$('modulo-area'), moduloNombre:$('modulo-nombre'),
                 calStatus:$('cal-status-footer'), remoteStatus:$('remote-status'),
                 pairCodeLabel:$('pair-code-label'), shortcutsPanel:$('shortcuts-panel'),
                 shortcutsToggle:$('shortcuts-toggle'), btnHighlight:$('btn-highlight'),
@@ -778,7 +1629,324 @@
                 return state.lineChars[key];
             }
 
+            /* Un carácter dibujado a una altura de tinta dada. La caja del
+               <span> se hace coincidir exactamente con la tinta: font-size sale
+               de la métrica medida del glifo y los huecos laterales se
+               descuentan con márgenes negativos, así las separaciones de la
+               norma se aplican tal cual sobre la tinta y no sobre el cuadratín.
+               Lo comparten el optotipo y el Pelli-Robson. */
+            function spanOptotipo(ch, h_css, conSS01, color){
+                const span = document.createElement('span');
+                span.className = 'optotype-text';
+                span.textContent = ch;
+                const cm = charMetrics(ch);
+                const fs = h_css / cm.ratio;
+                if (conSS01) span.style.fontFeatureSettings = "'ss01'";
+                span.style.fontSize = fs + 'px';
+                span.style.lineHeight = String(cm.ratio);            // alto de caja = tinta
+                span.style.marginLeft = (-cm.left * fs) + 'px';      // descontar el hueco
+                span.style.marginRight = (-cm.right * fs) + 'px';    // lateral del glifo
+                if (color) span.style.color = color;
+                return span;
+            }
+
+            /* El repartidor: decide qué capa se dibuja. El módulo de optotipos
+               conserva su render entero e intacto; los demás dibujan en
+               #modulo-area. Todo lo que llamaba a renderScreen() sigue valiendo. */
             function renderScreen(){
+                const m = moduloActual();
+                const esOpto = m.id === 'optotipos';
+                d.linesContainer.classList.toggle('oculto', !esOpto);
+                d.moduloArea.classList.toggle('oculto', esOpto);
+                d.calBar.classList.toggle('modo-modulo', !esOpto);
+                document.body.classList.toggle('en-modulo', !esOpto);
+                /* El fondo bicromático es del optotipo: dejarlo puesto en otro
+                   módulo pintaría media rejilla de Amsler sobre rojo y media
+                   sobre verde. Se apaga sin tocar la preferencia guardada. */
+                d.testArea.classList.toggle('bichromatic', esOpto && state.bichromatic);
+                /* Al entrar en un módulo la barra se repliega sola; al volver a
+                   optotipos vuelve. Es la misma clase del botón ▲, así que el
+                   estado del icono se mantiene coherente. */
+                d.calBar.classList.toggle('collapsed', !esOpto);
+                d.btnToggle.textContent = esOpto ? '▲' : '▼';
+                if (esOpto) {
+                    d.testArea.style.background = '';
+                    d.moduloNombre.textContent = '';
+                    renderOptotipos();
+                } else if (m.id === 'menu') {
+                    d.moduloArea.style.background = '#000000';
+                    d.moduloArea.innerHTML = '';
+                    d.moduloNombre.textContent = 'sin estímulo · el mando está en el menú';
+                } else if (m.id === 'contraste') {
+                    renderPelli();
+                } else if (m.id === 'worth') {
+                    renderWorth();
+                } else if (m.id === 'schober') {
+                    renderSchober();
+                } else if (m.id === 'color') {
+                    renderColor();
+                } else if (m.id === 'relax') {
+                    renderRelax();
+                } else if (m.id === 'infantil') {
+                    renderInfantil();
+                } else if (m.id === 'amsler') {
+                    renderAmsler();
+                } else {
+                    renderPendiente(m);
+                }
+                if (!esOpto) {
+                    d.infoSpan.textContent = textoCalibracion();
+                    d.infoSpan.classList.remove('overflow');
+                }
+                emitirEspejo();
+            }
+
+            // Lo que vale para cualquier módulo: de dónde salen los milímetros.
+            function textoCalibracion(){
+                return `${state.cssPxPerMM.toFixed(3)} px/mm · ${state.monitorInches.toFixed(1)}″ · `
+                     + `DPR ${(+liveDpr().toFixed(3))}`;
+            }
+
+            /* Cambio de módulo. Lo único delicado: los módulos de distancia
+               fija dejan al paciente acercado, así que al salir de uno de ellos
+               hacia otro que NO la trae fija se levanta el recordatorio. Medir
+               agudeza con el paciente todavía a 1 m es el error que esto evita,
+               y es silencioso: los optotipos saldrían perfectos y mal medidos. */
+            function entrarModulo(id){
+                const destino = MODULO[id];
+                if (!destino || id === state.modulo) return;
+                const salgo = moduloActual();
+                if (salgo.distFija != null && destino.distFija == null) state.recordarVolver = true;
+                if (destino.distFija != null) state.recordarVolver = false;
+                state.modulo = id;
+                renderScreen();
+                saveToStorage();
+            }
+
+            function amslerComando(resto){
+                const [que, valor] = resto.split(':');
+                if (que === 'lamina' && AMSLER_LAMINAS.some(l => l.id === valor)) state.amslerLamina = valor;
+                else if (que === 'diag') state.amslerDiagonales = !state.amslerDiagonales;
+                else if (que === 'ojo') state.amslerOjo = state.amslerOjo === 'OD' ? 'OI' : 'OD';
+                else return;
+                renderScreen();
+                saveToStorage();
+            }
+
+            /* ═══════════ EL ESPEJO DEL MANDO ═══════════
+               Un solo emisor para todos los módulos. Lleva siempre el estado
+               común —qué módulo, la calibración, la distancia efectiva, si hay
+               que devolver al paciente— y encima lo propio del módulo activo.
+               El mando decide qué pintar con eso; la pantalla no sabe de menús. */
+            function indiceResaltadoLocal(){
+                if (!state.highlightMode) return -1;
+                const g = ALL_LINES[state.highlightLineGlobalIdx];
+                return (g && g.screenIndex === state.currentScreenIdx) ? g.lineIndex : -1;
+            }
+
+            function emitirEspejo(){
+                if (!(window.remoteSocket && window.remoteSocket.connected && state.remoteJoined)) return;
+                const m = moduloActual();
+                const datos = {
+                    modulo: m.id,
+                    modulos: MODULOS.map(x => ({ id:x.id, titulo:x.titulo, sub:x.sub, grupo:x.grupo, hecho:x.hecho, distFija:x.distFija })),
+                    recordarVolver: state.recordarVolver,
+                    cal: {
+                        testDistanceM: state.testDistanceM,
+                        distanciaModulo: distanciaModulo(),
+                        cssPxPerMM: state.cssPxPerMM,
+                        source: state.calSource,
+                        calibrado: state.isCalibrated
+                    }
+                };
+                if (m.id === 'optotipos' && state.isCalibrated) {
+                    const screen = getCurrentScreen();
+                    datos.lines = screen.lines.map((line, li) => ({
+                        snellen: line.snellen.split('/')[1],
+                        decimal: line.decimal,
+                        count: line.count,
+                        chars: getLineChars(state.currentScreenIdx, li, line.count).map(ch => ({
+                            type: ch.type,
+                            char: ch.char || '',
+                            key: ch.key || '',
+                            rot: ch.rot || 0,
+                            uri: ch.type === 'img' ? SVG_CACHE[ch.key] : null,
+                            aspect: ch.type === 'img' ? (SVG_ASPECT[ch.key] || 1) : 1,
+                            ss01: usaSS01()
+                        }))
+                    }));
+                    datos.mode = state.mode;
+                    datos.highlightMode = state.highlightMode;
+                    datos.highlightLineIdx = indiceResaltadoLocal();
+                    datos.singleCharMode = state.singleCharMode;
+                    datos.bichromatic = state.bichromatic;
+                } else if (m.id === 'contraste') {
+                    const g = state.isCalibrated ? pelliGeometria() : null;
+                    datos.pelli = {
+                        fila: state.pelliFila,
+                        letraMM: g ? +g.letraMM.toFixed(1) : 0,
+                        grados: g ? +g.grados.toFixed(2) : 0,
+                        niveles: Array.from({ length: PELLI_FILAS }, (_, k) => {
+                            const v = pelliNivel(k + 1);
+                            return {
+                                n: v.n,
+                                log: v.log.toFixed(2),
+                                pct: v.contraste * 100 >= 10 ? (v.contraste * 100).toFixed(0) : (v.contraste * 100).toFixed(1),
+                                codigo: v.codigo,
+                                chars: pelliTriplete(v.n, state.pelliSemilla),
+                                // el suelo del panel: a 1 y 2 códigos del blanco
+                                alLimite: 255 - v.codigo <= 2
+                            };
+                        })
+                    };
+                } else if (m.id === 'worth') {
+                    const g = state.isCalibrated ? worthGeometria() : null;
+                    const rojoOD = state.worthOjoRojo === 'OD';
+                    const otro = rojoOD ? 'OI' : 'OD';
+                    datos.worth = {
+                        tam: state.worthTam,
+                        ojoRojo: state.worthOjoRojo,
+                        cabe: g ? g.cabe : false,
+                        puntoMM: g ? +g.puntoMM.toFixed(0) : 0,
+                        rombosMM: g ? +g.rombosMM.toFixed(0) : 0,
+                        techoG: g ? +g.maxG.toFixed(2) : 0,
+                        distMax: g ? +g.distMax.toFixed(1) : 0,
+                        grados: g ? +g.grados.toFixed(2) : 0,
+                        tamanos: WORTH_TAMANOS.map(t => {
+                            const gr = state.isCalibrated ? worthGrados(t) : 0;
+                            const mm = state.isCalibrated ? anguloAMM(gr, distanciaModulo()) : 0;
+                            const entra = state.isCalibrated && WORTH_ROMBO * mm <= Math.min(window.innerWidth, window.innerHeight) / state.cssPxPerMM;
+                            return { id: t.id, label: t.grados == null ? gr.toFixed(2).replace('.', ',') + '°' : t.label,
+                                     sub: t.grados == null ? 'el máximo' : null,
+                                     mm: +mm.toFixed(0), entra: entra };
+                        }),
+                        /* El filtro rojo transmite el rojo: el ojo que lo lleva
+                           ve el punto rojo, el otro los verdes. El blanco lo
+                           ven los dos. De ahí sale qué significa cada respuesta,
+                           y por eso las dos últimas filas se intercambian al
+                           cambiar de ojo el filtro. */
+                        lectura: [
+                            { ve: '4 puntos', significa: 'Fusión normal', color: '#27ae60' },
+                            { ve: '5 puntos', significa: 'Diplopía · no hay fusión', color: '#e8e8e8' },
+                            { ve: '2 rojos',  significa: 'Supresión del ' + otro, color: '#ff6b6b' },
+                            { ve: '3 verdes', significa: 'Supresión del ' + state.worthOjoRojo, color: '#51cf66' }
+                        ]
+                    };
+                } else if (m.id === 'schober') {
+                    const g = state.isCalibrated ? schoberGeometria() : null;
+                    /* La lectura no es una convención que se elija: el filtro
+                       rojo transmite el rojo, así que el ojo que lo lleva ve lo
+                       pintado en rojo. Quién ve la CRUZ sale de dos cosas y de
+                       nada más: en qué ojo va el filtro y de qué color está la
+                       cruz. A partir de ahí manda la regla de la diplopía: en
+                       exo la imagen del ojo derecho se percibe a la IZQUIERDA
+                       (cruzada) y la del izquierdo a la derecha; en endo, al
+                       contrario. En vertical, el ojo que se desvía hacia arriba
+                       ve su imagen hacia abajo. Por eso invertir los colores o
+                       pasar el filtro al otro ojo da la vuelta a la tabla
+                       entera, y por eso se calcula en vez de escribirse. */
+                    const cruzRoja = !state.schoberInvertido;
+                    const ojoCruz = cruzRoja ? state.schoberOjoRojo
+                                             : (state.schoberOjoRojo === 'OD' ? 'OI' : 'OD');
+                    const otroOjo = ojoCruz === 'OD' ? 'OI' : 'OD';
+                    const cruzEsDerecho = ojoCruz === 'OD';
+                    datos.schober = {
+                        anillosPedidos: state.schoberAnillos,
+                        anillos: g ? g.anillos : 0,
+                        caben: g ? g.caben : 0,
+                        pasoMM: g ? +g.pasoMM.toFixed(0) : 0,
+                        invertido: state.schoberInvertido,
+                        ojoRojo: state.schoberOjoRojo,
+                        ojoCruz: ojoCruz,
+                        ojoAnillos: otroOjo,
+                        colorCruz: cruzRoja ? 'roja' : 'verde',
+                        derivacion: 'Filtro rojo en ' + state.schoberOjoRojo + ', cruz '
+                                  + (cruzRoja ? 'roja' : 'verde') + ' → la cruz la ve el ' + ojoCruz
+                                  + ', los anillos el ' + otroOjo + '.',
+                        lectura: [
+                            { donde: 'Centrada',       que: 'Ortoforia', nota: 'sin desviación latente', color: '#27ae60' },
+                            { donde: 'A su izquierda', que: cruzEsDerecho ? 'Exoforia' : 'Endoforia',
+                              nota: cruzEsDerecho ? 'diplopía cruzada' : 'diplopía homónima', color: '#e8e8e8' },
+                            { donde: 'A su derecha',   que: cruzEsDerecho ? 'Endoforia' : 'Exoforia',
+                              nota: cruzEsDerecho ? 'diplopía homónima' : 'diplopía cruzada', color: '#e8e8e8' },
+                            { donde: 'Abajo',          que: 'Hiperforia ' + ojoCruz, nota: 'el ojo de la cruz sube', color: '#bbb' },
+                            { donde: 'Arriba',         que: 'Hiperforia ' + otroOjo, nota: 'el de los anillos sube', color: '#bbb' }
+                        ]
+                    };
+                } else if (m.id === 'color') {
+                    const g = state.isCalibrated ? colorGeometria() : null;
+                    const lam = COLOR_LAMINAS.find(l => l.id === state.colorLamina) || COLOR_LAMINAS[0];
+                    datos.color = {
+                        lamina: state.colorLamina,
+                        total: COLOR_LAMINAS.length,
+                        laminas: COLOR_LAMINAS.map(l => ({ id:l.id, tipo:l.tipo, eje:l.eje,
+                                                           nombre: COPUNTUALES[l.eje].nombre, que:l.que })),
+                        tipo: lam.tipo, eje: lam.eje, ejeNombre: COPUNTUALES[lam.eje].nombre,
+                        que: lam.que,
+                        resp: lam.resp,
+                        mostrarResp: state.colorResp,
+                        grados: g ? +g.grados.toFixed(1) : 0,
+                        mm: g ? +g.mm.toFixed(0) : 0,
+                        minMin: g ? +g.minMin.toFixed(1) : 0,
+                        maxMin: g ? +g.maxMin.toFixed(1) : 0,
+                        puntoChico: g ? g.minMin < 5 : false
+                    };
+                } else if (m.id === 'relax') {
+                    const g = state.isCalibrated ? relaxGeometria() : null;
+                    datos.relax = {
+                        tipo: state.relaxTipo,
+                        tipos: RELAX_TIPOS,
+                        luz: state.relaxLuz,
+                        luces: RELAX_LUCES,
+                        grados: g ? +g.grados.toFixed(2) : 0,
+                        pedido: g ? g.pedido : 0,
+                        limitado: g ? g.limitado : false,
+                        mm: g ? +g.mm.toFixed(0) : 0
+                    };
+                } else if (m.id === 'infantil') {
+                    const g = state.isCalibrated ? infGeometria() : null;
+                    const vel = INF_VELOCIDADES.find(v => v.id === state.infVelocidad) || INF_VELOCIDADES[1];
+                    datos.infantil = {
+                        secuencia: state.infSecuencia,
+                        secuencias: INF_SECUENCIAS,
+                        velocidad: state.infVelocidad,
+                        velocidades: INF_VELOCIDADES,
+                        seg: vel.seg,
+                        congelado: state.infCongelado,
+                        grados: g ? +g.grados.toFixed(2) : 0,
+                        pedido: g ? g.pedido : 0,
+                        limitado: g ? g.limitado : false,
+                        mm: g ? +g.mm.toFixed(0) : 0
+                    };
+                } else if (m.id === 'amsler') {
+                    const g = state.isCalibrated ? amslerGeometria() : null;
+                    datos.amsler = {
+                        lamina: state.amslerLamina,
+                        laminas: AMSLER_LAMINAS.map(l => ({ id:l.id, nombre:l.nombre, uso:l.uso })),
+                        diagonales: state.amslerDiagonales,
+                        ojo: state.amslerOjo,
+                        cuadroMM: g ? +g.ladoMM.toFixed(2) : 0,
+                        gradoReal: g ? +g.gradoReal.toFixed(3) : 0,
+                        gradosX: g ? g.gradosX : 0,
+                        gradosY: g ? g.gradosY : 0,
+                        areaPct: g ? g.areaPct : 0
+                    };
+                }
+                window.remoteSocket.emit('screenUpdate', datos);
+            }
+
+            // Un módulo declarado pero sin construir lo dice en la pantalla, en
+            // vez de dejarla en blanco y parecer que algo se rompió.
+            function renderPendiente(m){
+                d.moduloArea.style.background = '#000000';
+                d.moduloArea.innerHTML =
+                    '<div style="font-family:\'OpticianSans\',sans-serif;color:#3a3a3a;'
+                  + 'font-size:15px;letter-spacing:2px;text-align:center;line-height:2;">'
+                  + m.titulo.toUpperCase() + '<br><span style="font-size:11px;color:#2e2e2e;">TODAV\u00cdA NO CONSTRUIDO</span></div>';
+                d.moduloNombre.textContent = m.titulo + ' · pendiente';
+            }
+
+            function renderOptotipos(){
                 d.linesContainer.innerHTML='';
                 if(!state.isCalibrated) return;
                 const screen = getCurrentScreen();
@@ -820,17 +1988,7 @@
                     
                     chars.forEach(ch => {
                         if (ch.type === 'text') {
-                            const span = document.createElement('span');
-                            span.className = 'optotype-text';
-                            span.textContent = ch.char;
-                            const cm = charMetrics(ch.char);
-                            const fs = h_css / cm.ratio;
-                            if (usaSS01()) span.style.fontFeatureSettings = "'ss01'";
-                            span.style.fontSize = fs + 'px';
-                            span.style.lineHeight = String(cm.ratio);            // alto de caja = tinta
-                            span.style.marginLeft = (-cm.left * fs) + 'px';      // descontar el hueco
-                            span.style.marginRight = (-cm.right * fs) + 'px';    // lateral del glifo
-                            row.appendChild(span);
+                            row.appendChild(spanOptotipo(ch.char, h_css, usaSS01()));
                         } else {
                             const img = document.createElement('img');
                             const box = optotypeBoxPx(SVG_ASPECT[ch.key] || 1, h_css);
@@ -854,40 +2012,9 @@
                     d.linesContainer.appendChild(lineDiv);
                 });
 
-                if (window.remoteSocket && window.remoteSocket.connected && state.remoteJoined) {
-                    const screenData = {
-                        lines: screen.lines.map((line, li) => ({
-                            snellen: line.snellen.split('/')[1],
-                            decimal: line.decimal,
-                            count: line.count,
-                            chars: getLineChars(state.currentScreenIdx, li, line.count).map(ch => ({
-                                type: ch.type,
-                                char: ch.char || '',
-                                key: ch.key || '',
-                                rot: ch.rot || 0,
-                                uri: ch.type === 'img' ? SVG_CACHE[ch.key] : null,
-                                aspect: ch.type === 'img' ? (SVG_ASPECT[ch.key] || 1) : 1,
-                                ss01: usaSS01()
-                            }))
-                        })),
-                        cal: {
-                            testDistanceM: state.testDistanceM,
-                            cssPxPerMM: state.cssPxPerMM,
-                            source: state.calSource,
-                        },
-                        mode: state.mode,
-                        highlightMode: state.highlightMode,
-                        highlightLineIdx: localHighlightIdx,
-                        singleCharMode: state.singleCharMode,
-                        bichromatic: state.bichromatic,
-                    };
-                    window.remoteSocket.emit('screenUpdate', screenData);
-                }
-
                 const mm20_20 = optotypeHeightMM(1.0,state.testDistanceM);
-                d.infoSpan.textContent =
-                    `${state.cssPxPerMM.toFixed(3)} px/mm · ${state.monitorInches.toFixed(1)}″ · ` +
-                    `DPR ${(+liveDpr().toFixed(3))} · 20/20: ${mm20_20.toFixed(2)}mm → ${cssHeight(mm20_20).toFixed(1)}px`;
+                d.infoSpan.textContent = textoCalibracion() +
+                    ` · 20/20: ${mm20_20.toFixed(2)}mm → ${cssHeight(mm20_20).toFixed(1)}px`;
 
                 // Con tamaños y separaciones físicas hay combinaciones de monitor y
                 // distancia en las que una pantalla ya no cabe. Avisarlo, en vez de
@@ -942,7 +2069,14 @@
                     cardDevW:state.cardDevW, cardDevH:state.cardDevH,
                     calAck:state.calAck, pairCode:state.pairCode,
                     bichromatic:state.bichromatic, highlightMode:state.highlightMode,
-                    singleCharMode:state.singleCharMode, currentScreenIdx:state.currentScreenIdx
+                    singleCharMode:state.singleCharMode, currentScreenIdx:state.currentScreenIdx,
+                    // preferencias del Amsler; el módulo activo NO se guarda,
+                    // igual que el modo de optotipo: cada sesión arranca limpia
+                    amslerLamina:state.amslerLamina, amslerDiagonales:state.amslerDiagonales,
+                    pelliFila:state.pelliFila, worthTam:state.worthTam,
+                    schoberAnillos:state.schoberAnillos, schoberInvertido:state.schoberInvertido,
+                    relaxTipo:state.relaxTipo, relaxLuz:state.relaxLuz,
+                    infSecuencia:state.infSecuencia, infVelocidad:state.infVelocidad
                 })); }catch(e){}
             }
 
@@ -956,6 +2090,13 @@
                 // paciente anterior no debe arrastrarse. Antes se guardaba en
                 // localStorage y luego se ignoraba, o sea que era dato muerto.
                 state.mode = 'letters';
+                state.modulo = 'optotipos';
+                state.recordarVolver = false;
+                state.amslerOjo = 'OD';
+                state.worthOjoRojo = 'OD';
+                state.schoberOjoRojo = 'OD';
+                state.infCongelado = false;
+                state.colorResp = false;
                 if(saved){
                     // Nada de resolución ni DPR guardados: los da el navegador en
                     // cada arranque. Del almacenamiento solo sale lo que ninguna
@@ -973,6 +2114,16 @@
                     if(typeof saved.singleCharMode==='boolean') state.singleCharMode=saved.singleCharMode;
                     if(typeof saved.currentScreenIdx==='number')
                         state.currentScreenIdx=Math.min(SCREENS.length-1, Math.max(0, saved.currentScreenIdx));
+                    if(AMSLER_LAMINAS.some(l=>l.id===saved.amslerLamina)) state.amslerLamina=saved.amslerLamina;
+                    if(typeof saved.amslerDiagonales==='boolean') state.amslerDiagonales=saved.amslerDiagonales;
+                    if(typeof saved.pelliFila==='number' && saved.pelliFila>=1 && saved.pelliFila<=PELLI_FILAS) state.pelliFila=saved.pelliFila;
+                    if(WORTH_TAMANOS.some(t=>t.id===saved.worthTam)) state.worthTam=saved.worthTam;
+                    if(['3','5','7'].includes(saved.schoberAnillos)) state.schoberAnillos=saved.schoberAnillos;
+                    if(typeof saved.schoberInvertido==='boolean') state.schoberInvertido=saved.schoberInvertido;
+                    if(RELAX_TIPOS.some(t=>t.id===saved.relaxTipo)) state.relaxTipo=saved.relaxTipo;
+                    if(RELAX_LUCES.includes(saved.relaxLuz)) state.relaxLuz=saved.relaxLuz;
+                    if(INF_SECUENCIAS.some(x=>x.id===saved.infSecuencia)) state.infSecuencia=saved.infSecuencia;
+                    if(INF_VELOCIDADES.some(v=>v.id===saved.infVelocidad)) state.infVelocidad=saved.infVelocidad;
                 } else {
                     state.bichromatic=false;
                 }
@@ -1229,7 +2380,12 @@
                     return;
                 }
                 if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) e.preventDefault();
-                if(e.key==='ArrowUp'){
+                /* Fuera del módulo de optotipos solo siguen vivos los atajos que
+                   valen en cualquiera: calibrar, la barra, los atajos, salir. El
+                   resto navegaría una pantalla que nadie está viendo. */
+                if (state.modulo !== 'optotipos' && !['c','C','h','H','?','Escape','m','M'].includes(e.key)) return;
+                if(e.key==='m'||e.key==='M'){ if(!e.ctrlKey&&!e.metaKey) entrarModulo('optotipos'); }
+                else if(e.key==='ArrowUp'){
                     if (state.highlightMode) moveHighlight(-1);
                     else navigateToScreen(state.currentScreenIdx-1);
                 }
@@ -1289,10 +2445,36 @@
                 socket.on('peers', (n) => updateRemoteStatus(n));
                 socket.on('disconnect', () => { state.remoteJoined = false; updateRemoteStatus(0); });
                 socket.on('comando', (cmd) => {
-                    if (cmd.startsWith('Mode:')) {
+                    if (cmd.startsWith('Modulo:')) {
+                        entrarModulo(cmd.slice(7));
+                    } else if (cmd === 'VolverDicho') {
+                        state.recordarVolver = false;
+                        emitirEspejo();
+                    } else if (cmd.startsWith('A:')) {
+                        if (state.modulo === 'amsler') amslerComando(cmd.slice(2));
+                    } else if (cmd.startsWith('P:')) {
+                        if (state.modulo === 'contraste') pelliComando(cmd.slice(2));
+                    } else if (cmd.startsWith('W:')) {
+                        if (state.modulo === 'worth') worthComando(cmd.slice(2));
+                    } else if (cmd.startsWith('S:')) {
+                        if (state.modulo === 'schober') schoberComando(cmd.slice(2));
+                    } else if (cmd.startsWith('C:')) {
+                        if (state.modulo === 'color') colorComando(cmd.slice(2));
+                    } else if (cmd.startsWith('R:')) {
+                        if (state.modulo === 'relax') relaxComando(cmd.slice(2));
+                    } else if (cmd.startsWith('I:')) {
+                        if (state.modulo === 'infantil') infComando(cmd.slice(2));
+                    } else if (cmd.startsWith('Mode:')) {
+                        // los modos de optotipo solo aplican a su módulo
+                        if (state.modulo !== 'optotipos') return;
                         const modo = cmd.split(':')[1];
                         setMode(modo);
                         socket.emit('modo', modo);
+                    } else if (state.modulo !== 'optotipos') {
+                        // las flechas y los atajos del optotipo no significan
+                        // nada en otro módulo: mejor ignorarlos que navegar a
+                        // ciegas una pantalla que no se está viendo
+                        return;
                     } else {
                         const keyEvent = new KeyboardEvent('keydown', {
                             key: cmd.startsWith('Key') ? cmd.slice(3) : cmd,

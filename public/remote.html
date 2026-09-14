@@ -17,19 +17,24 @@
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        html, body {
+        html { height: 100%; }
+        body {
             width: 100%;
-            height: 100%;
+            min-height: 100%;
             margin: 0;
-            padding: 0;
-            overflow: hidden;
+            padding: 0 0 18px;
+            /* Antes era overflow:hidden con centrado vertical, que valía para
+               una sola pantalla de controles. Con el menú de ocho módulos hay
+               contenido que no cabe, así que se desplaza. */
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
             font-family: system-ui, -apple-system, sans-serif;
             background: #111;
             color: #fff;
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;  /* centrado vertical nativo */
+            justify-content: flex-start;
             user-select: none;
             -webkit-user-select: none;
         }
@@ -130,6 +135,195 @@
             flex-shrink: 0;
         }
 
+        /* ═══════════ MENÚ DE MÓDULOS Y CABECERA ═══════════ */
+        .oculto { display: none !important; }
+        .bloque { width: 94%; max-width: 400px; }
+
+        .grupo-tit {
+            font-size: 9px; text-transform: uppercase; letter-spacing: 1px;
+            color: #666; padding: 12px 4px 6px;
+        }
+        .fila-mod {
+            display: flex; align-items: center; gap: 12px;
+            background: #1a1a1a; border: 1px solid #2b2b2b; border-radius: 10px;
+            padding: 10px 12px; margin-bottom: 6px; min-height: 52px;
+            text-align: left; width: 100%; color: inherit; font: inherit;
+        }
+        .fila-mod:active { background: #232323; }
+        .fila-mod.no-hecho { opacity: 0.45; }
+        .fila-mod .txt { flex-grow: 1; min-width: 0; }
+        .fila-mod .tit { font-size: 14px; font-weight: 600; color: #e8e8e8; }
+        .fila-mod .sub { font-size: 11px; color: #777; margin-top: 2px; }
+        .fila-mod .tag {
+            font-family: monospace; font-size: 9px; letter-spacing: 0.4px;
+            flex-shrink: 0; color: #5e5e5e;
+        }
+        .fila-mod .tag.cerca { color: #f0b26b; }
+
+        #aviso-volver {
+            display: flex; align-items: center; gap: 10px; margin-bottom: 12px;
+            background: rgba(243,156,18,0.12); border: 1px solid rgba(243,156,18,0.45);
+            border-radius: 10px; padding: 11px 12px; margin-bottom: 4px;
+        }
+        #aviso-volver .txt { flex-grow: 1; }
+        #aviso-volver .tit { font-size: 12px; font-weight: 700; color: #f0b26b; }
+        #aviso-volver .sub { font-size: 11px; color: #c99a3f; margin-top: 3px; line-height: 1.4; }
+        #aviso-volver button {
+            flex-shrink: 0; background: #f39c12; color: #151515; border: none;
+            border-radius: 8px; padding: 11px 14px; font-size: 12px; font-weight: 700;
+        }
+
+        .cabecera {
+            display: flex; align-items: center; gap: 10px; margin-bottom: 12px;
+        }
+        .cabecera .atras {
+            width: 40px; height: 40px; flex-shrink: 0; border: 1px solid #2f2f2f;
+            border-radius: 8px; background: #232323; color: #ccc; font-size: 20px;
+            line-height: 1; padding: 0;
+        }
+        .cabecera .txt { flex-grow: 1; min-width: 0; }
+        .cabecera .tit { font-size: 15px; font-weight: 600; color: #fff; }
+        .cabecera .sub {
+            font-size: 9px; text-transform: uppercase; letter-spacing: 1px;
+            color: #777; margin-top: 2px;
+        }
+        .cabecera .dist { flex-shrink: 0; text-align: right; }
+        .cabecera .dist .et {
+            font-size: 8px; text-transform: uppercase; letter-spacing: 1px; color: #5e5e5e;
+        }
+        .cabecera .dist .val { font-family: monospace; font-size: 13px; margin-top: 2px; }
+
+        /* ═══════════ CONTROLES DEL AMSLER ═══════════ */
+        .lista-lam { display: flex; flex-direction: column; gap: 6px; }
+        .lista-lam button {
+            display: flex; align-items: center; gap: 11px; width: 100%;
+            background: #1a1a1a; border: 1px solid #2b2b2b; border-radius: 9px;
+            padding: 10px 12px; min-height: 52px; text-align: left;
+            color: inherit; font: inherit;
+        }
+        .lista-lam button.sel { border-color: #f1c40f; background: #232323; }
+        .lista-lam .muestra {
+            width: 34px; height: 34px; border-radius: 5px; flex-shrink: 0;
+        }
+        .lista-lam .tit { font-size: 13px; font-weight: 600; color: #e8e8e8; }
+        .lista-lam .sub { font-size: 10.5px; color: #777; margin-top: 2px; }
+
+        .conmut {
+            display: flex; align-items: center; justify-content: space-between;
+            width: 100%; background: #1a1a1a; border: 1px solid #2b2b2b;
+            border-radius: 9px; padding: 12px 13px; min-height: 48px;
+            margin-top: 6px; color: inherit; font: inherit; text-align: left;
+        }
+        .conmut.on { border-color: #f1c40f; }
+        .conmut .et { font-size: 13px; color: #ddd; }
+        .conmut .val { font-family: monospace; font-size: 10px; color: #666; }
+        .conmut.on .val { color: #f1c40f; }
+
+        .nota-geo {
+            font-family: monospace; font-size: 10px; color: #6a6a6a;
+            line-height: 1.6; padding: 10px 2px 0;
+        }
+
+        /* ═══════════ CONTROLES DEL PELLI-ROBSON ═══════════ */
+        .lectura {
+            display: flex; align-items: flex-end; justify-content: space-between;
+            background: #1a1a1a; border: 1px solid #2b2b2b; border-radius: 10px;
+            padding: 13px;
+        }
+        .lectura .et {
+            font-size: 9px; text-transform: uppercase; letter-spacing: 0.9px; color: #5e5e5e;
+        }
+        .lectura .grande {
+            font-family: monospace; font-size: 32px; color: #fff; line-height: 1.05; margin-top: 2px;
+        }
+        .lectura .nivel { font-family: monospace; font-size: 17px; color: #f1c40f; margin-top: 3px; }
+        .lectura .mini { font-family: monospace; font-size: 10px; color: #666; margin-top: 3px; }
+
+        .pareja { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px; }
+        .pareja button {
+            display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+            height: 54px; border: 1px solid #3a3a3a; border-radius: 8px; background: #2b2b2b;
+            color: #fff; font: inherit;
+        }
+        .pareja button:disabled { opacity: 0.3; }
+        .pareja .flecha { font-size: 15px; line-height: 1; }
+        .pareja .mini { font-size: 9px; text-transform: uppercase; letter-spacing: 0.8px; color: #999; }
+
+        .pista { font-size: 11px; color: #7a7a7a; line-height: 1.5; text-align: center; padding: 8px 2px 0; }
+        .pista strong { color: #aaa; }
+
+        .lista-niv { display: flex; flex-direction: column; gap: 4px; }
+        .lista-niv button {
+            display: flex; align-items: center; gap: 9px; width: 100%; min-height: 42px;
+            background: #1a1a1a; border: 1px solid #2b2b2b; border-radius: 8px;
+            padding: 8px 11px; color: inherit; font: inherit; text-align: left;
+        }
+        .lista-niv button.sel { border-color: #f1c40f; background: rgba(241,196,15,0.08); }
+        .lista-niv .n { font-family: monospace; font-size: 10px; color: #555; width: 10px; flex-shrink: 0; }
+        .lista-niv .tri {
+            font-family: 'OpticianSans', 'Arial Black', Impact, sans-serif;
+            font-feature-settings: 'ss01'; font-size: 15px; letter-spacing: 4px;
+            line-height: 1; flex-grow: 1;
+        }
+        .lista-niv .log { font-family: monospace; font-size: 11px; flex-shrink: 0; }
+        .lista-niv .pct { font-family: monospace; font-size: 9px; color: #555; width: 32px; text-align: right; flex-shrink: 0; }
+        .lista-niv .limite { color: #d9863f; }
+
+        /* ═══════════ CONTROLES DE WORTH Y SCHOBER ═══════════ */
+        .trio { display: flex; gap: 6px; }
+        .trio button {
+            flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center;
+            justify-content: center; gap: 2px; padding: 9px 0; border-radius: 8px;
+            background: #1a1a1a; border: 1px solid #2b2b2b; color: #bbb; font: inherit;
+        }
+        .trio button.sel { background: #f1c40f; border-color: #f1c40f; color: #151515; }
+        .trio button.no-entra { border-color: rgba(231,76,60,0.5); color: #6a6a6a; }
+        .trio button.sel.no-entra { background: #e74c3c; border-color: #e74c3c; color: #fff; }
+        .trio .g { font-size: 13px; font-weight: 600; }
+        .trio .mm { font-family: monospace; font-size: 9px; opacity: 0.75; }
+
+        .tabla {
+            display: flex; flex-direction: column; gap: 1px;
+            background: #262626; border-radius: 8px; overflow: hidden;
+        }
+        .tabla .f {
+            display: flex; align-items: center; gap: 10px;
+            background: #1a1a1a; padding: 9px 11px; min-height: 40px;
+        }
+        .tabla .f .a { font-family: monospace; font-size: 11px; width: 92px; flex-shrink: 0; }
+        .tabla .f .b { font-size: 12.5px; flex-grow: 1; font-weight: 600; }
+        .tabla .f .c { font-family: monospace; font-size: 9px; color: #5e5e5e; flex-shrink: 0; }
+
+        /* ═══════════ FIJACIÓN: RELAX E INFANTIL ═══════════ */
+        @keyframes esp-rebote    { from { transform: translateY(-16px); } to { transform: translateY(16px); } }
+        @keyframes esp-recorrido { from { transform: translateX(-22px) rotate(-12deg); } to { transform: translateX(22px) rotate(12deg); } }
+        @keyframes esp-molinete  { from { transform: rotate(0deg); } to { transform: rotate(180deg); } }
+        @keyframes esp-destellos { from { transform: scale(0.75); opacity: 0.6; } to { transform: scale(1.1); opacity: 1; } }
+
+        .cuarteto { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+        .cuarteto button {
+            display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+            padding: 11px 12px; border-radius: 9px; min-height: 54px;
+            background: #1a1a1a; border: 1px solid #2b2b2b; color: inherit; font: inherit; text-align: left;
+        }
+        .cuarteto button.sel { border-color: #f1c40f; background: #232323; }
+        .cuarteto .n { font-size: 13px; font-weight: 600; color: #e8e8e8; }
+        .cuarteto .s { font-size: 10.5px; color: #777; }
+
+        .conmut.grande { min-height: 58px; margin-top: 10px; }
+        .conmut.grande .et { font-size: 14px; font-weight: 700; letter-spacing: 0.6px; }
+
+        .aviso {
+            margin-top: 12px; padding: 11px 12px; border-radius: 9px;
+            background: #141414; border: 1px solid #262626;
+        }
+        .aviso .tit { font-size: 12px; color: #ddd; font-weight: 600; }
+        .aviso .txt { font-size: 11px; color: #7a7a7a; margin-top: 5px; line-height: 1.5; }
+        .aviso.limite { background: rgba(243,156,18,0.07); border-color: rgba(243,156,18,0.3); }
+        .aviso.limite .tit { color: #f0b26b; }
+        .aviso.limite .txt { color: #a8895f; }
+        .aviso.limite strong { color: #c9a870; }
+
         /* Botones de modo */
         .mode-grid {
             display: grid;
@@ -207,25 +401,203 @@
         <span id="pair-code"></span>
     </div>
 
-    <div id="remote-screen"></div>
-
-    <div class="mode-grid" id="mode-buttons">
-        <button data-mode="letters" class="active-mode">Letras</button>
-        <button data-mode="numbers">Números</button>
-        <button data-mode="pediatric">LEA</button>
-        <button data-mode="e_directional">E direc.</button>
+    <!-- El recordatorio vive FUERA de las dos vistas a propósito: si solo se
+         viera en el menú, desaparecería justo al entrar en optotipos, que es
+         donde medir con el paciente todavía a 1 m hace daño. -->
+    <div id="aviso-volver" class="bloque oculto">
+        <div class="txt">
+            <div class="tit">El paciente sigue acercado</div>
+            <div class="sub" id="aviso-volver-sub"></div>
+        </div>
+        <button onclick="enviar('VolverDicho')">Hecho</button>
     </div>
 
-    <div class="dpad">
-        <div class="empty"></div><button onclick="enviar('ArrowUp')">▲</button><div class="empty"></div>
-        <button onclick="enviar('ArrowLeft')">◀</button><div class="empty"></div><button onclick="enviar('ArrowRight')">▶</button>
-        <div class="empty"></div><button onclick="enviar('ArrowDown')">▼</button><div class="empty"></div>
+    <!-- ═══ VISTA: MENÚ DE MÓDULOS ═══ -->
+    <div id="vista-menu" class="bloque oculto">
+        <div id="lista-modulos"></div>
     </div>
 
-    <div class="function-btns" id="func-buttons">
-        <button id="btn-resaltar" onclick="enviar('KeyR')">🔦 Resaltar</button>
-        <button id="btn-individual" onclick="enviar('KeyU')">👤 Individual</button>
-        <button id="btn-bic" class="special" onclick="enviar('KeyB')"></button>
+    <!-- ═══ VISTA: UN MÓDULO ═══ -->
+    <div id="vista-modulo" class="oculto" style="width:100%; display:flex; flex-direction:column; align-items:center;">
+        <div class="cabecera bloque">
+            <button class="atras" onclick="enviar('Modulo:menu')" title="Volver al menú">‹</button>
+            <div class="txt">
+                <div class="tit" id="mod-titulo"></div>
+                <div class="sub" id="mod-sub"></div>
+            </div>
+            <div class="dist">
+                <div class="et" id="mod-dist-et">Distancia</div>
+                <div class="val" id="mod-dist-val"></div>
+            </div>
+        </div>
+
+        <div id="remote-screen"></div>
+
+        <!-- Panel de optotipos: los controles que ya existían, intactos -->
+        <div id="panel-optotipos" style="width:100%; display:flex; flex-direction:column; align-items:center;">
+            <div class="mode-grid" id="mode-buttons">
+                <button data-mode="letters" class="active-mode">Letras</button>
+                <button data-mode="numbers">Números</button>
+                <button data-mode="pediatric">LEA</button>
+                <button data-mode="e_directional">E direc.</button>
+            </div>
+
+            <div class="dpad">
+                <div class="empty"></div><button onclick="enviar('ArrowUp')">▲</button><div class="empty"></div>
+                <button onclick="enviar('ArrowLeft')">◀</button><div class="empty"></div><button onclick="enviar('ArrowRight')">▶</button>
+                <div class="empty"></div><button onclick="enviar('ArrowDown')">▼</button><div class="empty"></div>
+            </div>
+
+            <div class="function-btns" id="func-buttons">
+                <button id="btn-resaltar" onclick="enviar('KeyR')">🔦 Resaltar</button>
+                <button id="btn-individual" onclick="enviar('KeyU')">👤 Individual</button>
+                <button id="btn-bic" class="special" onclick="enviar('KeyB')"></button>
+            </div>
+        </div>
+
+        <!-- Panel del Amsler -->
+        <div id="panel-amsler" class="bloque oculto">
+            <div class="grupo-tit">Lámina</div>
+            <div class="lista-lam" id="amsler-laminas"></div>
+            <button class="conmut" id="amsler-diag" onclick="enviar('A:diag')">
+                <span class="et">Diagonales</span><span class="val" id="amsler-diag-val">—</span>
+            </button>
+            <button class="conmut" id="amsler-ojo" onclick="enviar('A:ojo')">
+                <span class="et">Ojo en examen</span><span class="val" id="amsler-ojo-val">OD</span>
+            </button>
+            <div class="nota-geo" id="amsler-geo"></div>
+        </div>
+
+        <!-- Panel del Pelli-Robson -->
+        <div id="panel-pelli" class="bloque oculto">
+            <div class="lectura">
+                <div>
+                    <div class="et">Fila en curso</div>
+                    <div class="grande" id="pelli-log">0,00</div>
+                    <div class="et" style="margin-top:2px;">log CS de esa fila</div>
+                </div>
+                <div style="text-align:right;">
+                    <div class="et">Nivel</div>
+                    <div class="nivel"><span id="pelli-fila">1</span><span style="color:#555;">/8</span></div>
+                    <div class="mini" id="pelli-pct"></div>
+                </div>
+            </div>
+            <div class="pareja">
+                <button onclick="enviar('P:fila:arriba')" id="pelli-arriba">
+                    <span class="flecha">▲</span><span class="mini">más visible</span>
+                </button>
+                <button onclick="enviar('P:fila:abajo')" id="pelli-abajo">
+                    <span class="flecha">▼</span><span class="mini">más tenue</span>
+                </button>
+            </div>
+            <div class="pista">El umbral es el log CS de la <strong>última fila que lea bien</strong>. Se empieza arriba y se baja.</div>
+            <div class="grupo-tit">Los ocho niveles · 0,30 log por paso</div>
+            <div id="pelli-niveles" class="lista-niv"></div>
+            <button class="conmut" onclick="enviar('P:nuevas')" style="justify-content:center;">
+                <span class="et">Letras nuevas en las ocho filas</span>
+            </button>
+            <div class="nota-geo" id="pelli-geo"></div>
+        </div>
+
+        <!-- Panel de Worth -->
+        <div id="panel-worth" class="bloque oculto">
+            <div class="grupo-tit">Tamaño de los puntos</div>
+            <div class="trio" id="worth-tamanos"></div>
+            <div class="nota-geo" id="worth-techo"></div>
+            <button class="conmut" onclick="enviar('W:ojo')">
+                <span class="et">Gafa: rojo en <strong id="worth-ojo">OD</strong></span>
+                <span class="val" style="color:#f1c40f;">INVERTIR</span>
+            </button>
+            <div class="grupo-tit">Qué significa lo que responde</div>
+            <div class="tabla" id="worth-lectura"></div>
+        </div>
+
+        <!-- Panel de Schober -->
+        <div id="panel-schober" class="bloque oculto">
+            <div class="grupo-tit">Anillos visibles</div>
+            <div class="trio" id="schober-anillos"></div>
+            <div class="grupo-tit">Filtro rojo en</div>
+            <div class="trio" id="schober-ojos"></div>
+            <button class="conmut" onclick="enviar('S:inv')">
+                <span class="et">Cruz <strong id="schober-color">roja</strong></span>
+                <span class="val" style="color:#f1c40f;">INVERTIR</span>
+            </button>
+            <div class="nota-geo" id="schober-deriv"></div>
+            <div class="grupo-tit">Dónde cae la cruz</div>
+            <div class="tabla" id="schober-lectura"></div>
+            <div class="nota-geo" id="schober-geo"></div>
+        </div>
+
+        <!-- Panel del relax acomodativo -->
+        <div id="panel-relax" class="bloque oculto">
+            <div class="grupo-tit">Estímulo</div>
+            <div class="lista-lam" id="relax-tipos"></div>
+            <div class="grupo-tit">Luz</div>
+            <div class="trio" id="relax-luces"></div>
+            <div class="nota-geo" id="relax-geo"></div>
+            <div class="aviso">
+                <div class="tit">Es lo contrario de un optotipo</div>
+                <div class="txt">Grande, sin bordes nítidos y con poca luz: no hay ningún detalle que el ojo pueda intentar enfocar, así que el paciente no acomoda mientras usted trabaja.</div>
+            </div>
+        </div>
+
+        <!-- Panel de la fijación infantil -->
+        <div id="panel-infantil" class="bloque oculto">
+            <div class="grupo-tit">Secuencia</div>
+            <div class="cuarteto" id="inf-secuencias"></div>
+            <div class="grupo-tit">Velocidad</div>
+            <div class="trio" id="inf-velocidades"></div>
+            <button class="conmut grande" id="inf-congelar" onclick="enviar('I:congelar')">
+                <span class="et" id="inf-congelar-et">CONGELAR</span>
+                <span class="val" id="inf-congelar-val">en movimiento</span>
+            </button>
+            <div class="nota-geo" id="inf-geo"></div>
+            <div class="aviso">
+                <div class="tit">Sin sonido, por decisión</div>
+                <div class="txt">En un consultorio pequeño el audio distrae al niño más de lo que lo atrae, y molesta en la sala de al lado. Congelar deja la figura quieta en el centro para el instante de la medida.</div>
+            </div>
+        </div>
+
+        <!-- Panel de las láminas de color -->
+        <div id="panel-color" class="bloque oculto">
+            <div class="lectura">
+                <div>
+                    <div class="et">Lámina</div>
+                    <div class="grande"><span id="color-n">1</span><span style="color:#555;font-size:20px;">/<span id="color-total">7</span></span></div>
+                    <div class="et" id="color-que" style="margin-top:2px; text-transform:none; letter-spacing:0; font-size:10.5px; color:#8a8a8a;"></div>
+                </div>
+                <div style="text-align:right; flex-shrink:0;">
+                    <div class="et">Eje</div>
+                    <div class="nivel" id="color-eje">—</div>
+                </div>
+            </div>
+            <div class="pareja">
+                <button onclick="enviar('C:lam:ant')" id="color-ant"><span class="flecha">‹</span><span class="mini">anterior</span></button>
+                <button onclick="enviar('C:lam:sig')" id="color-sig"><span class="flecha">›</span><span class="mini">siguiente</span></button>
+            </div>
+            <button class="conmut" id="color-resp" onclick="enviar('C:resp')">
+                <span class="et">Respuesta correcta</span>
+                <span class="val" id="color-resp-val">oculta</span>
+            </button>
+            <button class="conmut" onclick="enviar('C:nueva')" style="justify-content:center;">
+                <span class="et">Remezclar los puntos</span>
+            </button>
+            <div class="grupo-tit">Las láminas</div>
+            <div class="lista-niv" id="color-lista"></div>
+            <div class="nota-geo" id="color-geo"></div>
+            <div class="aviso limite">
+                <div class="tit">Esto es cribado, y hay que decirlo</div>
+                <div class="txt">No son las cartillas de Ishihara: son láminas generadas con las líneas de confusión del CIE, con numeración propia y sin validar contra ninguna población. Y sobre todo, el color depende de lo que emita <strong>este</strong> monitor — sin colorímetro las cromaticidades son las nominales de sRGB, que es una suposición. Sirve para <strong>detectar</strong>, no para clasificar. Medido: en el gamut sRGB alcanzable las líneas de confusión protán y deután quedan a Δxy 0,023 una de otra, o sea el mismo color — con esta pantalla no hay forma de distinguir un tipo del otro. Un resultado dudoso se confirma con láminas impresas.</div>
+            </div>
+        </div>
+
+        <!-- Panel de un módulo declarado pero sin construir -->
+        <div id="panel-pendiente" class="bloque oculto">
+            <div style="background:#1a1a1a; border:1px solid #2b2b2b; border-radius:10px; padding:14px;">
+                <div style="font-size:13px; color:#ddd; font-weight:600;">Todavía no construido</div>
+                <div style="font-size:11px; color:#777; margin-top:5px; line-height:1.5;" id="pendiente-txt"></div>
+            </div>
+        </div>
     </div>
 
     <div id="pair-ask" class="hidden">
@@ -331,35 +703,525 @@
            cuadratín. Los dos modos de texto llegan ya con ss01, donde todo
            glifo mide 0,500 em exactos, así que el ratio nominal no aproxima
            nada: es el valor. Los otros dos modos son SVG con su viewBox. */
+        /* Las figuras del espejo: las mismas que dibuja la pantalla, a tamaño
+           de vista previa. El espejo no está a escala. */
+        const FIG_INF = {
+            rebote: '<circle cx="30" cy="30" r="26" fill="#e8574c"/><circle cx="30" cy="30" r="9" fill="#fff"/>',
+            molinete: '<path d="M30 30L30 2A28 28 0 0 1 54 16Z" fill="#e8574c"/>'
+                    + '<path d="M30 30L54 16A28 28 0 0 1 54 44Z" fill="#f0b26b"/>'
+                    + '<path d="M30 30L54 44A28 28 0 0 1 30 58Z" fill="#7fb069"/>'
+                    + '<path d="M30 30L30 58A28 28 0 0 1 6 44Z" fill="#4f9bd9"/>'
+                    + '<path d="M30 30L6 44A28 28 0 0 1 6 16Z" fill="#9b6bbf"/>'
+                    + '<path d="M30 30L6 16A28 28 0 0 1 30 2Z" fill="#e8c84c"/>',
+            recorrido: '<circle cx="30" cy="30" r="25" fill="#f0b26b"/>'
+                     + '<circle cx="22" cy="24" r="4" fill="#2a2a2a"/><circle cx="38" cy="24" r="4" fill="#2a2a2a"/>'
+                     + '<path d="M20 38 Q30 47 40 38" stroke="#2a2a2a" stroke-width="3.5" fill="none" stroke-linecap="round"/>',
+            destellos: '<path d="M30 2l7.7 17.1L56 21.3l-13.1 12.2L46 52l-16-9.8L14 52l3.1-18.5L4 21.3l18.3-2.2z" fill="#7fb069"/>'
+        };
+
         const INK_PX = 20;
         const CAP_HEIGHT_RATIO = 0.5;   // Optician Sans: mayúsculas = 500/1000 del cuadratín
         function optotypeBoxPx(aspect, ink){
             return { w: ink * aspect, h: ink };   // la altura manda, igual que en la pantalla
         }
 
-        socket?.on('screenUpdate', (data) => {
-            const container = document.getElementById('remote-screen');
-            container.innerHTML = '';
-            if (!data?.lines) return;
+        /* ═══════════ ENRUTADO DE VISTAS ═══════════
+           La pantalla manda su estado completo y el mando decide qué pintar.
+           No hay estado de navegación duplicado aquí: si el mando se recarga,
+           vuelve a donde esté la pantalla, que es la que lleva la verdad. */
+        const $r = id => document.getElementById(id);
+        const ver = (el, si) => el && el.classList.toggle('oculto', !si);
 
+        socket?.on('screenUpdate', (data) => {
+            if (!data) return;
+            const mod = data.modulo || 'optotipos';
+            const enMenu = mod === 'menu';
+            ver($r('vista-menu'), enMenu);
+            ver($r('vista-modulo'), !enMenu);
+            pintarAviso(data);
+            if (enMenu) { pintarMenu(data); return; }
+
+            const info = (data.modulos || []).find(m => m.id === mod)
+                      || { id: mod, titulo: mod, sub: '', hecho: true, distFija: null };
+            pintarCabecera(info, data);
+            ver($r('panel-optotipos'), mod === 'optotipos');
+            ver($r('panel-amsler'),    mod === 'amsler');
+            ver($r('panel-pelli'),     mod === 'contraste');
+            ver($r('panel-worth'),     mod === 'worth');
+            ver($r('panel-schober'),   mod === 'schober');
+            ver($r('panel-color'),     mod === 'color');
+            ver($r('panel-relax'),     mod === 'relax');
+            ver($r('panel-infantil'),  mod === 'infantil');
+            ver($r('panel-pendiente'), !info.hecho);
+
+            const espejo = $r('remote-screen');
+            espejo.innerHTML = '';
+            if (mod === 'optotipos')   { espejoOptotipos(espejo, data); updateFuncButtons(data); }
+            else if (mod === 'amsler') { espejoAmsler(espejo, data); pintarAmsler(data); }
+            else if (mod === 'contraste') { espejoPelli(espejo, data); pintarPelli(data); }
+            else if (mod === 'worth')     { espejoWorth(espejo, data); pintarWorth(data); }
+            else if (mod === 'schober')   { espejoSchober(espejo, data); pintarSchober(data); }
+            else if (mod === 'color')     { espejoColor(espejo, data); pintarColor(data); }
+            else if (mod === 'relax')     { espejoRelax(espejo, data); pintarRelax(data); }
+            else if (mod === 'infantil')  { espejoInfantil(espejo, data); pintarInfantil(data); }
+            else                       { espejoPendiente(espejo, info); }
+        });
+
+        function pintarAviso(data) {
+            ver($r('aviso-volver'), !!data.recordarVolver);
+            if (!data.recordarVolver) return;
+            const enOpto = (data.modulo || 'optotipos') === 'optotipos';
+            $r('aviso-volver-sub').textContent = enOpto
+                ? 'Está midiendo agudeza y el paciente puede seguir a 1 m. Devuélvalo a '
+                  + (data.cal?.testDistanceM ?? '—') + ' m: desde más cerca los optotipos salen bien dibujados y mal medidos.'
+                : 'Devuélvalo a ' + (data.cal?.testDistanceM ?? '—') + ' m antes del siguiente test, '
+                  + 'o la agudeza saldrá medida a la distancia equivocada.';
+        }
+
+        function pintarMenu(data) {
+            const cont = $r('lista-modulos');
+            cont.innerHTML = '';
+            let grupo = null;
+            (data.modulos || []).forEach(m => {
+                if (m.grupo !== grupo) {
+                    grupo = m.grupo;
+                    const g = document.createElement('div');
+                    g.className = 'grupo-tit';
+                    g.textContent = grupo;
+                    cont.appendChild(g);
+                }
+                const b = document.createElement('button');
+                b.className = 'fila-mod' + (m.hecho ? '' : ' no-hecho');
+                /* El orden importa: un módulo sin construir dice «pendiente»
+                   aunque traiga distancia fija, o el «a 1 m» lo hace parecer
+                   disponible. */
+                const tag = !m.hecho ? 'pendiente' : (m.distFija != null ? 'a ' + m.distFija + ' m' : '');
+                b.innerHTML =
+                    '<div class="txt"><div class="tit"></div><div class="sub"></div></div>'
+                  + '<div class="tag' + (m.hecho && m.distFija != null ? ' cerca' : '') + '"></div>';
+                b.querySelector('.tit').textContent = m.titulo;
+                b.querySelector('.sub').textContent = m.sub;
+                b.querySelector('.tag').textContent = tag;
+                // Un módulo sin construir se lista pero no se entra: entrar
+                // dejaría la pantalla del paciente en un estado que no existe.
+                if (m.hecho) b.addEventListener('click', () => enviar('Modulo:' + m.id));
+                else b.disabled = true;
+                cont.appendChild(b);
+            });
+        }
+
+        function pintarCabecera(info, data) {
+            $r('mod-titulo').textContent = info.titulo;
+            $r('mod-sub').textContent = info.grupo || info.sub || '';
+            const fija = info.distFija != null;
+            $r('mod-dist-et').textContent = fija ? 'Acercado' : 'Distancia';
+            const val = $r('mod-dist-val');
+            val.textContent = (data.cal?.distanciaModulo ?? '—') + ' m';
+            val.style.color = fija ? '#f0b26b' : '#2980b9';
+        }
+
+        function espejoPendiente(espejo, info) {
+            $r('pendiente-txt').textContent =
+                info.titulo + ' está declarado en el sistema pero su estímulo todavía no existe. '
+              + 'La pantalla lo dice en vez de quedarse en blanco.';
+            espejo.innerHTML = '<div style="font-family:monospace;font-size:11px;color:#444;'
+                             + 'letter-spacing:1px;">SIN EST\u00cdMULO</div>';
+        }
+
+        /* ═══════════ ESPEJO DEL AMSLER ═══════════
+           No está a escala —el espejo nunca lo está—, pero sí muestra la lámina
+           elegida, las diagonales y el punto de fijación. Las cifras de debajo
+           son las reales, calculadas por la pantalla. */
+        const AMSLER_COLOR = {
+            blanco: { fondo: '#000', linea: 'rgba(255,255,255,0.85)', punto: '#fff' },
+            negro:  { fondo: '#fff', linea: 'rgba(0,0,0,0.8)',        punto: '#000' },
+            rojo:   { fondo: '#000', linea: 'rgba(255,0,0,0.9)',      punto: '#ff3b3b' }
+        };
+
+        function rejillaSVG(lamina, diagonales, lado, cuadros) {
+            const c = AMSLER_COLOR[lamina] || AMSLER_COLOR.blanco;
+            const paso = lado / cuadros, lineas = [];
+            for (let i = 0; i <= cuadros; i++) {
+                const v = (i * paso).toFixed(2);
+                lineas.push('<line x1="' + v + '" y1="0" x2="' + v + '" y2="' + lado + '"/>');
+                lineas.push('<line x1="0" y1="' + v + '" x2="' + lado + '" y2="' + v + '"/>');
+            }
+            const diag = diagonales
+                ? '<g stroke="' + c.linea + '" stroke-width="1" opacity="0.55">'
+                + '<line x1="0" y1="0" x2="' + lado + '" y2="' + lado + '"/>'
+                + '<line x1="' + lado + '" y1="0" x2="0" y2="' + lado + '"/></g>'
+                : '';
+            return '<svg width="' + lado + '" height="' + lado + '" viewBox="0 0 ' + lado + ' ' + lado + '"'
+                 + ' shape-rendering="crispEdges" style="background:' + c.fondo + ';border-radius:4px;">'
+                 + '<g stroke="' + c.linea + '" stroke-width="1" fill="none">' + lineas.join('') + '</g>'
+                 + diag
+                 + '<circle cx="' + (lado/2) + '" cy="' + (lado/2) + '" r="2.6" fill="' + c.punto + '"/></svg>';
+        }
+
+        function espejoAmsler(espejo, data) {
+            const a = data.amsler || {};
+            espejo.innerHTML = rejillaSVG(a.lamina || 'blanco', !!a.diagonales, 176, 10);
+        }
+
+        function pintarAmsler(data) {
+            const a = data.amsler || {};
+            const cont = $r('amsler-laminas');
+            if (cont.dataset.pintado !== 'si') {
+                cont.innerHTML = '';
+                (a.laminas || []).forEach(l => {
+                    const b = document.createElement('button');
+                    b.dataset.id = l.id;
+                    b.innerHTML = '<div class="muestra"></div>'
+                                + '<div class="txt"><div class="tit"></div><div class="sub"></div></div>';
+                    b.querySelector('.muestra').innerHTML = rejillaSVG(l.id, false, 34, 4);
+                    b.querySelector('.tit').textContent = l.nombre;
+                    b.querySelector('.sub').textContent = l.uso;
+                    b.addEventListener('click', () => enviar('A:lamina:' + l.id));
+                    cont.appendChild(b);
+                });
+                if ((a.laminas || []).length) cont.dataset.pintado = 'si';
+            }
+            cont.querySelectorAll('button').forEach(b => b.classList.toggle('sel', b.dataset.id === a.lamina));
+
+            $r('amsler-diag').classList.toggle('on', !!a.diagonales);
+            $r('amsler-diag-val').textContent = a.diagonales ? 'ACTIVAS' : '—';
+            $r('amsler-ojo-val').textContent = a.ojo || 'OD';
+            $r('amsler-geo').textContent =
+                'cuadro ' + (a.cuadroMM ?? 0) + ' mm = ' + (a.gradoReal ?? 1) + '\u00b0  ·  campo \u00b1' + (a.gradosX ?? 0)
+              + '\u00b0 \u00d7 \u00b1' + (a.gradosY ?? 0) + '\u00b0  ·  ' + (a.areaPct ?? 0)
+              + '% del \u00e1rea de la rejilla de \u00b110\u00b0';
+        }
+
+        /* ═══════════ PELLI-ROBSON ═══════════
+           El espejo enseña las ocho filas con su tinta y marca la que está en
+           curso. La marca es SOLO del mando: en la pantalla del paciente las
+           ocho filas van iguales, o señalarle una sería decirle por dónde va.
+
+           Las tintas del espejo se aplanan a un mínimo legible porque el panel
+           de un móvil no distingue el 253 del 254 sobre blanco; la pantalla del
+           paciente sí emite el código real, y el panel lo dice. */
+        function espejoPelli(espejo, data) {
+            const p = data.pelli || {};
+            const caja = document.createElement('div');
+            caja.style.cssText = 'display:flex; flex-direction:column; gap:3px; padding:6px 0;';
+            (p.niveles || []).forEach(n => {
+                const fila = document.createElement('div');
+                const activa = n.n === p.fila;
+                fila.style.cssText = 'display:flex; align-items:center; gap:7px; padding:1px 6px 1px 3px;'
+                                   + 'border-radius:4px; background:' + (activa ? 'rgba(241,196,15,0.16)' : 'transparent') + ';';
+                const marca = document.createElement('div');
+                marca.style.cssText = 'width:3px; height:12px; border-radius:2px; flex-shrink:0; background:'
+                                    + (activa ? '#f1c40f' : '#3a3a3a') + ';';
+                const txt = document.createElement('div');
+                txt.textContent = n.chars;
+                // mínimo 0,10 de opacidad: por debajo el móvil no lo dibuja
+                const op = Math.max(0.10, Math.pow(10, -parseFloat(n.log)));
+                txt.style.cssText = "font-family:'OpticianSans','Arial Black',sans-serif;"
+                                  + "font-feature-settings:'ss01'; font-size:12px; letter-spacing:9px;"
+                                  + 'line-height:1; color:rgba(255,255,255,' + op.toFixed(3) + ');';
+                fila.appendChild(marca); fila.appendChild(txt);
+                caja.appendChild(fila);
+            });
+            espejo.appendChild(caja);
+        }
+
+        function pintarPelli(data) {
+            const p = data.pelli || {};
+            const niv = (p.niveles || []).find(n => n.n === p.fila) || { log: '0.00', pct: '100', codigo: 0 };
+            $r('pelli-log').textContent = String(niv.log).replace('.', ',');
+            $r('pelli-fila').textContent = p.fila ?? 1;
+            $r('pelli-pct').textContent = String(niv.pct).replace('.', ',') + ' % de contraste';
+            $r('pelli-arriba').disabled = (p.fila ?? 1) <= 1;
+            $r('pelli-abajo').disabled  = (p.fila ?? 1) >= (p.niveles || []).length;
+
+            const cont = $r('pelli-niveles');
+            cont.innerHTML = '';
+            (p.niveles || []).forEach(n => {
+                const b = document.createElement('button');
+                b.className = n.n === p.fila ? 'sel' : '';
+                b.innerHTML = '<span class="n"></span><span class="tri"></span>'
+                            + '<span class="log"></span><span class="pct"></span>';
+                b.querySelector('.n').textContent = n.n;
+                const tri = b.querySelector('.tri');
+                tri.textContent = n.chars;
+                tri.style.color = 'rgba(255,255,255,' + Math.max(0.14, Math.pow(10, -parseFloat(n.log))).toFixed(3) + ')';
+                const log = b.querySelector('.log');
+                log.textContent = String(n.log).replace('.', ',');
+                log.className = 'log' + (n.alLimite ? ' limite' : '');
+                log.style.color = n.n === p.fila ? '#fff' : (n.alLimite ? '#d9863f' : '#8a8a8a');
+                b.querySelector('.pct').textContent = String(n.pct).replace('.', ',') + '%';
+                b.addEventListener('click', () => enviar('P:fila:' + n.n));
+                cont.appendChild(b);
+            });
+
+            const alLimite = (p.niveles || []).filter(n => n.alLimite).map(n => n.n);
+            $r('pelli-geo').textContent =
+                'letra ' + (p.letraMM ?? 0) + ' mm = ' + (p.grados ?? 0) + '\u00b0 a 1 m  \u00b7  '
+              + 'el espejo aplana las tintas por debajo del 10 %; la pantalla emite el c\u00f3digo real'
+              + (alLimite.length ? '  \u00b7  niveles ' + alLimite.join(' y ') + ' salen a '
+                 + alLimite.map(n => 255 - (p.niveles.find(x => x.n === n).codigo)).join(' y ')
+                 + ' c\u00f3digos del blanco: ah\u00ed manda el panel, no la prueba' : '');
+        }
+
+        /* ═══════════ WORTH ═══════════ */
+        function espejoWorth(espejo, data) {
+            const w = data.worth || {};
+            if (!w.cabe) {
+                espejo.innerHTML = '<div style="font-family:monospace;font-size:11px;color:#e74c3c;'
+                                 + 'text-align:center;line-height:1.8;">NO CABE<br>'
+                                 + '<span style="color:#7a4a45;">el punto pide ' + (w.puntoMM ?? 0) + ' mm</span></div>';
+                return;
+            }
+            const L = 108, r = 12;
+            espejo.innerHTML =
+                '<svg width="' + L + '" height="' + L + '" viewBox="0 0 ' + L + ' ' + L + '">'
+              + '<circle cx="' + L/2 + '" cy="' + r + '" r="' + r + '" fill="#ff0000"/>'
+              + '<circle cx="' + r + '" cy="' + L/2 + '" r="' + r + '" fill="#00ff00"/>'
+              + '<circle cx="' + (L-r) + '" cy="' + L/2 + '" r="' + r + '" fill="#00ff00"/>'
+              + '<circle cx="' + L/2 + '" cy="' + (L-r) + '" r="' + r + '" fill="#fff"/></svg>';
+        }
+
+        function pintarWorth(data) {
+            const w = data.worth || {};
+            $r('worth-ojo').textContent = w.ojoRojo || 'OD';
+            const cont = $r('worth-tamanos');
+            cont.innerHTML = '';
+            (w.tamanos || []).forEach(t => {
+                const b = document.createElement('button');
+                b.className = (t.id === w.tam ? 'sel ' : '') + (t.entra ? '' : 'no-entra');
+                b.innerHTML = '<span class="g"></span><span class="mm"></span>';
+                b.querySelector('.g').textContent = t.label;
+                b.querySelector('.mm').textContent = t.entra ? (t.sub ? t.sub + ' · ' + t.mm + ' mm' : t.mm + ' mm') : 'no cabe';
+                b.addEventListener('click', () => enviar('W:tam:' + t.id));
+                cont.appendChild(b);
+            });
+            $r('worth-techo').textContent =
+                'el rombo ocupa 3,4 di\u00e1metros de alto, as\u00ed que a esta distancia el techo son '
+              + (w.techoG ?? 0) + '\u00b0'
+              + (w.cabe ? '  \u00b7  rombo ' + (w.rombosMM ?? 0) + ' mm'
+                        : '  \u00b7  para ' + (w.tam === '1.25' ? '1,25\u00b0' : (w.tam || '') + '\u00b0')
+                          + ' hay que estar a ' + (w.distMax ?? 0) + ' m o menos');
+            pintarTabla($r('worth-lectura'), (w.lectura || []).map(l => ({ a: l.ve, b: l.significa, c: '', color: l.color })));
+        }
+
+        /* ═══════════ SCHOBER ═══════════ */
+        function espejoSchober(espejo, data) {
+            const s = data.schober || {};
+            const cA = s.invertido ? '#ff0000' : '#00ff00';
+            const cC = s.invertido ? '#00ff00' : '#ff0000';
+            const n = Math.max(1, s.anillos || 1), L = 150, paso = (L / 2) / (n + 0.3);
+            let anillos = '';
+            for (let i = 1; i <= n; i++) anillos += '<circle cx="0" cy="0" r="' + (i*paso).toFixed(1)
+                + '" fill="none" stroke="' + cA + '" stroke-width="1.8"/>';
+            const brazo = (n * paso * 1.12).toFixed(1);
+            espejo.innerHTML =
+                '<svg width="' + L + '" height="' + L + '" viewBox="0 0 ' + L + ' ' + L + '">'
+              + '<g transform="translate(' + L/2 + ',' + L/2 + ')">' + anillos
+              + '<path d="M0 -' + brazo + 'V' + brazo + 'M-' + brazo + ' 0H' + brazo + '" stroke="' + cC + '" stroke-width="2.6"/>'
+              + '</g></svg>';
+        }
+
+        function pintarSchober(data) {
+            const s = data.schober || {};
+            $r('schober-color').textContent = s.colorCruz || 'roja';
+            const anillos = $r('schober-anillos');
+            anillos.innerHTML = '';
+            ['3','5','7'].forEach(n => {
+                const b = document.createElement('button');
+                b.className = n === s.anillosPedidos ? 'sel' : '';
+                b.innerHTML = '<span class="g">' + n + '</span>'
+                            + '<span class="mm">' + (parseInt(n,10) <= (s.caben ?? 0) ? '\u00b1' + n + '\u0394' : 'no caben') + '</span>';
+                b.addEventListener('click', () => enviar('S:anillos:' + n));
+                anillos.appendChild(b);
+            });
+            const ojos = $r('schober-ojos');
+            ojos.innerHTML = '';
+            ['OD','OI'].forEach(o => {
+                const b = document.createElement('button');
+                b.className = o === s.ojoRojo ? 'sel' : '';
+                b.innerHTML = '<span class="g">' + o + '</span>';
+                b.addEventListener('click', () => { if (o !== s.ojoRojo) enviar('S:ojo'); });
+                ojos.appendChild(b);
+            });
+            $r('schober-deriv').textContent = s.derivacion || '';
+            pintarTabla($r('schober-lectura'), (s.lectura || []).map(l => ({ a: l.donde, b: l.que, c: l.nota, color: l.color })));
+            $r('schober-geo').textContent =
+                '1\u0394 = ' + (s.pasoMM ?? 0) + ' mm a esta distancia  \u00b7  rango \u00b1' + (s.anillos ?? 0) + '\u0394'
+              + ((s.anillos ?? 0) < parseInt(s.anillosPedidos || '0', 10) ? '  \u00b7  se pidieron ' + s.anillosPedidos + ' y caben ' + s.caben : '')
+              + '  \u00b7  izquierda y derecha son las del paciente';
+        }
+
+        function pintarTabla(cont, filas) {
+            cont.innerHTML = '';
+            filas.forEach(f => {
+                const d = document.createElement('div');
+                d.className = 'f';
+                d.innerHTML = '<span class="a"></span><span class="b"></span><span class="c"></span>';
+                d.querySelector('.a').textContent = f.a;
+                d.querySelector('.a').style.color = f.color || '#fff';
+                d.querySelector('.b').textContent = f.b;
+                d.querySelector('.b').style.color = f.color || '#e8e8e8';
+                d.querySelector('.c').textContent = f.c || '';
+                cont.appendChild(d);
+            });
+        }
+
+        /* ═══════════ COLOR ═══════════
+           El espejo NO reproduce la lámina: mostrar los mismos colores en el
+           panel del móvil sería mentir dos veces -- ese panel tiene otro gamut y
+           otra calibración, y además el optometrista no tiene que ver la cifra
+           para dirigir el test, tiene que saber cuál es. Así que el espejo dice
+           qué lámina está puesta y qué se espera. */
+        function espejoColor(espejo, data) {
+            const c = data.color || {};
+            const caja = document.createElement('div');
+            caja.style.cssText = 'text-align:center; padding:10px 14px;';
+            caja.innerHTML =
+                '<div style="font-family:monospace; font-size:34px; color:#fff; line-height:1;">'
+              + (c.mostrarResp ? c.resp : '· ·') + '</div>'
+              + '<div style="font-size:10px; text-transform:uppercase; letter-spacing:1px; color:#5e5e5e; margin-top:8px;">'
+              + (c.mostrarResp ? 'respuesta esperada' : 'respuesta oculta') + '</div>'
+              + '<div style="font-size:11px; color:#8a8a8a; margin-top:12px; line-height:1.5; max-width:230px;">'
+              + (c.que || '') + '</div>';
+            espejo.appendChild(caja);
+        }
+
+        function pintarColor(data) {
+            const c = data.color || {};
+            $r('color-n').textContent = c.lamina ?? 1;
+            $r('color-total').textContent = c.total ?? 0;
+            $r('color-que').textContent = c.que || '';
+            $r('color-eje').textContent = c.tipo === 'demo' ? 'demo' : (c.ejeNombre || '—');
+            $r('color-ant').disabled = (c.lamina ?? 1) <= 1;
+            $r('color-sig').disabled = (c.lamina ?? 1) >= (c.total ?? 1);
+            $r('color-resp').classList.toggle('on', !!c.mostrarResp);
+            $r('color-resp-val').textContent = c.mostrarResp ? c.resp : 'oculta';
+
+            const cont = $r('color-lista');
+            cont.innerHTML = '';
+            (c.laminas || []).forEach(l => {
+                const b = document.createElement('button');
+                b.className = l.id === c.lamina ? 'sel' : '';
+                b.innerHTML = '<span class="n"></span><span class="tri" style="font-family:inherit;font-size:12px;'
+                            + 'letter-spacing:0;color:#bbb;"></span><span class="pct" style="width:52px;"></span>';
+                b.querySelector('.n').textContent = l.id;
+                b.querySelector('.tri').textContent = l.que;
+                b.querySelector('.pct').textContent = l.tipo === 'demo' ? 'demo' : l.nombre;
+                b.addEventListener('click', () => enviar('C:lam:' + l.id));
+                cont.appendChild(b);
+            });
+
+            $r('color-geo').textContent =
+                (c.grados ?? 0) + '\u00b0 = ' + (c.mm ?? 0) + ' mm a ' + (data.cal?.distanciaModulo ?? '—') + ' m'
+              + '  \u00b7  puntos de ' + (c.minMin ?? 0) + '\u2032 a ' + (c.maxMin ?? 0) + '\u2032'
+              + (c.puntoChico ? '  \u00b7  POR DEBAJO DE 5\u2032: un fallo puede ser de agudeza y no de color' : '');
+        }
+
+        /* ═══════════ RELAX ═══════════ */
+        function espejoRelax(espejo, data) {
+            const r = data.relax || {};
+            const luz = (parseInt(r.luz, 10) || 35) / 100;
+            const L = 120;
+            espejo.innerHTML = r.tipo === 'punto'
+                ? '<div style="width:14px;height:14px;border-radius:50%;background:rgba(255,255,255,' + luz.toFixed(2) + ');"></div>'
+                : '<div style="width:' + L + 'px;height:' + L + 'px;border-radius:50%;background:radial-gradient(circle,'
+                  + 'rgba(255,255,255,' + luz.toFixed(2) + ') 0%, rgba(255,255,255,' + (luz*0.55).toFixed(2) + ') 45%,'
+                  + 'rgba(255,255,255,0) 100%);"></div>';
+        }
+        function pintarRelax(data) {
+            const r = data.relax || {};
+            const tipos = $r('relax-tipos');
+            tipos.innerHTML = '';
+            (r.tipos || []).forEach(t => {
+                const b = document.createElement('button');
+                b.className = t.id === r.tipo ? 'sel' : '';
+                b.innerHTML = '<div class="muestra"></div><div class="txt"><div class="tit"></div><div class="sub"></div></div>';
+                const luz = (parseInt(r.luz, 10) || 35) / 100;
+                b.querySelector('.muestra').style.cssText = 'background:#000; display:flex; align-items:center; justify-content:center;';
+                b.querySelector('.muestra').innerHTML = t.id === 'punto'
+                    ? '<div style="width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,' + luz.toFixed(2) + ');"></div>'
+                    : '<div style="width:30px;height:30px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,'
+                      + luz.toFixed(2) + ') 0%,rgba(255,255,255,0) 100%);"></div>';
+                b.querySelector('.tit').textContent = t.nombre;
+                b.querySelector('.sub').textContent = t.sub;
+                b.addEventListener('click', () => enviar('R:tipo:' + t.id));
+                tipos.appendChild(b);
+            });
+            const luces = $r('relax-luces');
+            luces.innerHTML = '';
+            (r.luces || []).forEach(l => {
+                const b = document.createElement('button');
+                b.className = l === r.luz ? 'sel' : '';
+                b.innerHTML = '<span class="g">' + l + '%</span>';
+                b.addEventListener('click', () => enviar('R:luz:' + l));
+                luces.appendChild(b);
+            });
+            $r('relax-geo').textContent = (r.grados ?? 0) + '\u00b0 = ' + (r.mm ?? 0) + ' mm a '
+                + (data.cal?.distanciaModulo ?? '—') + ' m  \u00b7  ' + (r.luz ?? 0) + '% de blanco'
+                + (r.limitado ? '  \u00b7  se pidieron ' + r.pedido + '\u00b0 y no caben a esta distancia' : '');
+        }
+
+        /* ═══════════ FIJACIÓN INFANTIL ═══════════ */
+        function espejoInfantil(espejo, data) {
+            const i = data.infantil || {};
+            const caja = document.createElement('div');
+            caja.style.cssText = 'width:64px; height:64px; display:flex; align-items:center; justify-content:center;'
+                + (i.congelado ? '' : ' animation:esp-' + (i.secuencia || 'rebote') + ' ' + (i.seg || 1.5) + 's ease-in-out infinite alternate;');
+            caja.innerHTML = '<svg width="52" height="52" viewBox="0 0 60 60">' + (FIG_INF[i.secuencia] || '') + '</svg>';
+            espejo.appendChild(caja);
+            if (i.congelado) {
+                const t = document.createElement('div');
+                t.style.cssText = 'font-family:monospace; font-size:10px; color:#f1c40f; letter-spacing:1px; margin-top:10px;';
+                t.textContent = 'CONGELADO';
+                espejo.appendChild(t);
+            }
+        }
+        function pintarInfantil(data) {
+            const i = data.infantil || {};
+            const secs = $r('inf-secuencias');
+            secs.innerHTML = '';
+            (i.secuencias || []).forEach(s => {
+                const b = document.createElement('button');
+                b.className = s.id === i.secuencia ? 'sel' : '';
+                b.innerHTML = '<span class="n"></span><span class="s"></span>';
+                b.querySelector('.n').textContent = s.nombre;
+                b.querySelector('.s').textContent = s.sub;
+                b.addEventListener('click', () => enviar('I:sec:' + s.id));
+                secs.appendChild(b);
+            });
+            const vels = $r('inf-velocidades');
+            vels.innerHTML = '';
+            (i.velocidades || []).forEach(v => {
+                const b = document.createElement('button');
+                b.className = v.id === i.velocidad ? 'sel' : '';
+                b.innerHTML = '<span class="g">' + v.nombre + '</span><span class="mm">' + v.seg + ' s</span>';
+                b.addEventListener('click', () => enviar('I:vel:' + v.id));
+                vels.appendChild(b);
+            });
+            const cong = $r('inf-congelar');
+            cong.classList.toggle('on', !!i.congelado);
+            $r('inf-congelar-et').textContent = i.congelado ? 'REANUDAR' : 'CONGELAR';
+            $r('inf-congelar-val').textContent = i.congelado ? 'quieta en el centro' : 'en movimiento';
+            $r('inf-geo').textContent = (i.grados ?? 0) + '\u00b0 = ' + (i.mm ?? 0) + ' mm a '
+                + (data.cal?.distanciaModulo ?? '—') + ' m'
+                + (i.limitado ? '  \u00b7  se pidieron ' + i.pedido + '\u00b0, pero la figura tiene que caber Y recorrer' : '');
+        }
+
+        /* El espejo de optotipos: el de siempre, ahora en su propia función. */
+        function espejoOptotipos(container, data) {
+            if (!data.lines) return;
             const gap = 12;
             container.style.gap = gap + 'px';
-
             data.lines.forEach((line, li) => {
                 const lineDiv = document.createElement('div');
                 lineDiv.className = 'remote-line';
                 lineDiv.style.gap = gap + 'px';
-
-                if (data.highlightMode && li !== data.highlightLineIdx) {
-                    lineDiv.classList.add('dimmed');
-                }
+                if (data.highlightMode && li !== data.highlightLineIdx) lineDiv.classList.add('dimmed');
 
                 const leftAnn = document.createElement('div');
                 leftAnn.className = 'remote-ann-left';
                 let denominator = line.snellen;
-                if (denominator && denominator.includes('/')) {
-                    denominator = denominator.split('/')[1];
-                }
+                if (denominator && denominator.includes('/')) denominator = denominator.split('/')[1];
                 leftAnn.textContent = denominator;
 
                 const row = document.createElement('div');
@@ -400,9 +1262,7 @@
                 lineDiv.appendChild(rightAnn);
                 container.appendChild(lineDiv);
             });
-
-            updateFuncButtons(data);
-        });
+        }
 
 
     </script>

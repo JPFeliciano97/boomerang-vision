@@ -46,6 +46,34 @@
             margin-bottom: 16px;
         }
 
+        /* Estado del emparejamiento */
+        #pair-bar {
+            display:flex; align-items:center; justify-content:center; gap:10px;
+            font-size:11px; color:#888; margin-bottom:10px;
+        }
+        #pair-state.ok { color:#2ecc71; }
+        #pair-state.warn { color:#e67e22; }
+        #pair-code { font-family:monospace; letter-spacing:2px; color:#666; }
+        /* Panel para teclear el código si no vino en el QR */
+        #pair-ask {
+            position:fixed; inset:0; z-index:200; background:rgba(0,0,0,0.92);
+            display:flex; flex-direction:column; align-items:center; justify-content:center;
+            gap:14px; padding:24px; text-align:center;
+        }
+        #pair-ask.hidden { display:none; }
+        #pair-ask h2 { font-size:16px; font-weight:600; color:#fff; }
+        #pair-ask p { font-size:12px; color:#999; line-height:1.6; max-width:320px; }
+        #pair-input {
+            font-family:monospace; font-size:28px; letter-spacing:8px; text-align:center;
+            width:220px; padding:10px; border-radius:10px; border:2px solid #444;
+            background:#1a1a1a; color:#fff; text-transform:uppercase;
+        }
+        #pair-go {
+            background:#2980b9; color:#fff; border:none; border-radius:8px;
+            padding:12px 28px; font-size:14px; font-weight:700;
+        }
+        #pair-error { font-size:12px; color:#e74c3c; min-height:16px; }
+
         /* Contenedor principal */
         #remote-screen {
             width: 94%;
@@ -173,6 +201,11 @@
 
     <div class="remote-title">BOOMERANG VISION</div>
 
+    <div id="pair-bar">
+        <span id="pair-state">conectando…</span>
+        <span id="pair-code"></span>
+    </div>
+
     <div id="remote-screen"></div>
 
     <div class="mode-grid" id="mode-buttons">
@@ -194,18 +227,91 @@
         <button id="btn-bic" class="special" onclick="enviar('KeyB')"></button>
     </div>
 
+    <div id="pair-ask" class="hidden">
+        <h2>Código de la pantalla</h2>
+        <input id="pair-input" maxlength="5" inputmode="latin" autocapitalize="characters"
+               autocomplete="off" spellcheck="false" placeholder="—————">
+        <button id="pair-go">Conectar</button>
+        <div id="pair-error"></div>
+        <p>Lo muestra la pantalla del PC en el panel del botón <strong>?</strong>,
+           debajo del QR. Normalmente no hace falta teclearlo: basta escanear.</p>
+    </div>
+
     <script>
-        const socket = io();
+        /* ═══════════ EMPAREJAMIENTO ═══════════
+           El servidor solo reenvía dentro de la sala del código, así que este
+           mando maneja una pantalla y no todas las que haya conectadas. El
+           código llega en el QR (?c=) y se guarda para las siguientes veces. */
+        const PAIR_LEN = 5;
+        const PAIR_RE = /^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{5}$/;
+        const limpiar = c => String(c || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, PAIR_LEN);
+        const guardado = () => { try { return localStorage.getItem('bv_pair') || ''; } catch (e) { return ''; } };
+        let codigo = limpiar(new URLSearchParams(location.search).get('c')) || limpiar(guardado());
+
+        const elEstado = document.getElementById('pair-state');
+        const elCodigo = document.getElementById('pair-code');
+        const elAsk = document.getElementById('pair-ask');
+        const elError = document.getElementById('pair-error');
+
+        function pintarEstado(texto, clase) {
+            elEstado.textContent = texto;
+            elEstado.className = clase || '';
+            elCodigo.textContent = codigo || '';
+        }
+
+        // Si socket.io no carga, el mando no puede hacer nada, pero al menos
+        // lo dice en vez de reventar con cada pulsación.
+        const socket = typeof io !== 'undefined' ? io() : null;
+        if (!socket) pintarEstado('sin conexión con el servidor', 'warn');
+
+        function unirse(c) {
+            codigo = limpiar(c);
+            if (!PAIR_RE.test(codigo)) { elError.textContent = 'El código son ' + PAIR_LEN + ' caracteres.'; return false; }
+            elError.textContent = '';
+            if (socket) socket.emit('join', codigo);
+            return true;
+        }
+
         function enviar(cmd) {
+            if (!socket || !PAIR_RE.test(codigo)) return;
             socket.emit('comando', cmd);
             if (window.navigator?.vibrate) window.navigator.vibrate(15);
         }
+
+        document.getElementById('pair-go').addEventListener('click', () => unirse(document.getElementById('pair-input').value));
+        document.getElementById('pair-input').addEventListener('keydown', e => {
+            if (e.key === 'Enter') unirse(e.target.value);
+        });
 
         document.querySelectorAll('#mode-buttons button').forEach(btn => {
             btn.addEventListener('click', () => enviar('Mode:' + btn.dataset.mode));
         });
 
-        socket.on('modo', (modo) => {
+        if (socket) {
+            socket.on('connect', () => {
+                if (PAIR_RE.test(codigo)) { pintarEstado('emparejando…'); socket.emit('join', codigo); }
+                else { pintarEstado('falta el código', 'warn'); elAsk.classList.remove('hidden'); }
+            });
+            socket.on('joined', (sala) => {
+                codigo = sala;
+                try { localStorage.setItem('bv_pair', sala); } catch (e) {}
+                elAsk.classList.add('hidden');
+                pintarEstado('esperando la pantalla…', 'warn');
+                socket.emit('requestScreenUpdate');
+            });
+            socket.on('joinError', () => {
+                pintarEstado('código no válido', 'warn');
+                elAsk.classList.remove('hidden');
+                elError.textContent = 'Ese código no existe. Revíselo en la pantalla.';
+            });
+            socket.on('peers', (n) => {
+                if (n >= 2) pintarEstado('pantalla conectada', 'ok');
+                else pintarEstado('esperando la pantalla…', 'warn');
+            });
+            socket.on('disconnect', () => pintarEstado('sin conexión', 'warn'));
+        }
+
+        socket?.on('modo', (modo) => {
             document.querySelectorAll('#mode-buttons button').forEach(btn => {
                 btn.classList.toggle('active-mode', btn.dataset.mode === modo);
             });
@@ -231,7 +337,7 @@
                                : { w: ink*aspect, h: ink };
         }
 
-        socket.on('screenUpdate', (data) => {
+        socket?.on('screenUpdate', (data) => {
             const container = document.getElementById('remote-screen');
             container.innerHTML = '';
             if (!data?.lines) return;
@@ -295,7 +401,7 @@
             updateFuncButtons(data);
         });
 
-        socket.on('connect', () => socket.emit('requestScreenUpdate'));
+
     </script>
 </body>
 </html>

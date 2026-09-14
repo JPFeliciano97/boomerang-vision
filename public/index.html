@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>BOOMERANG VISION | Test de Agudeza Visual Profesional</title>
     <script src="/socket.io/socket.io.js"></script>
+    <!-- QR generado en local: el código de emparejamiento no sale de aquí -->
+    <script src="/qrcode.js"></script>
     <style>
         /* ═══════════ FUENTE OPTICIAN SANS ═══════════ */
         @font-face {
@@ -34,7 +36,10 @@
             z-index: 100;
             font-size: 10px;
             transition: all 0.3s ease;
-            max-height: 140px;
+            /* Hace falta un máximo para que la animación de plegado funcione,
+               pero 140px recortaba los botones cuando el selector de modo
+               envuelve en ventanas estrechas. */
+            max-height: 40vh;
             overflow: hidden;
         }
         #calibration-bar.collapsed { max-height:0; padding:0; opacity:0; border-bottom:none; }
@@ -81,7 +86,11 @@
             font-size: 9px;
             color: #aaa;
             white-space: nowrap;
+            max-width: 46vw;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
+        .cal-unit { color:#777; font-size:9px; }
         #info-span.overflow { color:#e74c3c; font-weight:700; }
 
         /* Columna derecha: selector de modo */
@@ -192,8 +201,13 @@
             color: #ccc;
             letter-spacing: 1px;
         }
+        .footer-right { display:flex; align-items:center; gap:14px; }
+        .remote-status { color:#666; letter-spacing:0.5px; }
+        .remote-status.on { color:#27ae60; }
         .cal-status.calibrated-text { color:#27ae60; }
         .cal-status.uncalibrated-text { color:#e74c3c; }
+        .cal-status.estimated-text { color:#f39c12; }
+        .cal-status.stale-text { color:#e67e22; font-weight:700; }
 
         #shortcuts-panel {
             position:fixed; bottom:80px; right:16px; z-index:180;
@@ -215,23 +229,107 @@
             transition:all 0.2s; backdrop-filter:blur(4px);
         }
         #shortcuts-toggle:hover { color:#fff; border-color:rgba(255,255,255,0.5); }
-        #qr-container { margin-top: 12px; display: flex; justify-content: center; }
-        #qr-container img { display:block; width:150px; height:150px; }
+        /* ═══════════ CALIBRACIÓN CON TARJETA ═══════════ */
+        #card-cal {
+            position:fixed; inset:0; z-index:300;
+            background:rgba(0,0,0,0.82);
+            display:flex; align-items:center; justify-content:center;
+            cursor:default;
+        }
+        #card-cal.hidden { display:none; }
+        .card-panel {
+            background:#1c1c1c; border:1px solid #3a3a3a; border-radius:14px;
+            padding:22px 26px; max-width:min(1240px, 96vw); max-height:96vh; overflow:auto;
+            color:#ddd; font-size:13px; text-align:center;
+            box-shadow:0 12px 40px rgba(0,0,0,0.6);
+        }
+        .card-panel h2 {
+            font-family:'OpticianSans','Arial Black',Impact,sans-serif;
+            font-weight:normal; font-size:18px; letter-spacing:1px; color:#fff; margin-bottom:6px;
+        }
+        .card-panel p { color:#aaa; font-size:12px; line-height:1.6; margin-bottom:16px; }
+        .card-panel p strong { color:#ddd; }
+        /* El rectángulo se dibuja al tamaño candidato: el usuario apoya la
+           tarjeta encima y arrastra la esquina hasta que los bordes coinciden. */
+        #card-shape {
+            position:relative; margin:0 auto 14px;
+            background:#f0f0f0; border:2px solid #000; border-radius:6px;
+            display:flex; align-items:center; justify-content:center;
+        }
+        #card-shape::before, #card-shape::after {
+            content:''; position:absolute; background:#000;
+        }
+        #card-shape::before { left:0; right:0; top:50%; height:1px; opacity:0.25; }
+        #card-shape::after { top:0; bottom:0; left:50%; width:1px; opacity:0.25; }
+        #card-label {
+            font-family:'Segoe UI',system-ui,sans-serif; font-size:11px; font-weight:600;
+            color:#555; background:rgba(255,255,255,0.85); padding:2px 8px; border-radius:4px;
+            position:relative; z-index:2; white-space:nowrap;
+        }
+        #card-handle {
+            position:absolute; right:-11px; bottom:-11px; width:26px; height:26px;
+            background:#2980b9; border:2px solid #fff; border-radius:50%;
+            cursor:nwse-resize; touch-action:none; z-index:3;
+            box-shadow:0 2px 6px rgba(0,0,0,0.5);
+        }
+        #card-handle:active { background:#3498db; }
+        .card-refs { display:flex; gap:6px; justify-content:center; margin-bottom:16px; }
+        .card-refs button {
+            background:#2a2a2a; color:#bbb; border:1px solid #444; border-radius:6px;
+            padding:7px 14px; font-size:12px; cursor:pointer;
+        }
+        .card-refs button.active { background:#2980b9; border-color:#3498db; color:#fff; }
+        /* En modo regla el rectángulo es una barra de 100 mm con marcas cada 10 */
+        #card-shape.ruler::before, #card-shape.ruler::after { display:none; }
+        .card-hint { font-size:11px; color:#777; align-self:center; margin-left:6px; }
+        .card-fallback { margin-top:16px; border-top:1px solid #333; padding-top:12px; text-align:left; }
+        .card-fallback summary { font-size:11px; color:#888; cursor:pointer; }
+        .card-fallback p { font-size:11px; color:#888; margin:10px 0; }
+        .card-fallback label { font-size:11px; color:#aaa; }
+        .card-fallback input {
+            background:#1a1a1a; border:1px solid #444; color:#fff; padding:5px 8px;
+            border-radius:6px; font-size:11px; font-family:monospace; text-align:center;
+            width:70px; margin:0 4px;
+        }
+        #card-readout { font-family:monospace; font-size:12px; color:#bbb; margin-bottom:14px; }
+        #card-readout strong { color:#fff; }
+        .card-nudge { display:flex; gap:6px; justify-content:center; margin-bottom:14px; }
+        .card-nudge button {
+            background:#333; color:#fff; border:1px solid #555; border-radius:6px;
+            padding:6px 14px; font-size:13px; cursor:pointer; font-family:monospace;
+        }
+        .card-nudge button:hover { background:#444; }
+        .card-actions { display:flex; gap:8px; justify-content:center; flex-wrap:wrap; }
+        .card-actions button {
+            border:none; border-radius:6px; padding:9px 18px;
+            font-size:12px; font-weight:600; cursor:pointer;
+        }
+        #card-save { background:#27ae60; color:#fff; }
+        #card-cancel { background:#444; color:#fff; }
+        #card-clear { background:transparent; color:#888; text-decoration:underline; font-weight:400; }
+
+        #qr-container {
+            margin-top: 12px; display: flex; justify-content: center;
+            background:#fff; padding:6px; border-radius:6px;   /* el QR necesita fondo claro */
+        }
+        #qr-container svg { display:block; width:150px; height:150px; }
+        #pair-code-label {
+            font-family:monospace; font-size:20px; font-weight:700; color:#fff;
+            letter-spacing:4px; text-align:center; margin-top:8px;
+        }
     </style>
 </head>
 <body>
     <div id="calibration-bar">
-        <!-- Columna izquierda -->
+        <!-- Columna izquierda: lo único que hay que decirle al sistema -->
         <div class="left-group">
-            <div class="cal-group"><label>Res. H</label><input type="number" id="res-h" value="2560" min="100"></div>
-            <div class="cal-group"><label>Res. V</label><input type="number" id="res-v" value="1440" min="100"></div>
+            <div class="cal-group">
+                <label>Distancia</label>
+                <input type="number" id="test-distance" value="6" step="0.1" min="0.5">
+                <span class="cal-unit">m</span>
+            </div>
             <div class="cal-sep"></div>
-            <div class="cal-group"><label>Monitor ″</label><input type="number" id="monitor-size" value="24" step="0.1" min="5"></div>
-            <div class="cal-sep"></div>
-            <div class="cal-group"><label>Dist. m</label><input type="number" id="test-distance" value="6" step="0.1" min="0.5"></div>
-            <div class="cal-sep"></div>
-            <div class="cal-group"><label>DPR</label><input type="number" id="dpr-input" value="1" step="0.02" min="0.3" max="6" style="width:70px;"></div>
-            <button class="btn-sm" id="btn-apply-cal">▶ CALIBRAR</button>
+            <button class="btn-sm" id="btn-card-cal" title="Medir la pantalla (C)">📏 CALIBRAR PANTALLA</button>
         </div>
 
         <!-- Columna central: botón toggle + info -->
@@ -260,7 +358,45 @@
 
     <div id="footer">
         <div class="brand-text">BOOMERANG VISION</div>
-        <span class="cal-status calibrated-text" id="cal-status-footer">● CALIBRADO</span>
+        <div class="footer-right">
+            <span class="remote-status" id="remote-status">○ SIN MANDO</span>
+            <span class="cal-status" id="cal-status-footer">…</span>
+        </div>
+    </div>
+
+    <div id="card-cal" class="hidden">
+        <div class="card-panel">
+            <h2>MEDIR LA PANTALLA</h2>
+            <p>Una sola vez por equipo. Apoye la referencia sobre la pantalla y arrastre
+               el círculo azul hasta que coincida con ella.<br>
+               Con eso el sistema mide los milímetros reales y ya no necesita que nadie
+               escriba resolución, pulgadas ni DPR: eso lo saca del navegador.</p>
+            <div class="card-refs" id="card-refs">
+                <button data-ref="card" class="active">💳 Tarjeta</button>
+                <button data-ref="ruler">📐 Regla 100 mm</button>
+            </div>
+            <div id="card-shape"><span id="card-label"></span><div id="card-handle"></div></div>
+            <div class="card-nudge">
+                <button id="card-minus" title="Más pequeño (←)">−</button>
+                <button id="card-plus" title="Más grande (→)">+</button>
+                <span class="card-hint">o use ← → (con Mayús, de 10 en 10)</span>
+            </div>
+            <div id="card-readout"></div>
+            <div class="card-actions">
+                <button id="card-save">✓ Guardar calibración</button>
+                <button id="card-cancel">Cancelar</button>
+            </div>
+            <details class="card-fallback">
+                <summary>No tengo nada a mano para medir</summary>
+                <p>Entonces hay que fiarse de las pulgadas del monitor, que es menos exacto:
+                   el dato de catálogo suele ser el de la diagonal del panel y no siempre coincide
+                   con el área visible.</p>
+                <label>Diagonal del monitor
+                    <input type="number" id="monitor-size" value="24" step="0.1" min="3">″
+                </label>
+                <button id="card-clear">Usar las pulgadas</button>
+            </details>
+        </div>
     </div>
 
     <button id="shortcuts-toggle" title="Mostrar atajos">?</button>
@@ -270,11 +406,13 @@
         <div><kbd>B</kbd> Bicromático</div>
         <div><kbd>R</kbd> Resaltar línea</div>
         <div><kbd>U</kbd> Modo 1 carácter</div>
-        <div><kbd>C</kbd> Calibrar</div>
+        <div><kbd>C</kbd> Calibrar pantalla</div>
         <div><kbd>H</kbd> Ocultar panel</div>
         <div><kbd>?</kbd> Este menú</div>
         <div style="margin-top:10px; font-size:9px; color:#aaa;">Escanea para control remoto:</div>
         <div id="qr-container"></div>
+        <div id="pair-code-label"></div>
+        <div style="font-size:9px; color:#777; text-align:center;">código de esta pantalla</div>
     </div>
 
     <script>
@@ -323,12 +461,11 @@
             // La etiqueta que ve el optómetra sigue siendo toFixed(2), igual que antes.
             const SCREENS = [
                 { lines:[{snellen:'20/400',decimal:20/400,count:1}], label:'Nivel 1' },
-                { lines:[{snellen:'20/200',decimal:20/200,count:3}], label:'Nivel 2' },
-                { lines:[{snellen:'20/150',decimal:20/150,count:3}], label:'Nivel 3' },
-                { lines:[{snellen:'20/100',decimal:20/100,count:3},{snellen:'20/80',decimal:20/80,count:3}], label:'Nivel 4' },
-                { lines:[{snellen:'20/70',decimal:20/70,count:5},{snellen:'20/60',decimal:20/60,count:5},{snellen:'20/40',decimal:20/40,count:5}], label:'Nivel 5' },
-                { lines:[{snellen:'20/30',decimal:20/30,count:5},{snellen:'20/25',decimal:20/25,count:5},{snellen:'20/20',decimal:20/20,count:5}], label:'Nivel 6' },
-                { lines:[{snellen:'20/20',decimal:20/20,count:5},{snellen:'20/15',decimal:20/15,count:5},{snellen:'20/10',decimal:20/10,count:5}], label:'Nivel 7' }
+                { lines:[{snellen:'20/200',decimal:20/200,count:3},{snellen:'20/150',decimal:20/150,count:3}], label:'Nivel 2' },
+                { lines:[{snellen:'20/100',decimal:20/100,count:3},{snellen:'20/80',decimal:20/80,count:3}], label:'Nivel 3' },
+                { lines:[{snellen:'20/70',decimal:20/70,count:5},{snellen:'20/60',decimal:20/60,count:5},{snellen:'20/50',decimal:20/50,count:5}], label:'Nivel 4' },
+                { lines:[{snellen:'20/40',decimal:20/40,count:5},{snellen:'20/30',decimal:20/30,count:5},{snellen:'20/25',decimal:20/25,count:5}], label:'Nivel 5' },
+                { lines:[{snellen:'20/20',decimal:20/20,count:5},{snellen:'20/15',decimal:20/15,count:5},{snellen:'20/10',decimal:20/10,count:5}], label:'Nivel 6' }
             ];
 
             const ALL_LINES = [];
@@ -343,7 +480,13 @@
 
             const state = {
                 resH:2560, resV:1440, monitorInches:24, testDistanceM:6,
-                dprManual:1, calibrationScale:1.0, ppi:0, pxPerMM:0, isCalibrated:false,
+                ppi:0, isCalibrated:false,
+                // cssPxPerMM es lo ÚNICO que se usa para dibujar. Sale de la
+                // tarjeta si hay medida de esta misma pantalla, y si no del
+                // cálculo por resolución y pulgadas.
+                cssPxPerMM:0, calSource:'monitor', calStale:false, calAck:false,
+                pairCode:'', remoteJoined:false,
+                cardPxPerMM:0, cardDpr:0, cardDevW:0, cardDevH:0,
                 currentScreenIdx:0, mode:'letters', bichromatic:false,
                 highlightMode: false, highlightLineGlobalIdx:0,
                 singleCharMode: false,
@@ -352,11 +495,14 @@
 
             const $ = id => document.getElementById(id);
             const d = {
-                resH:$('res-h'), resV:$('res-v'), monitorSize:$('monitor-size'),
-                testDistance:$('test-distance'), dprInput:$('dpr-input'),
-                btnApply:$('btn-apply-cal'), btnToggle:$('btn-toggle-cal'),
+                testDistance:$('test-distance'), monitorSize:$('monitor-size'),
+                btnToggle:$('btn-toggle-cal'),
+                btnCardCal:$('btn-card-cal'), cardCal:$('card-cal'), cardShape:$('card-shape'),
+                cardHandle:$('card-handle'), cardReadout:$('card-readout'),
+                cardLabel:$('card-label'), cardRefs:$('card-refs'),
                 infoSpan:$('info-span'), linesContainer:$('lines-container'),
-                calStatus:$('cal-status-footer'), shortcutsPanel:$('shortcuts-panel'),
+                calStatus:$('cal-status-footer'), remoteStatus:$('remote-status'),
+                pairCodeLabel:$('pair-code-label'), shortcutsPanel:$('shortcuts-panel'),
                 shortcutsToggle:$('shortcuts-toggle'), btnHighlight:$('btn-highlight'),
                 btnSingleChar:$('btn-single-char'), btnBic:$('btn-bic'),
                 testArea:$('test-area'), calBar:$('calibration-bar'),
@@ -413,7 +559,107 @@
             function optotypeHeightMM(decimal,distanceM){ const angleMin=5/decimal; return 2*distanceM*1000*Math.tan(rad(angleMin/2)); }
             function computePPI(w,h,inches){ return inches>0?Math.sqrt(w*w+h*h)/inches:0; }
             function computePxPerMM(ppi){ return ppi/25.4; }
-            function cssHeight(h_mm){ if(state.dprManual<=0)state.dprManual=1; return (h_mm*state.pxPerMM)/state.dprManual*state.calibrationScale; }
+            function cssHeight(h_mm){ return h_mm * state.cssPxPerMM; }
+
+            /* ═══════════ DE DÓNDE SALEN LOS MILÍMETROS ═══════════
+               Lo que hace falta para dibujar no es la resolución ni las
+               pulgadas: es cuántos px CSS mide un milímetro. Hay dos formas de
+               saberlo y una es mucho mejor que la otra.
+
+               1. TARJETA: se mide directo contra un objeto de tamaño conocido.
+                  Es inmune a la resolución que se escriba, al escalado del
+                  sistema operativo y a los modos escalados de macOS.
+               2. MONITOR: se calcula de resolución + pulgadas + DPR. Si
+                  cualquiera de los tres está mal, toda la prueba está mal.
+
+               La firma de pantalla va en px de dispositivo (screen.width × dpr),
+               que no cambia con el zoom: si cambia, es que la ventana está en
+               otro monitor y la medida de la tarjeta ya no vale. */
+            // Dos referencias físicas: la tarjeta ID-1, que todo el mundo lleva
+            // encima y mide lo mismo en todo el mundo, y una regla, que es como
+            // se verifica esto de todas formas.
+            /* ═══════════ EMPAREJAMIENTO CON EL MANDO ═══════════
+               El servidor solo reenvía dentro de una sala, y la sala es este
+               código. Viaja dentro del QR, así que en el uso normal nadie lo
+               teclea; se guarda para que el móvil siga emparejado entre
+               recargas. Alfabeto sin O/0/I/1 para poder dictarlo. */
+            const PAIR_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+            const PAIR_LEN = 5;
+            function newPairCode(){
+                const n = new Uint32Array(PAIR_LEN);
+                if (window.crypto && window.crypto.getRandomValues) window.crypto.getRandomValues(n);
+                else for (let i=0;i<PAIR_LEN;i++) n[i] = Math.floor(Math.random()*0xFFFFFFFF);
+                let out = '';
+                for (let i=0;i<PAIR_LEN;i++) out += PAIR_ALPHABET[n[i] % PAIR_ALPHABET.length];
+                return out;
+            }
+            function isPairCode(c){ return new RegExp(`^[${PAIR_ALPHABET}]{${PAIR_LEN}}$`).test(c || ''); }
+
+            const CARD_REFS = {
+                card:  { w: 85.60, h: 53.98, label: 'TARJETA · 85,60 × 53,98 mm', ticks: false },
+                ruler: { w: 100.0, h: 20.0,  label: '100 mm', ticks: true },
+            };
+
+            function liveDpr(){ return window.devicePixelRatio || 1; }
+            /* screen.width viene en px CSS y redondeado a entero, así que
+               multiplicarlo por el DPR deja restos: un panel de 2560 al 150%
+               da 2560,5. Se redondea a par (ninguna resolución real es impar)
+               para que el número que se muestra sea el reconocible y para que
+               la identidad de la pantalla no baile con el zoom. */
+            function detectScreen(){
+                const dpr = liveDpr();
+                const par = x => Math.round(x/2)*2;
+                return { resH: par(screen.width*dpr), resV: par(screen.height*dpr), dpr };
+            }
+            // Comparación con holgura: lo que importa es si seguimos en la
+            // misma pantalla, no clavar el píxel.
+            function sameScreenAsCard(){
+                if (!(state.cardDevW > 0)) return false;
+                const det = detectScreen();
+                return Math.abs(det.resH - state.cardDevW) <= 2
+                    && Math.abs(det.resV - state.cardDevH) <= 2;
+            }
+            // Respaldo para cuando no hay medida física: resolución detectada +
+            // pulgadas declaradas. El DPR sale del navegador, nunca de un campo:
+            // ese campo era justo el que invitaba a "mover el número a ver".
+            function monitorCssPxPerMM(){
+                const det = detectScreen();
+                state.resH = det.resH; state.resV = det.resV;
+                state.ppi = computePPI(det.resH, det.resV, state.monitorInches);
+                return computePxPerMM(state.ppi) / det.dpr;
+            }
+            function resolveCalibration(){
+                const sameScreen = state.cardPxPerMM > 0 && sameScreenAsCard();
+                state.calStale = state.cardPxPerMM > 0 && !sameScreen;
+                if (sameScreen) {
+                    // px CSS por mm es inversamente proporcional al DPR, así que
+                    // un cambio de zoom se corrige exacto sin volver a medir.
+                    state.cssPxPerMM = state.cardPxPerMM * (state.cardDpr / liveDpr());
+                    state.calSource = 'tarjeta';
+                } else {
+                    state.cssPxPerMM = monitorCssPxPerMM();
+                    state.calSource = 'monitor';
+                }
+                state.isCalibrated = state.cssPxPerMM > 0;
+                updateCalStatus();
+            }
+            function updateRemoteStatus(peers){
+                const hay = peers >= 2;
+                d.remoteStatus.textContent = hay ? '🔗 MANDO CONECTADO' : '○ SIN MANDO';
+                d.remoteStatus.className = 'remote-status' + (hay ? ' on' : '');
+            }
+
+            function updateCalStatus(){
+                let txt, cls;
+                if (!state.isCalibrated)      { txt = '○ NO CALIBRADO';            cls = 'uncalibrated-text'; }
+                else if (state.calStale)      { txt = '⚠ CAMBIÓ LA PANTALLA: RECALIBRE'; cls = 'stale-text'; }
+                else if (state.calSource === 'tarjeta') { txt = '● CALIBRADO CON TARJETA'; cls = 'calibrated-text'; }
+                else                          { txt = '◐ ESTIMADO POR MONITOR';    cls = 'estimated-text'; }
+                d.calStatus.textContent = txt;
+                d.calStatus.className = 'cal-status ' + cls;
+            }
+
+
             function getCurrentScreen(){ return SCREENS[state.currentScreenIdx]; }
 
             function getPoolItems(){
@@ -428,11 +674,41 @@
             }
 
             function getLineCacheKey(si,li){ return `${si}-${li}`; }
+
+            /* Fisher-Yates. Ordenar con sort(() => Math.random()-0.5) no reparte
+               uniforme: el comparador es inconsistente y el resultado depende
+               del algoritmo de ordenación del navegador, con lo que unas
+               combinaciones salen bastante más que otras. En una prueba que el
+               paciente puede repetir, eso son letras predecibles. */
+            function shuffle(items){
+                const a = items.slice();
+                for (let i = a.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [a[i], a[j]] = [a[j], a[i]];
+                }
+                return a;
+            }
+            function mismoOptotipo(a, b){
+                return !!a && !!b && a.type === b.type && a.char === b.char
+                    && a.key === b.key && (a.rot || 0) === (b.rot || 0);
+            }
             function generateLineChars(si,li,count){
-                const pool=getPoolItems(); const chars=[];
-                const shuffled=[...pool].sort(()=>Math.random()-0.5);
-                for(let i=0;i<count;i++) chars.push({...shuffled[i%shuffled.length]});
-                state.lineChars[getLineCacheKey(si,li)]=chars; return chars;
+                const pool = getPoolItems();
+                const chars = [];
+                let bolsa = [];
+                /* Se reparte de una bolsa sin reposición, así no hay repetidos
+                   dentro de la línea mientras el pool dé (con 4 orientaciones de
+                   la E y 5 huecos hay que rebarajar), y se evita que dos iguales
+                   queden seguidos: juntas se leen como una sola pista. */
+                for (let i = 0; i < count; i++) {
+                    if (!bolsa.length) bolsa = shuffle(pool);
+                    let k = 0;
+                    while (k < bolsa.length - 1 && mismoOptotipo(bolsa[k], chars[i-1])) k++;
+                    chars.push({ ...bolsa[k] });
+                    bolsa.splice(k, 1);
+                }
+                state.lineChars[getLineCacheKey(si,li)] = chars;
+                return chars;
             }
             function getLineChars(si,li,count){
                 const key=getLineCacheKey(si,li);
@@ -515,7 +791,7 @@
                     d.linesContainer.appendChild(lineDiv);
                 });
 
-                if (window.remoteSocket && window.remoteSocket.connected) {
+                if (window.remoteSocket && window.remoteSocket.connected && state.remoteJoined) {
                     const screenData = {
                         lines: screen.lines.map((line, li) => ({
                             snellen: line.snellen.split('/')[1],
@@ -531,9 +807,9 @@
                             }))
                         })),
                         cal: {
-                            resH: state.resH, resV: state.resV, monitorInches: state.monitorInches,
-                            testDistanceM: state.testDistanceM, dprManual: state.dprManual,
-                            calibrationScale: state.calibrationScale, ppi: state.ppi, pxPerMM: state.pxPerMM,
+                            testDistanceM: state.testDistanceM,
+                            cssPxPerMM: state.cssPxPerMM,
+                            source: state.calSource,
                         },
                         mode: state.mode,
                         highlightMode: state.highlightMode,
@@ -545,7 +821,9 @@
                 }
 
                 const mm20_20 = optotypeHeightMM(1.0,state.testDistanceM);
-                d.infoSpan.textContent = `20/20: ${mm20_20.toFixed(2)}mm → ${cssHeight(mm20_20).toFixed(1)}px`;
+                d.infoSpan.textContent =
+                    `${state.cssPxPerMM.toFixed(3)} px/mm · ${state.monitorInches.toFixed(1)}″ · ` +
+                    `DPR ${(+liveDpr().toFixed(3))} · 20/20: ${mm20_20.toFixed(2)}mm → ${cssHeight(mm20_20).toFixed(1)}px`;
 
                 // Con tamaños y separaciones físicas hay combinaciones de monitor y
                 // distancia en las que una pantalla ya no cabe. Avisarlo, en vez de
@@ -557,8 +835,17 @@
                     return b.left < area.left - 1 || b.right > area.right + 1;
                 });
                 const tooTall = cont.top < area.top - 1 || cont.bottom > area.bottom + 1;
-                d.infoSpan.classList.toggle('overflow', tooWide || tooTall);
+
+                // El detalle crítico de un optotipo es 1/5 de su altura. Por
+                // debajo de 2 px de dispositivo la pantalla no tiene rejilla
+                // para dibujar la línea, aunque el tamaño en mm sea correcto.
+                const finest = Math.min(...screen.lines.map(l => cssHeight(optotypeHeightMM(l.decimal, state.testDistanceM))));
+                const strokeDev = finest * liveDpr() / 5;
+                const tooFine = strokeDev < 2;
+
+                d.infoSpan.classList.toggle('overflow', tooWide || tooTall || tooFine);
                 if (tooWide || tooTall) d.infoSpan.textContent += '  ⚠ no cabe: use un monitor mayor o acorte la distancia';
+                else if (tooFine) d.infoSpan.textContent += `  ⚠ trazo de ${strokeDev.toFixed(1)} px: la pantalla no resuelve esta línea`;
             }
 
             function updateModeButtons() {
@@ -576,47 +863,57 @@
             }
 
             function applyCalibration(){
-                state.resH=parseInt(d.resH.value)||2560; state.resV=parseInt(d.resV.value)||1440;
-                state.monitorInches=parseFloat(d.monitorSize.value)||24;
                 state.testDistanceM=parseFloat(d.testDistance.value)||6;
-                state.dprManual=parseFloat(d.dprInput.value)||1;
-                if(state.dprManual<0.1)state.dprManual=1;
-                state.ppi=computePPI(state.resH,state.resV,state.monitorInches);
-                state.pxPerMM=computePxPerMM(state.ppi);
-                state.isCalibrated=state.ppi>0&&state.monitorInches>0;
-                d.calStatus.textContent=state.isCalibrated?'● CALIBRADO':'○ NO CALIBRADO';
-                d.calStatus.className='cal-status '+(state.isCalibrated?'calibrated-text':'uncalibrated-text');
+                state.monitorInches=parseFloat(d.monitorSize.value)||24;
+                resolveCalibration();
                 state.lineChars={}; renderScreen();
                 saveToStorage();
             }
 
             function saveToStorage(){
                 try{ localStorage.setItem('bvc',JSON.stringify({
-                    resH:state.resH, resV:state.resV, monitorInches:state.monitorInches,
-                    testDistanceM:state.testDistanceM, dprManual:state.dprManual,
-                    calibrationScale:state.calibrationScale, mode:state.mode,
+                    monitorInches:state.monitorInches,
+                    testDistanceM:state.testDistanceM,
+                    cardPxPerMM:state.cardPxPerMM, cardDpr:state.cardDpr,
+                    cardDevW:state.cardDevW, cardDevH:state.cardDevH,
+                    calAck:state.calAck, pairCode:state.pairCode,
                     bichromatic:state.bichromatic, highlightMode:state.highlightMode,
                     singleCharMode:state.singleCharMode, currentScreenIdx:state.currentScreenIdx
                 })); }catch(e){}
             }
 
             function loadFromStorage(){
-                const saved=JSON.parse(localStorage.getItem('bvc'));
+                // Un 'bvc' corrupto no puede dejar la pantalla en blanco.
+                let saved=null;
+                try{ saved=JSON.parse(localStorage.getItem('bvc')); }
+                catch(e){ console.warn('Calibración guardada ilegible, se descarta:', e); }
+
+                // Cada sesión arranca en Letras a propósito: el modo del
+                // paciente anterior no debe arrastrarse. Antes se guardaba en
+                // localStorage y luego se ignoraba, o sea que era dato muerto.
                 state.mode = 'letters';
                 if(saved){
-                    d.resH.value=saved.resH||2560; d.resV.value=saved.resV||1440;
+                    // Nada de resolución ni DPR guardados: los da el navegador en
+                    // cada arranque. Del almacenamiento solo sale lo que ninguna
+                    // API puede saber: la medida física y la distancia de la sala.
                     d.monitorSize.value=saved.monitorInches||24;
                     d.testDistance.value=saved.testDistanceM||6;
-                    d.dprInput.value=saved.dprManual||1;
-                    state.calibrationScale=saved.calibrationScale||1.0;
+                    state.cardPxPerMM=saved.cardPxPerMM||0;
+                    state.cardDpr=saved.cardDpr||0;
+                    state.cardDevW=saved.cardDevW||0;
+                    state.cardDevH=saved.cardDevH||0;
+                    state.calAck=saved.calAck===true;
+                    state.pairCode=saved.pairCode||'';
                     if(typeof saved.bichromatic==='boolean') state.bichromatic=saved.bichromatic;
                     if(typeof saved.highlightMode==='boolean') state.highlightMode=saved.highlightMode;
                     if(typeof saved.singleCharMode==='boolean') state.singleCharMode=saved.singleCharMode;
-                    if(typeof saved.currentScreenIdx==='number') state.currentScreenIdx=saved.currentScreenIdx;
+                    if(typeof saved.currentScreenIdx==='number')
+                        state.currentScreenIdx=Math.min(SCREENS.length-1, Math.max(0, saved.currentScreenIdx));
                 } else {
                     state.bichromatic=false;
-                    d.dprInput.value=window.devicePixelRatio||1;
                 }
+                // Un código por pantalla, estable entre recargas.
+                if (!isPairCode(state.pairCode)) state.pairCode = newPairCode();
                 updateModeButtons();
                 d.testArea.classList.toggle('bichromatic',state.bichromatic);
                 d.btnBic.textContent=state.bichromatic?'🔴🟢 Bicrom.':'⚪ Fondo claro';
@@ -630,18 +927,27 @@
                 d.testArea.classList.toggle('bichromatic',state.bichromatic);
                 d.btnBic.textContent=state.bichromatic?'🔴🟢 Bicrom.':'⚪ Fondo claro';
                 d.btnBic.className='bic-btn'+(state.bichromatic?'':' off');
+                // El estado de los botones del mando viaja en screenUpdate, que
+                // solo sale de renderScreen: sin esto el 🔴🟢 del móvil no se
+                // encendía hasta que se pulsara cualquier otra cosa.
+                renderScreen();
                 saveToStorage();
+            }
+
+            /* La primera línea de la pantalla actual, en índice global.
+               Buscarla por snellen+decimal fallaba: el 20/20 aparece en los
+               niveles 6 y 7, encontraba siempre el del 6, y estando en el 7 el
+               resaltado apuntaba a otra pantalla -> ninguna línea quedaba
+               resaltada y se atenuaban todas. La pantalla manda, no la etiqueta. */
+            function globalIdxOfFirstLine(){
+                const i = ALL_LINES.findIndex(l => l.screenIndex === state.currentScreenIdx);
+                return i >= 0 ? i : 0;
             }
 
             function toggleHighlightMode(){
                 state.highlightMode = !state.highlightMode;
                 d.btnHighlight.classList.toggle('active', state.highlightMode);
-                if (state.highlightMode) {
-                    const screen = getCurrentScreen();
-                    const firstLine = screen.lines[0];
-                    const global = ALL_LINES.findIndex(l => l.snellen === firstLine.snellen && l.decimal === firstLine.decimal);
-                    state.highlightLineGlobalIdx = global >= 0 ? global : 0;
-                }
+                if (state.highlightMode) state.highlightLineGlobalIdx = globalIdxOfFirstLine();
                 renderScreen();
                 saveToStorage();
             }
@@ -669,6 +975,7 @@
                 idx=Math.min(TOTAL_SCREENS-1,Math.max(0,idx));
                 if(state.currentScreenIdx!==idx){
                     state.currentScreenIdx=idx;
+                    if (state.highlightMode) state.highlightLineGlobalIdx = globalIdxOfFirstLine();
                     renderScreen();
                     saveToStorage();
                 }
@@ -678,6 +985,89 @@
                 const screen=getCurrentScreen();
                 screen.lines.forEach((line,li)=>generateLineChars(state.currentScreenIdx,li,line.count));
                 renderScreen();
+            }
+
+            /* ═══════════ PANEL DE LA TARJETA ═══════════
+               Se trabaja con el ancho en px del rectángulo (lo que se arrastra)
+               y al guardar se convierte a px/mm. Arrastrar la esquina es 1:1
+               con el píxel, así que la resolución del ajuste es 1/85.6 px/mm. */
+            let cardOpen = false, cardWidthPx = 0, cardRef = 'card';
+
+            function activeRef(){ return CARD_REFS[cardRef]; }
+            function clampCardWidth(w){
+                const max = Math.min(1400, window.innerWidth - 120);
+                return Math.max(60, Math.min(max, w || 300));
+            }
+            function cardPxPerMMNow(){ return cardWidthPx / activeRef().w; }
+            function renderCardShape(){
+                const ref = activeRef();
+                d.cardShape.style.width = cardWidthPx + 'px';
+                d.cardShape.style.height = (cardWidthPx * ref.h / ref.w) + 'px';
+                d.cardShape.classList.toggle('ruler', !!ref.ticks);
+                d.cardLabel.textContent = ref.label;
+                const pxmm = cardPxPerMMNow();
+                d.cardShape.style.backgroundImage = ref.ticks
+                    ? `repeating-linear-gradient(to right, #000 0 1px, transparent 1px ${pxmm*10}px)`
+                    : 'none';
+                const det = detectScreen();
+                const diag = Math.sqrt(det.resH**2 + det.resV**2) / (pxmm*det.dpr) / 25.4;
+                const h20 = optotypeHeightMM(1.0, state.testDistanceM) * pxmm;
+                d.cardReadout.innerHTML =
+                    `<strong>${pxmm.toFixed(3)}</strong> px/mm · el 20/20 mediría ` +
+                    `<strong>${h20.toFixed(1)} px</strong> a ${state.testDistanceM} m · ` +
+                    `diagonal implícita <strong>${diag.toFixed(1)}″</strong> ` +
+                    `(${det.resH}×${det.resV} detectados, DPR ${+det.dpr.toFixed(3)})`;
+            }
+            function nudgeCard(delta){
+                cardWidthPx = clampCardWidth(cardWidthPx + delta);
+                renderCardShape();
+            }
+            function setCardRef(ref){
+                if (!CARD_REFS[ref]) return;
+                const pxmm = cardPxPerMMNow();          // conservar la medida al cambiar
+                cardRef = ref;
+                cardWidthPx = clampCardWidth(Math.round(pxmm * activeRef().w));
+                d.cardRefs.querySelectorAll('button').forEach(b =>
+                    b.classList.toggle('active', b.dataset.ref === ref));
+                renderCardShape();
+            }
+            function openCardCal(){
+                cardOpen = true;
+                cardWidthPx = clampCardWidth(Math.round((state.cssPxPerMM || 3.8) * activeRef().w));
+                d.cardCal.classList.remove('hidden');
+                renderCardShape();
+            }
+            function closeCardCal(){
+                cardOpen = false;
+                d.cardCal.classList.add('hidden');
+                if (!state.calAck) { state.calAck = true; saveToStorage(); }
+            }
+            function saveCardCal(){
+                const pxmm = cardPxPerMMNow();
+                state.cardPxPerMM = pxmm;
+                state.cardDpr = liveDpr();
+                const detSave = detectScreen();
+                state.cardDevW = detSave.resH; state.cardDevH = detSave.resV;
+                // Las pulgadas dejan de ser un dato a escribir: se deducen de lo
+                // medido, así el respaldo coincide con la tarjeta en vez de
+                // contradecirla, y sirven de comprobación contra la etiqueta del
+                // monitor.
+                const diag = Math.sqrt(detSave.resH**2 + detSave.resV**2) / (pxmm*detSave.dpr) / 25.4;
+                if (diag > 3 && diag < 250) {
+                    state.monitorInches = +diag.toFixed(1);
+                    d.monitorSize.value = state.monitorInches;
+                }
+                closeCardCal();
+                resolveCalibration();
+                state.lineChars = {}; renderScreen();
+                saveToStorage();
+            }
+            function clearCardCal(){
+                state.cardPxPerMM = 0; state.cardDpr = 0; state.cardDevW = 0; state.cardDevH = 0;
+                closeCardCal();
+                resolveCalibration();
+                renderScreen();
+                saveToStorage();
             }
 
             function toggleCalPanel(){
@@ -693,14 +1083,21 @@
                 if (isHidden) {
                     panel.classList.remove('hidden');
                     if (!qrGenerated && d.qrContainer) {
-                        const url = 'https://boomerang-vision.onrender.com/remote';
-                        const img = document.createElement('img');
-                        img.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(url)}`;
-                        img.alt = 'QR Control Remoto';
-                        img.style.width = '150px';
-                        img.style.height = '150px';
-                        d.qrContainer.innerHTML = '';
-                        d.qrContainer.appendChild(img);
+                        // location.origin, no una URL fija: si la pantalla corre
+                        // en la red local, el móvil tiene que ir ahí y no a la
+                        // instancia de la nube (donde manejaría otra pantalla).
+                        const url = location.origin + '/remote?c=' + state.pairCode;
+                        try {
+                            // QR generado aquí: el código de emparejamiento no
+                            // sale a ningún servicio externo, y funciona sin red.
+                            const qr = qrcode(0, 'M');
+                            qr.addData(url);
+                            qr.make();
+                            d.qrContainer.innerHTML = qr.createSvgTag({ cellSize: 4, margin: 1, scalable: true });
+                        } catch (e) {
+                            d.qrContainer.textContent = url;
+                        }
+                        d.pairCodeLabel.textContent = state.pairCode;
                         qrGenerated = true;
                     }
                     if (shortcutsTimer) clearTimeout(shortcutsTimer);
@@ -716,14 +1113,57 @@
             }
 
             d.modeBtns.forEach(btn => btn.addEventListener('click', () => setMode(btn.dataset.mode)));
-            d.btnApply.addEventListener('click',applyCalibration);
+            d.testDistance.addEventListener('change',applyCalibration);
+            d.monitorSize.addEventListener('change',applyCalibration);
             d.btnToggle.addEventListener('click',toggleCalPanel);
             d.btnBic.addEventListener('click',toggleBichromatic);
             d.btnHighlight.addEventListener('click',toggleHighlightMode);
             d.btnSingleChar.addEventListener('click',toggleSingleCharMode);
             d.shortcutsToggle.addEventListener('click',toggleShortcuts);
+            d.btnCardCal.addEventListener('click',openCardCal);
+            d.cardRefs.querySelectorAll('button').forEach(b =>
+                b.addEventListener('click', () => setCardRef(b.dataset.ref)));
+            $('card-save').addEventListener('click',saveCardCal);
+            $('card-cancel').addEventListener('click',closeCardCal);
+            $('card-clear').addEventListener('click',clearCardCal);
+            $('card-minus').addEventListener('click',()=>nudgeCard(-1));
+            $('card-plus').addEventListener('click',()=>nudgeCard(1));
+
+            (function setupCardDrag(){
+                let startX = 0, startW = 0, dragging = false;
+                d.cardHandle.addEventListener('pointerdown', e => {
+                    dragging = true; startX = e.clientX; startW = cardWidthPx;
+                    d.cardHandle.setPointerCapture(e.pointerId);
+                    e.preventDefault();
+                });
+                d.cardHandle.addEventListener('pointermove', e => {
+                    if (!dragging) return;
+                    cardWidthPx = clampCardWidth(Math.round(startW + (e.clientX - startX)));
+                    renderCardShape();
+                });
+                const end = e => {
+                    if (!dragging) return;
+                    dragging = false;
+                    if (d.cardHandle.hasPointerCapture?.(e.pointerId)) d.cardHandle.releasePointerCapture(e.pointerId);
+                };
+                d.cardHandle.addEventListener('pointerup', end);
+                d.cardHandle.addEventListener('pointercancel', end);
+                // pinchar fuera del panel cancela
+                d.cardCal.addEventListener('click', e => { if (e.target === d.cardCal) closeCardCal(); });
+            })();
 
             document.addEventListener('keydown',e=>{
+                // Con la calibración abierta el teclado es suyo: si no, las
+                // flechas navegarían pantallas por detrás del panel.
+                if (cardOpen) {
+                    if (e.key === 'Escape') closeCardCal();
+                    else if (e.key === 'Enter') saveCardCal();
+                    else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') nudgeCard(e.shiftKey ? -10 : -1);
+                    else if (e.key === 'ArrowRight' || e.key === 'ArrowUp') nudgeCard(e.shiftKey ? 10 : 1);
+                    else return;
+                    e.preventDefault();
+                    return;
+                }
                 if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) e.preventDefault();
                 if(e.key==='ArrowUp'){
                     if (state.highlightMode) moveHighlight(-1);
@@ -737,7 +1177,7 @@
                 else if(e.key==='b'||e.key==='B'){ if(!e.ctrlKey&&!e.metaKey) toggleBichromatic(); }
                 else if(e.key==='r'||e.key==='R'){ if(!e.ctrlKey&&!e.metaKey) toggleHighlightMode(); }
                 else if(e.key==='u'||e.key==='U'){ if(!e.ctrlKey&&!e.metaKey) toggleSingleCharMode(); }
-                else if(e.key==='c'||e.key==='C'){ if(!e.ctrlKey&&!e.metaKey) applyCalibration(); }
+                else if(e.key==='c'||e.key==='C'){ if(!e.ctrlKey&&!e.metaKey) openCardCal(); }
                 else if(e.key==='h'||e.key==='H'){ if(!e.ctrlKey&&!e.metaKey) toggleCalPanel(); }
                 else if(e.key==='?') toggleShortcuts();
                 else if(e.key==='Escape'){ if(!d.shortcutsPanel.classList.contains('hidden')) toggleShortcuts(); }
@@ -749,7 +1189,13 @@
                 d.testArea._ct=setTimeout(()=>d.testArea.classList.remove('showing-cursor'),2500);
             });
 
-            window.addEventListener('resize',()=>{ if(state.isCalibrated) renderScreen(); });
+            window.addEventListener('resize',()=>{
+                // El zoom cambia el DPR y con él los mm por px CSS: hay que
+                // rehacer la conversión, no solo repintar.
+                resolveCalibration();
+                if(state.isCalibrated) renderScreen();
+                if(cardOpen){ cardWidthPx = clampCardWidth(cardWidthPx); renderCardShape(); }
+            });
             // Hasta que la fuente cargue, charMetrics() devuelve el respaldo: al
             // llegar hay que tirar las medidas y repintar con las de verdad.
             document.fonts.load(`1em ${OPTOTYPE_FONT}`).then(() => {
@@ -758,8 +1204,26 @@
             }).catch(() => console.warn('⚠️ Fuente OpticianSans no disponible: tamaños aproximados'));
 
             (function setupRemote() {
+                /* El mando es un extra. Antes esta función corría antes de init()
+                   y sin protección: si /socket.io/socket.io.js no cargaba (Render
+                   dormido, red caída, un bloqueador), `io is not defined` se
+                   llevaba por delante toda la inicialización y la pantalla del
+                   paciente quedaba en blanco. */
+                if (typeof io === 'undefined') {
+                    console.warn('socket.io no disponible: la pantalla funciona, el control remoto no');
+                    return;
+                }
+                try {
                 window.remoteSocket = io();
                 const socket = window.remoteSocket;
+                socket.on('connect', () => socket.emit('join', state.pairCode));
+                socket.on('joined', () => {
+                    state.remoteJoined = true;
+                    socket.emit('modo', state.mode);
+                    renderScreen();
+                });
+                socket.on('peers', (n) => updateRemoteStatus(n));
+                socket.on('disconnect', () => { state.remoteJoined = false; updateRemoteStatus(0); });
                 socket.on('comando', (cmd) => {
                     if (cmd.startsWith('Mode:')) {
                         const modo = cmd.split(':')[1];
@@ -773,8 +1237,10 @@
                         document.dispatchEvent(keyEvent);
                     }
                 });
-                socket.on('connect', () => { socket.emit('modo', state.mode); renderScreen(); });
                 socket.on('requestScreenUpdate', () => { renderScreen(); });
+                } catch (e) {
+                    console.warn('No se pudo iniciar el control remoto:', e);
+                }
             })();
 
             function init(){
@@ -782,13 +1248,14 @@
                 applyCalibration();
                 navigateToScreen(state.currentScreenIdx);
                 if (state.highlightMode) {
-                    const screen = getCurrentScreen();
-                    const firstLine = screen.lines[0];
-                    const global = ALL_LINES.findIndex(l => l.snellen === firstLine.snellen && l.decimal === firstLine.decimal);
-                    state.highlightLineGlobalIdx = global >= 0 ? global : 0;
+                    state.highlightLineGlobalIdx = globalIdxOfFirstLine();
                     renderScreen();
                 }
                 setTimeout(()=>{ if(!d.shortcutsPanel.classList.contains('hidden')) d.shortcutsPanel.classList.add('hidden'); },8000);
+                // Sin medida física la prueba es una estimación, así que el panel
+                // se abre solo hasta que alguien decida: medir, o renunciar a
+                // medir (cancelar / usar pulgadas). Después, nunca más.
+                if ((state.cardPxPerMM <= 0 && !state.calAck) || state.calStale) openCardCal();
             }
             init();
         })();

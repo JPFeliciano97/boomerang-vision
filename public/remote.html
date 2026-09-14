@@ -17,19 +17,24 @@
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        html, body {
+        html { height: 100%; }
+        body {
             width: 100%;
-            height: 100%;
+            min-height: 100%;
             margin: 0;
-            padding: 0;
-            overflow: hidden;
+            padding: 0 0 18px;
+            /* Antes era overflow:hidden con centrado vertical, que valía para
+               una sola pantalla de controles. Con el menú de ocho módulos hay
+               contenido que no cabe, así que se desplaza. */
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
             font-family: system-ui, -apple-system, sans-serif;
             background: #111;
             color: #fff;
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;  /* centrado vertical nativo */
+            justify-content: flex-start;
             user-select: none;
             -webkit-user-select: none;
         }
@@ -130,6 +135,95 @@
             flex-shrink: 0;
         }
 
+        /* ═══════════ MENÚ DE MÓDULOS Y CABECERA ═══════════ */
+        .oculto { display: none !important; }
+        .bloque { width: 94%; max-width: 400px; }
+
+        .grupo-tit {
+            font-size: 9px; text-transform: uppercase; letter-spacing: 1px;
+            color: #666; padding: 12px 4px 6px;
+        }
+        .fila-mod {
+            display: flex; align-items: center; gap: 12px;
+            background: #1a1a1a; border: 1px solid #2b2b2b; border-radius: 10px;
+            padding: 10px 12px; margin-bottom: 6px; min-height: 52px;
+            text-align: left; width: 100%; color: inherit; font: inherit;
+        }
+        .fila-mod:active { background: #232323; }
+        .fila-mod.no-hecho { opacity: 0.45; }
+        .fila-mod .txt { flex-grow: 1; min-width: 0; }
+        .fila-mod .tit { font-size: 14px; font-weight: 600; color: #e8e8e8; }
+        .fila-mod .sub { font-size: 11px; color: #777; margin-top: 2px; }
+        .fila-mod .tag {
+            font-family: monospace; font-size: 9px; letter-spacing: 0.4px;
+            flex-shrink: 0; color: #5e5e5e;
+        }
+        .fila-mod .tag.cerca { color: #f0b26b; }
+
+        #aviso-volver {
+            display: flex; align-items: center; gap: 10px; margin-bottom: 12px;
+            background: rgba(243,156,18,0.12); border: 1px solid rgba(243,156,18,0.45);
+            border-radius: 10px; padding: 11px 12px; margin-bottom: 4px;
+        }
+        #aviso-volver .txt { flex-grow: 1; }
+        #aviso-volver .tit { font-size: 12px; font-weight: 700; color: #f0b26b; }
+        #aviso-volver .sub { font-size: 11px; color: #c99a3f; margin-top: 3px; line-height: 1.4; }
+        #aviso-volver button {
+            flex-shrink: 0; background: #f39c12; color: #151515; border: none;
+            border-radius: 8px; padding: 11px 14px; font-size: 12px; font-weight: 700;
+        }
+
+        .cabecera {
+            display: flex; align-items: center; gap: 10px; margin-bottom: 12px;
+        }
+        .cabecera .atras {
+            width: 40px; height: 40px; flex-shrink: 0; border: 1px solid #2f2f2f;
+            border-radius: 8px; background: #232323; color: #ccc; font-size: 20px;
+            line-height: 1; padding: 0;
+        }
+        .cabecera .txt { flex-grow: 1; min-width: 0; }
+        .cabecera .tit { font-size: 15px; font-weight: 600; color: #fff; }
+        .cabecera .sub {
+            font-size: 9px; text-transform: uppercase; letter-spacing: 1px;
+            color: #777; margin-top: 2px;
+        }
+        .cabecera .dist { flex-shrink: 0; text-align: right; }
+        .cabecera .dist .et {
+            font-size: 8px; text-transform: uppercase; letter-spacing: 1px; color: #5e5e5e;
+        }
+        .cabecera .dist .val { font-family: monospace; font-size: 13px; margin-top: 2px; }
+
+        /* ═══════════ CONTROLES DEL AMSLER ═══════════ */
+        .lista-lam { display: flex; flex-direction: column; gap: 6px; }
+        .lista-lam button {
+            display: flex; align-items: center; gap: 11px; width: 100%;
+            background: #1a1a1a; border: 1px solid #2b2b2b; border-radius: 9px;
+            padding: 10px 12px; min-height: 52px; text-align: left;
+            color: inherit; font: inherit;
+        }
+        .lista-lam button.sel { border-color: #f1c40f; background: #232323; }
+        .lista-lam .muestra {
+            width: 34px; height: 34px; border-radius: 5px; flex-shrink: 0;
+        }
+        .lista-lam .tit { font-size: 13px; font-weight: 600; color: #e8e8e8; }
+        .lista-lam .sub { font-size: 10.5px; color: #777; margin-top: 2px; }
+
+        .conmut {
+            display: flex; align-items: center; justify-content: space-between;
+            width: 100%; background: #1a1a1a; border: 1px solid #2b2b2b;
+            border-radius: 9px; padding: 12px 13px; min-height: 48px;
+            margin-top: 6px; color: inherit; font: inherit; text-align: left;
+        }
+        .conmut.on { border-color: #f1c40f; }
+        .conmut .et { font-size: 13px; color: #ddd; }
+        .conmut .val { font-family: monospace; font-size: 10px; color: #666; }
+        .conmut.on .val { color: #f1c40f; }
+
+        .nota-geo {
+            font-family: monospace; font-size: 10px; color: #6a6a6a;
+            line-height: 1.6; padding: 10px 2px 0;
+        }
+
         /* Botones de modo */
         .mode-grid {
             display: grid;
@@ -207,25 +301,80 @@
         <span id="pair-code"></span>
     </div>
 
-    <div id="remote-screen"></div>
-
-    <div class="mode-grid" id="mode-buttons">
-        <button data-mode="letters" class="active-mode">Letras</button>
-        <button data-mode="numbers">Números</button>
-        <button data-mode="pediatric">LEA</button>
-        <button data-mode="e_directional">E direc.</button>
+    <!-- El recordatorio vive FUERA de las dos vistas a propósito: si solo se
+         viera en el menú, desaparecería justo al entrar en optotipos, que es
+         donde medir con el paciente todavía a 1 m hace daño. -->
+    <div id="aviso-volver" class="bloque oculto">
+        <div class="txt">
+            <div class="tit">El paciente sigue acercado</div>
+            <div class="sub" id="aviso-volver-sub"></div>
+        </div>
+        <button onclick="enviar('VolverDicho')">Hecho</button>
     </div>
 
-    <div class="dpad">
-        <div class="empty"></div><button onclick="enviar('ArrowUp')">▲</button><div class="empty"></div>
-        <button onclick="enviar('ArrowLeft')">◀</button><div class="empty"></div><button onclick="enviar('ArrowRight')">▶</button>
-        <div class="empty"></div><button onclick="enviar('ArrowDown')">▼</button><div class="empty"></div>
+    <!-- ═══ VISTA: MENÚ DE MÓDULOS ═══ -->
+    <div id="vista-menu" class="bloque oculto">
+        <div id="lista-modulos"></div>
     </div>
 
-    <div class="function-btns" id="func-buttons">
-        <button id="btn-resaltar" onclick="enviar('KeyR')">🔦 Resaltar</button>
-        <button id="btn-individual" onclick="enviar('KeyU')">👤 Individual</button>
-        <button id="btn-bic" class="special" onclick="enviar('KeyB')"></button>
+    <!-- ═══ VISTA: UN MÓDULO ═══ -->
+    <div id="vista-modulo" class="oculto" style="width:100%; display:flex; flex-direction:column; align-items:center;">
+        <div class="cabecera bloque">
+            <button class="atras" onclick="enviar('Modulo:menu')" title="Volver al menú">‹</button>
+            <div class="txt">
+                <div class="tit" id="mod-titulo"></div>
+                <div class="sub" id="mod-sub"></div>
+            </div>
+            <div class="dist">
+                <div class="et" id="mod-dist-et">Distancia</div>
+                <div class="val" id="mod-dist-val"></div>
+            </div>
+        </div>
+
+        <div id="remote-screen"></div>
+
+        <!-- Panel de optotipos: los controles que ya existían, intactos -->
+        <div id="panel-optotipos" style="width:100%; display:flex; flex-direction:column; align-items:center;">
+            <div class="mode-grid" id="mode-buttons">
+                <button data-mode="letters" class="active-mode">Letras</button>
+                <button data-mode="numbers">Números</button>
+                <button data-mode="pediatric">LEA</button>
+                <button data-mode="e_directional">E direc.</button>
+            </div>
+
+            <div class="dpad">
+                <div class="empty"></div><button onclick="enviar('ArrowUp')">▲</button><div class="empty"></div>
+                <button onclick="enviar('ArrowLeft')">◀</button><div class="empty"></div><button onclick="enviar('ArrowRight')">▶</button>
+                <div class="empty"></div><button onclick="enviar('ArrowDown')">▼</button><div class="empty"></div>
+            </div>
+
+            <div class="function-btns" id="func-buttons">
+                <button id="btn-resaltar" onclick="enviar('KeyR')">🔦 Resaltar</button>
+                <button id="btn-individual" onclick="enviar('KeyU')">👤 Individual</button>
+                <button id="btn-bic" class="special" onclick="enviar('KeyB')"></button>
+            </div>
+        </div>
+
+        <!-- Panel del Amsler -->
+        <div id="panel-amsler" class="bloque oculto">
+            <div class="grupo-tit">Lámina</div>
+            <div class="lista-lam" id="amsler-laminas"></div>
+            <button class="conmut" id="amsler-diag" onclick="enviar('A:diag')">
+                <span class="et">Diagonales</span><span class="val" id="amsler-diag-val">—</span>
+            </button>
+            <button class="conmut" id="amsler-ojo" onclick="enviar('A:ojo')">
+                <span class="et">Ojo en examen</span><span class="val" id="amsler-ojo-val">OD</span>
+            </button>
+            <div class="nota-geo" id="amsler-geo"></div>
+        </div>
+
+        <!-- Panel de un módulo declarado pero sin construir -->
+        <div id="panel-pendiente" class="bloque oculto">
+            <div style="background:#1a1a1a; border:1px solid #2b2b2b; border-radius:10px; padding:14px;">
+                <div style="font-size:13px; color:#ddd; font-weight:600;">Todavía no construido</div>
+                <div style="font-size:11px; color:#777; margin-top:5px; line-height:1.5;" id="pendiente-txt"></div>
+            </div>
+        </div>
     </div>
 
     <div id="pair-ask" class="hidden">
@@ -337,29 +486,176 @@
             return { w: ink * aspect, h: ink };   // la altura manda, igual que en la pantalla
         }
 
-        socket?.on('screenUpdate', (data) => {
-            const container = document.getElementById('remote-screen');
-            container.innerHTML = '';
-            if (!data?.lines) return;
+        /* ═══════════ ENRUTADO DE VISTAS ═══════════
+           La pantalla manda su estado completo y el mando decide qué pintar.
+           No hay estado de navegación duplicado aquí: si el mando se recarga,
+           vuelve a donde esté la pantalla, que es la que lleva la verdad. */
+        const $r = id => document.getElementById(id);
+        const ver = (el, si) => el && el.classList.toggle('oculto', !si);
 
+        socket?.on('screenUpdate', (data) => {
+            if (!data) return;
+            const mod = data.modulo || 'optotipos';
+            const enMenu = mod === 'menu';
+            ver($r('vista-menu'), enMenu);
+            ver($r('vista-modulo'), !enMenu);
+            pintarAviso(data);
+            if (enMenu) { pintarMenu(data); return; }
+
+            const info = (data.modulos || []).find(m => m.id === mod)
+                      || { id: mod, titulo: mod, sub: '', hecho: true, distFija: null };
+            pintarCabecera(info, data);
+            ver($r('panel-optotipos'), mod === 'optotipos');
+            ver($r('panel-amsler'),    mod === 'amsler');
+            ver($r('panel-pendiente'), !info.hecho);
+
+            const espejo = $r('remote-screen');
+            espejo.innerHTML = '';
+            if (mod === 'optotipos')   { espejoOptotipos(espejo, data); updateFuncButtons(data); }
+            else if (mod === 'amsler') { espejoAmsler(espejo, data); pintarAmsler(data); }
+            else                       { espejoPendiente(espejo, info); }
+        });
+
+        function pintarAviso(data) {
+            ver($r('aviso-volver'), !!data.recordarVolver);
+            if (!data.recordarVolver) return;
+            const enOpto = (data.modulo || 'optotipos') === 'optotipos';
+            $r('aviso-volver-sub').textContent = enOpto
+                ? 'Está midiendo agudeza y el paciente puede seguir a 1 m. Devuélvalo a '
+                  + (data.cal?.testDistanceM ?? '—') + ' m: desde más cerca los optotipos salen bien dibujados y mal medidos.'
+                : 'Devuélvalo a ' + (data.cal?.testDistanceM ?? '—') + ' m antes del siguiente test, '
+                  + 'o la agudeza saldrá medida a la distancia equivocada.';
+        }
+
+        function pintarMenu(data) {
+            const cont = $r('lista-modulos');
+            cont.innerHTML = '';
+            let grupo = null;
+            (data.modulos || []).forEach(m => {
+                if (m.grupo !== grupo) {
+                    grupo = m.grupo;
+                    const g = document.createElement('div');
+                    g.className = 'grupo-tit';
+                    g.textContent = grupo;
+                    cont.appendChild(g);
+                }
+                const b = document.createElement('button');
+                b.className = 'fila-mod' + (m.hecho ? '' : ' no-hecho');
+                /* El orden importa: un módulo sin construir dice «pendiente»
+                   aunque traiga distancia fija, o el «a 1 m» lo hace parecer
+                   disponible. */
+                const tag = !m.hecho ? 'pendiente' : (m.distFija != null ? 'a ' + m.distFija + ' m' : '');
+                b.innerHTML =
+                    '<div class="txt"><div class="tit"></div><div class="sub"></div></div>'
+                  + '<div class="tag' + (m.hecho && m.distFija != null ? ' cerca' : '') + '"></div>';
+                b.querySelector('.tit').textContent = m.titulo;
+                b.querySelector('.sub').textContent = m.sub;
+                b.querySelector('.tag').textContent = tag;
+                // Un módulo sin construir se lista pero no se entra: entrar
+                // dejaría la pantalla del paciente en un estado que no existe.
+                if (m.hecho) b.addEventListener('click', () => enviar('Modulo:' + m.id));
+                else b.disabled = true;
+                cont.appendChild(b);
+            });
+        }
+
+        function pintarCabecera(info, data) {
+            $r('mod-titulo').textContent = info.titulo;
+            $r('mod-sub').textContent = info.grupo || info.sub || '';
+            const fija = info.distFija != null;
+            $r('mod-dist-et').textContent = fija ? 'Acercado' : 'Distancia';
+            const val = $r('mod-dist-val');
+            val.textContent = (data.cal?.distanciaModulo ?? '—') + ' m';
+            val.style.color = fija ? '#f0b26b' : '#2980b9';
+        }
+
+        function espejoPendiente(espejo, info) {
+            $r('pendiente-txt').textContent =
+                info.titulo + ' está declarado en el sistema pero su estímulo todavía no existe. '
+              + 'La pantalla lo dice en vez de quedarse en blanco.';
+            espejo.innerHTML = '<div style="font-family:monospace;font-size:11px;color:#444;'
+                             + 'letter-spacing:1px;">SIN EST\u00cdMULO</div>';
+        }
+
+        /* ═══════════ ESPEJO DEL AMSLER ═══════════
+           No está a escala —el espejo nunca lo está—, pero sí muestra la lámina
+           elegida, las diagonales y el punto de fijación. Las cifras de debajo
+           son las reales, calculadas por la pantalla. */
+        const AMSLER_COLOR = {
+            blanco: { fondo: '#000', linea: 'rgba(255,255,255,0.85)', punto: '#fff' },
+            negro:  { fondo: '#fff', linea: 'rgba(0,0,0,0.8)',        punto: '#000' },
+            rojo:   { fondo: '#000', linea: 'rgba(255,0,0,0.9)',      punto: '#ff3b3b' }
+        };
+
+        function rejillaSVG(lamina, diagonales, lado, cuadros) {
+            const c = AMSLER_COLOR[lamina] || AMSLER_COLOR.blanco;
+            const paso = lado / cuadros, lineas = [];
+            for (let i = 0; i <= cuadros; i++) {
+                const v = (i * paso).toFixed(2);
+                lineas.push('<line x1="' + v + '" y1="0" x2="' + v + '" y2="' + lado + '"/>');
+                lineas.push('<line x1="0" y1="' + v + '" x2="' + lado + '" y2="' + v + '"/>');
+            }
+            const diag = diagonales
+                ? '<g stroke="' + c.linea + '" stroke-width="1" opacity="0.55">'
+                + '<line x1="0" y1="0" x2="' + lado + '" y2="' + lado + '"/>'
+                + '<line x1="' + lado + '" y1="0" x2="0" y2="' + lado + '"/></g>'
+                : '';
+            return '<svg width="' + lado + '" height="' + lado + '" viewBox="0 0 ' + lado + ' ' + lado + '"'
+                 + ' shape-rendering="crispEdges" style="background:' + c.fondo + ';border-radius:4px;">'
+                 + '<g stroke="' + c.linea + '" stroke-width="1" fill="none">' + lineas.join('') + '</g>'
+                 + diag
+                 + '<circle cx="' + (lado/2) + '" cy="' + (lado/2) + '" r="2.6" fill="' + c.punto + '"/></svg>';
+        }
+
+        function espejoAmsler(espejo, data) {
+            const a = data.amsler || {};
+            espejo.innerHTML = rejillaSVG(a.lamina || 'blanco', !!a.diagonales, 176, 10);
+        }
+
+        function pintarAmsler(data) {
+            const a = data.amsler || {};
+            const cont = $r('amsler-laminas');
+            if (cont.dataset.pintado !== 'si') {
+                cont.innerHTML = '';
+                (a.laminas || []).forEach(l => {
+                    const b = document.createElement('button');
+                    b.dataset.id = l.id;
+                    b.innerHTML = '<div class="muestra"></div>'
+                                + '<div class="txt"><div class="tit"></div><div class="sub"></div></div>';
+                    b.querySelector('.muestra').innerHTML = rejillaSVG(l.id, false, 34, 4);
+                    b.querySelector('.tit').textContent = l.nombre;
+                    b.querySelector('.sub').textContent = l.uso;
+                    b.addEventListener('click', () => enviar('A:lamina:' + l.id));
+                    cont.appendChild(b);
+                });
+                if ((a.laminas || []).length) cont.dataset.pintado = 'si';
+            }
+            cont.querySelectorAll('button').forEach(b => b.classList.toggle('sel', b.dataset.id === a.lamina));
+
+            $r('amsler-diag').classList.toggle('on', !!a.diagonales);
+            $r('amsler-diag-val').textContent = a.diagonales ? 'ACTIVAS' : '—';
+            $r('amsler-ojo-val').textContent = a.ojo || 'OD';
+            $r('amsler-geo').textContent =
+                'cuadro ' + (a.cuadroMM ?? 0) + ' mm = ' + (a.gradoReal ?? 1) + '\u00b0  ·  campo \u00b1' + (a.gradosX ?? 0)
+              + '\u00b0 \u00d7 \u00b1' + (a.gradosY ?? 0) + '\u00b0  ·  ' + (a.areaPct ?? 0)
+              + '% del \u00e1rea de la rejilla de \u00b110\u00b0';
+        }
+
+        /* El espejo de optotipos: el de siempre, ahora en su propia función. */
+        function espejoOptotipos(container, data) {
+            if (!data.lines) return;
             const gap = 12;
             container.style.gap = gap + 'px';
-
             data.lines.forEach((line, li) => {
                 const lineDiv = document.createElement('div');
                 lineDiv.className = 'remote-line';
                 lineDiv.style.gap = gap + 'px';
-
-                if (data.highlightMode && li !== data.highlightLineIdx) {
-                    lineDiv.classList.add('dimmed');
-                }
+                if (data.highlightMode && li !== data.highlightLineIdx) lineDiv.classList.add('dimmed');
 
                 const leftAnn = document.createElement('div');
                 leftAnn.className = 'remote-ann-left';
                 let denominator = line.snellen;
-                if (denominator && denominator.includes('/')) {
-                    denominator = denominator.split('/')[1];
-                }
+                if (denominator && denominator.includes('/')) denominator = denominator.split('/')[1];
                 leftAnn.textContent = denominator;
 
                 const row = document.createElement('div');
@@ -400,9 +696,7 @@
                 lineDiv.appendChild(rightAnn);
                 container.appendChild(lineDiv);
             });
-
-            updateFuncButtons(data);
-        });
+        }
 
 
     </script>

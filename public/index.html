@@ -134,6 +134,12 @@
 
         #dpr-input { width: 70px; }
 
+        /* En un módulo que no es optotipos, los controles del optotipo no
+           significan nada: se van de la barra en vez de quedarse mintiendo. */
+        #calibration-bar.modo-modulo .mode-selector { display:none; }
+        #calibration-bar.modo-modulo .cal-group,
+        #calibration-bar.modo-modulo .cal-sep { display:none; }
+
         #test-area {
             flex:1; position:relative; cursor:none; overflow:hidden;
             background:#FFFFFF; transition:background 0.2s;
@@ -144,6 +150,22 @@
         #test-area.bichromatic .bichromatic-half { display:block; }
         #half-r { left:0; width:50%; background:#FF0000; }
         #half-g { right:0; width:50%; background:#00FF00; }
+
+        /* ═══ MÓDULOS QUE NO SON OPTOTIPOS ═══
+           Cada módulo dibuja su estímulo aquí, centrado y a tamaño físico. Es
+           una capa hermana de #lines-container, no un reemplazo: el módulo de
+           optotipos sigue usando la suya intacta. */
+        #modulo-area {
+            position:absolute; inset:0;
+            display:flex; align-items:center; justify-content:center;
+            overflow:hidden;
+        }
+        #modulo-area.oculto, #lines-container.oculto { display:none; }
+        #modulo-nombre {
+            font-family:'OpticianSans','Segoe UI',sans-serif;
+            font-size:11px; letter-spacing:1.6px; color:#7a7a7a;
+            text-transform:uppercase; white-space:nowrap;
+        }
 
         #lines-container {
             position:absolute;
@@ -339,6 +361,7 @@
         <!-- Columna central: botón toggle + info -->
         <div class="center-group">
             <button class="btn-sm toggle-btn" id="btn-toggle-cal">▲</button>
+            <span id="modulo-nombre"></span>
             <span id="info-span"></span>
         </div>
 
@@ -358,6 +381,7 @@
         <div class="bichromatic-half" id="half-r"></div>
         <div class="bichromatic-half" id="half-g"></div>
         <div id="lines-container"></div>
+        <div id="modulo-area" class="oculto"></div>
     </div>
 
     <div id="footer">
@@ -463,6 +487,139 @@
             };
             for (let [k,v] of Object.entries(LEA_SVGS)) registerOptotype('P_'+k, v);
 
+            /* ═══════════ LOS MÓDULOS DE LA SUITE ═══════════
+               El de optotipos es el que ya estaba y sigue igual. Los demás se
+               declaran aquí desde el principio, hechos o no, porque el mando
+               tiene que poder listarlos y decir cuáles todavía no están: un
+               menú que esconde lo que falta miente sobre el estado del sistema.
+
+               distFija: metros a los que el módulo se hace SIEMPRE, ignorando
+               la distancia de la sala. Solo dos la traen, y por motivos
+               distintos: el Amsler porque a 6 m la pantalla cubriría el 2% del
+               área de la rejilla, y el Pelli-Robson porque mostrar sus ocho
+               niveles a la vez obliga a letras de 26 mm. Salir de uno de estos
+               deja al paciente acercado, así que el mando avisa. */
+            const MODULOS = [
+                { id:'optotipos', titulo:'Optotipos',        sub:'Letras · números · LEA · E direccional', grupo:'Agudeza visual',           hecho:true,  distFija:null },
+                { id:'contraste', titulo:'Pelli-Robson',     sub:'8 niveles · 0,30 log',                   grupo:'Sensibilidad al contraste', hecho:false, distFija:1 },
+                { id:'worth',     titulo:'Luces de Worth',   sub:'Fusión y supresión · gafa rojo-verde',   grupo:'Binocularidad',            hecho:false, distFija:null },
+                { id:'schober',   titulo:'Schober',          sub:'Cruz y anillos · forias',                grupo:'Binocularidad',            hecho:false, distFija:null },
+                { id:'color',     titulo:'Pseudoisocromático', sub:'Láminas de puntos · cribado',          grupo:'Visión del color',         hecho:false, distFija:null },
+                { id:'amsler',    titulo:'Rejilla de Amsler', sub:'3 láminas · 1 cuadro = 1°',             grupo:'Mácula',                   hecho:true,  distFija:1 },
+                { id:'relax',     titulo:'Relax acomodativo', sub:'Para retinoscopía y fondo de ojo',      grupo:'Fijación',                 hecho:false, distFija:null },
+                { id:'infantil',  titulo:'Fijación infantil', sub:'Secuencias animadas',                   grupo:'Fijación',                 hecho:false, distFija:null }
+            ];
+            const MODULO = {};
+            MODULOS.forEach(m => MODULO[m.id] = m);
+            /* El menú del mando es también un estado de la pantalla: mientras
+               el optometrista elige, el paciente no debe estar leyendo nada. Eso
+               es exactamente la «pantalla en negro» entre test y test, así que
+               sale gratis en vez de ser un botón aparte. No entra en MODULOS
+               porque no es un test y no se lista. */
+            MODULO.menu = { id:'menu', titulo:'Sin estímulo', sub:'el mando está en el menú', grupo:'', hecho:true, distFija:null };
+            function moduloActual(){ return MODULO[state.modulo] || MODULO.optotipos; }
+            // La distancia con la que calcula el módulo activo: la de la sala,
+            // salvo los que traen la suya fija.
+            function distanciaModulo(){
+                const f = moduloActual().distFija;
+                return f == null ? state.testDistanceM : f;
+            }
+
+            /* ═══════════ REJILLA DE AMSLER ═══════════
+               Un cuadro subtiende 1° y la rejilla completa ±10°, que es la
+               definición de la prueba: la lámina de papel mide 10 cm de lado
+               con cuadros de 5 mm porque se lee a 30 cm. En pantalla el cuadro
+               se calcula para la distancia real, así que a 1 m mide 17,45 mm.
+
+               A 1 m los ±10° piden 353 mm de lado y el monitor tiene 299 de
+               alto: entra el campo horizontal completo y se recorta el vertical.
+               Se dibujan los cuadros ENTEROS que caben y se dice cuánto campo
+               se está cubriendo, en vez de escalar la rejilla y falsear el
+               ángulo que es lo único que esta prueba mide. */
+            const AMSLER_LAMINAS = [
+                { id:'blanco', nombre:'Blanco sobre negro', fondo:'#000000', linea:'rgba(255,255,255,0.88)', punto:'#ffffff', uso:'Estándar · máxima sensibilidad' },
+                { id:'negro',  nombre:'Negro sobre blanco', fondo:'#ffffff', linea:'rgba(0,0,0,0.82)',       punto:'#000000', uso:'La más familiar en consulta' },
+                { id:'rojo',   nombre:'Rojo sobre negro',   fondo:'#000000', linea:'rgba(255,0,0,0.92)',     punto:'#ff3b3b', uso:'Desaturación al rojo' }
+            ];
+            const AMSLER_SEMICAMPO = 10;    // grados a cada lado, por definición
+
+            /* El paso se redondea a un número ENTERO de píxeles de dispositivo,
+               y esto no es cosmética. Con el paso fraccionario (52,57 px) unas
+               líneas caen sobre el borde del píxel y otras a caballo entre dos,
+               así que salen alternando intensidad: la rejilla parece tener
+               líneas gruesas y finas. En un test donde se le pide al paciente
+               que diga si alguna línea se ve distinta, eso no es un detalle
+               feo, es un falso positivo dibujado por nosotros.
+
+               Al ser todas las líneas múltiplos del mismo paso entero comparten
+               fase de subpíxel y se dibujan idénticas. El coste es que el cuadro
+               deja de medir 1,000° exactos; se calcula el ángulo que realmente
+               queda y se informa, que es menos del 1% de diferencia. */
+            function amslerGeometria(){
+                const D = distanciaModulo() * 1000;
+                const idealMM = 2 * D * Math.tan(Math.PI / 360);          // 1° de arco
+                const dpr = liveDpr();
+                const idealPx = idealMM * state.cssPxPerMM;
+                const ladoPx = Math.max(2, Math.round(idealPx * dpr)) / dpr;
+                const ladoMM = state.cssPxPerMM > 0 ? ladoPx / state.cssPxPerMM : idealMM;
+                const gradoReal = 2 * Math.atan(ladoMM / 2 / D) * 180 / Math.PI;
+                const area = d.testArea.getBoundingClientRect();
+                // cuadros enteros a cada lado del centro, sin pasar de ±10°
+                const porLado = n => Math.max(1, Math.min(AMSLER_SEMICAMPO, Math.floor((n / 2) / ladoPx)));
+                const cx = porLado(area.width), cy = porLado(area.height);
+                return {
+                    ladoMM, ladoPx, cx, cy, gradoReal,
+                    gradosX: +(cx * gradoReal).toFixed(1),
+                    gradosY: +(cy * gradoReal).toFixed(1),
+                    // fracción del área de la rejilla de ±10° que se cubre
+                    areaPct: Math.round((cx / AMSLER_SEMICAMPO) * (cy / AMSLER_SEMICAMPO) * 100)
+                };
+            }
+
+            function renderAmsler(){
+                const lam = AMSLER_LAMINAS.find(l => l.id === state.amslerLamina) || AMSLER_LAMINAS[0];
+                d.testArea.style.background = lam.fondo;
+                if (!state.isCalibrated) { d.moduloArea.innerHTML = ''; return; }
+                const g = amslerGeometria();
+                const w = g.cx * 2 * g.ladoPx, h = g.cy * 2 * g.ladoPx;
+                // El trazo no es clínico, pero sí tiene que ser el mismo en toda
+                // la rejilla: 1 px de dispositivo, sin medios píxeles que
+                // aparenten una línea más gruesa que otra.
+                const trazo = Math.max(1, Math.round(liveDpr())) / liveDpr();
+                // Con el paso ya entero en px de dispositivo, las coordenadas
+                // salen exactas: nada de toFixed(3) que reintroduzca fracciones.
+                const lineas = [];
+                for (let i = 0; i <= g.cx * 2; i++) {
+                    const x = i * g.ladoPx;
+                    lineas.push(`<line x1="${x}" y1="0" x2="${x}" y2="${h}"/>`);
+                }
+                for (let j = 0; j <= g.cy * 2; j++) {
+                    const y = j * g.ladoPx;
+                    lineas.push(`<line x1="0" y1="${y}" x2="${w}" y2="${y}"/>`);
+                }
+                /* Las diagonales no son horizontales ni verticales, así que
+                   crispEdges no les sirve: se dibujan con antialias en su propio
+                   grupo para que no salgan escalonadas. */
+                const diag = state.amslerDiagonales
+                    ? `<g stroke="${lam.linea}" stroke-width="${trazo}" opacity="0.5" shape-rendering="geometricPrecision">
+                         <line x1="0" y1="0" x2="${w}" y2="${h}"/>
+                         <line x1="${w}" y1="0" x2="0" y2="${h}"/>
+                       </g>` : '';
+                // El punto de fijación central: sin él el paciente no sabe dónde
+                // mirar y el defecto se mueve con la mirada.
+                const rPunto = Math.max(2, g.ladoPx * 0.09);
+                d.moduloArea.innerHTML =
+                    `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" shape-rendering="crispEdges">
+                       <g stroke="${lam.linea}" stroke-width="${trazo}" fill="none">${lineas.join('')}</g>
+                       ${diag}
+                       <circle cx="${w/2}" cy="${h/2}" r="${rPunto.toFixed(2)}" fill="${lam.punto}" stroke="none" shape-rendering="geometricPrecision"/>
+                     </svg>`;
+                d.moduloNombre.textContent =
+                    `Amsler · ${lam.nombre} · ojo ${state.amslerOjo} · cuadro ${g.ladoMM.toFixed(2)} mm = ` +
+                    `${g.gradoReal.toFixed(3)}° a ${distanciaModulo()} m · ±${g.gradosX}° × ±${g.gradosY}° ` +
+                    `(${g.areaPct}% del campo)`;
+            }
+
             const LETTERS = ['A','C','D','E','H','K','N','O','R','S','V','Z'];
             const NUMBERS = ['0','1','2','3','4','5','6','7','8','9'];
 
@@ -501,6 +658,9 @@
                 highlightMode: false, highlightLineGlobalIdx:0,
                 singleCharMode: false,
                 lineChars:{},
+                // módulo activo y estado de los que no son optotipos
+                modulo:'optotipos', recordarVolver:false,
+                amslerLamina:'blanco', amslerDiagonales:false, amslerOjo:'OD',
             };
 
             const $ = id => document.getElementById(id);
@@ -511,6 +671,7 @@
                 cardHandle:$('card-handle'), cardReadout:$('card-readout'),
                 cardLabel:$('card-label'), cardRefs:$('card-refs'),
                 infoSpan:$('info-span'), linesContainer:$('lines-container'),
+                moduloArea:$('modulo-area'), moduloNombre:$('modulo-nombre'),
                 calStatus:$('cal-status-footer'), remoteStatus:$('remote-status'),
                 pairCodeLabel:$('pair-code-label'), shortcutsPanel:$('shortcuts-panel'),
                 shortcutsToggle:$('shortcuts-toggle'), btnHighlight:$('btn-highlight'),
@@ -778,7 +939,147 @@
                 return state.lineChars[key];
             }
 
+            /* El repartidor: decide qué capa se dibuja. El módulo de optotipos
+               conserva su render entero e intacto; los demás dibujan en
+               #modulo-area. Todo lo que llamaba a renderScreen() sigue valiendo. */
             function renderScreen(){
+                const m = moduloActual();
+                const esOpto = m.id === 'optotipos';
+                d.linesContainer.classList.toggle('oculto', !esOpto);
+                d.moduloArea.classList.toggle('oculto', esOpto);
+                d.calBar.classList.toggle('modo-modulo', !esOpto);
+                /* El fondo bicromático es del optotipo: dejarlo puesto en otro
+                   módulo pintaría media rejilla de Amsler sobre rojo y media
+                   sobre verde. Se apaga sin tocar la preferencia guardada. */
+                d.testArea.classList.toggle('bichromatic', esOpto && state.bichromatic);
+                if (esOpto) {
+                    d.testArea.style.background = '';
+                    d.moduloNombre.textContent = '';
+                    renderOptotipos();
+                } else if (m.id === 'menu') {
+                    d.testArea.style.background = '#000000';
+                    d.moduloArea.innerHTML = '';
+                    d.moduloNombre.textContent = 'sin estímulo · el mando está en el menú';
+                } else if (m.id === 'amsler') {
+                    renderAmsler();
+                } else {
+                    renderPendiente(m);
+                }
+                if (!esOpto) {
+                    d.infoSpan.textContent = textoCalibracion();
+                    d.infoSpan.classList.remove('overflow');
+                }
+                emitirEspejo();
+            }
+
+            // Lo que vale para cualquier módulo: de dónde salen los milímetros.
+            function textoCalibracion(){
+                return `${state.cssPxPerMM.toFixed(3)} px/mm · ${state.monitorInches.toFixed(1)}″ · `
+                     + `DPR ${(+liveDpr().toFixed(3))}`;
+            }
+
+            /* Cambio de módulo. Lo único delicado: los módulos de distancia
+               fija dejan al paciente acercado, así que al salir de uno de ellos
+               hacia otro que NO la trae fija se levanta el recordatorio. Medir
+               agudeza con el paciente todavía a 1 m es el error que esto evita,
+               y es silencioso: los optotipos saldrían perfectos y mal medidos. */
+            function entrarModulo(id){
+                const destino = MODULO[id];
+                if (!destino || id === state.modulo) return;
+                const salgo = moduloActual();
+                if (salgo.distFija != null && destino.distFija == null) state.recordarVolver = true;
+                if (destino.distFija != null) state.recordarVolver = false;
+                state.modulo = id;
+                renderScreen();
+                saveToStorage();
+            }
+
+            function amslerComando(resto){
+                const [que, valor] = resto.split(':');
+                if (que === 'lamina' && AMSLER_LAMINAS.some(l => l.id === valor)) state.amslerLamina = valor;
+                else if (que === 'diag') state.amslerDiagonales = !state.amslerDiagonales;
+                else if (que === 'ojo') state.amslerOjo = state.amslerOjo === 'OD' ? 'OI' : 'OD';
+                else return;
+                renderScreen();
+                saveToStorage();
+            }
+
+            /* ═══════════ EL ESPEJO DEL MANDO ═══════════
+               Un solo emisor para todos los módulos. Lleva siempre el estado
+               común —qué módulo, la calibración, la distancia efectiva, si hay
+               que devolver al paciente— y encima lo propio del módulo activo.
+               El mando decide qué pintar con eso; la pantalla no sabe de menús. */
+            function indiceResaltadoLocal(){
+                if (!state.highlightMode) return -1;
+                const g = ALL_LINES[state.highlightLineGlobalIdx];
+                return (g && g.screenIndex === state.currentScreenIdx) ? g.lineIndex : -1;
+            }
+
+            function emitirEspejo(){
+                if (!(window.remoteSocket && window.remoteSocket.connected && state.remoteJoined)) return;
+                const m = moduloActual();
+                const datos = {
+                    modulo: m.id,
+                    modulos: MODULOS.map(x => ({ id:x.id, titulo:x.titulo, sub:x.sub, grupo:x.grupo, hecho:x.hecho, distFija:x.distFija })),
+                    recordarVolver: state.recordarVolver,
+                    cal: {
+                        testDistanceM: state.testDistanceM,
+                        distanciaModulo: distanciaModulo(),
+                        cssPxPerMM: state.cssPxPerMM,
+                        source: state.calSource,
+                        calibrado: state.isCalibrated
+                    }
+                };
+                if (m.id === 'optotipos' && state.isCalibrated) {
+                    const screen = getCurrentScreen();
+                    datos.lines = screen.lines.map((line, li) => ({
+                        snellen: line.snellen.split('/')[1],
+                        decimal: line.decimal,
+                        count: line.count,
+                        chars: getLineChars(state.currentScreenIdx, li, line.count).map(ch => ({
+                            type: ch.type,
+                            char: ch.char || '',
+                            key: ch.key || '',
+                            rot: ch.rot || 0,
+                            uri: ch.type === 'img' ? SVG_CACHE[ch.key] : null,
+                            aspect: ch.type === 'img' ? (SVG_ASPECT[ch.key] || 1) : 1,
+                            ss01: usaSS01()
+                        }))
+                    }));
+                    datos.mode = state.mode;
+                    datos.highlightMode = state.highlightMode;
+                    datos.highlightLineIdx = indiceResaltadoLocal();
+                    datos.singleCharMode = state.singleCharMode;
+                    datos.bichromatic = state.bichromatic;
+                } else if (m.id === 'amsler') {
+                    const g = state.isCalibrated ? amslerGeometria() : null;
+                    datos.amsler = {
+                        lamina: state.amslerLamina,
+                        laminas: AMSLER_LAMINAS.map(l => ({ id:l.id, nombre:l.nombre, uso:l.uso })),
+                        diagonales: state.amslerDiagonales,
+                        ojo: state.amslerOjo,
+                        cuadroMM: g ? +g.ladoMM.toFixed(2) : 0,
+                        gradoReal: g ? +g.gradoReal.toFixed(3) : 0,
+                        gradosX: g ? g.gradosX : 0,
+                        gradosY: g ? g.gradosY : 0,
+                        areaPct: g ? g.areaPct : 0
+                    };
+                }
+                window.remoteSocket.emit('screenUpdate', datos);
+            }
+
+            // Un módulo declarado pero sin construir lo dice en la pantalla, en
+            // vez de dejarla en blanco y parecer que algo se rompió.
+            function renderPendiente(m){
+                d.testArea.style.background = '#000000';
+                d.moduloArea.innerHTML =
+                    '<div style="font-family:\'OpticianSans\',sans-serif;color:#3a3a3a;'
+                  + 'font-size:15px;letter-spacing:2px;text-align:center;line-height:2;">'
+                  + m.titulo.toUpperCase() + '<br><span style="font-size:11px;color:#2e2e2e;">TODAV\u00cdA NO CONSTRUIDO</span></div>';
+                d.moduloNombre.textContent = m.titulo + ' · pendiente';
+            }
+
+            function renderOptotipos(){
                 d.linesContainer.innerHTML='';
                 if(!state.isCalibrated) return;
                 const screen = getCurrentScreen();
@@ -854,40 +1155,9 @@
                     d.linesContainer.appendChild(lineDiv);
                 });
 
-                if (window.remoteSocket && window.remoteSocket.connected && state.remoteJoined) {
-                    const screenData = {
-                        lines: screen.lines.map((line, li) => ({
-                            snellen: line.snellen.split('/')[1],
-                            decimal: line.decimal,
-                            count: line.count,
-                            chars: getLineChars(state.currentScreenIdx, li, line.count).map(ch => ({
-                                type: ch.type,
-                                char: ch.char || '',
-                                key: ch.key || '',
-                                rot: ch.rot || 0,
-                                uri: ch.type === 'img' ? SVG_CACHE[ch.key] : null,
-                                aspect: ch.type === 'img' ? (SVG_ASPECT[ch.key] || 1) : 1,
-                                ss01: usaSS01()
-                            }))
-                        })),
-                        cal: {
-                            testDistanceM: state.testDistanceM,
-                            cssPxPerMM: state.cssPxPerMM,
-                            source: state.calSource,
-                        },
-                        mode: state.mode,
-                        highlightMode: state.highlightMode,
-                        highlightLineIdx: localHighlightIdx,
-                        singleCharMode: state.singleCharMode,
-                        bichromatic: state.bichromatic,
-                    };
-                    window.remoteSocket.emit('screenUpdate', screenData);
-                }
-
                 const mm20_20 = optotypeHeightMM(1.0,state.testDistanceM);
-                d.infoSpan.textContent =
-                    `${state.cssPxPerMM.toFixed(3)} px/mm · ${state.monitorInches.toFixed(1)}″ · ` +
-                    `DPR ${(+liveDpr().toFixed(3))} · 20/20: ${mm20_20.toFixed(2)}mm → ${cssHeight(mm20_20).toFixed(1)}px`;
+                d.infoSpan.textContent = textoCalibracion() +
+                    ` · 20/20: ${mm20_20.toFixed(2)}mm → ${cssHeight(mm20_20).toFixed(1)}px`;
 
                 // Con tamaños y separaciones físicas hay combinaciones de monitor y
                 // distancia en las que una pantalla ya no cabe. Avisarlo, en vez de
@@ -942,7 +1212,10 @@
                     cardDevW:state.cardDevW, cardDevH:state.cardDevH,
                     calAck:state.calAck, pairCode:state.pairCode,
                     bichromatic:state.bichromatic, highlightMode:state.highlightMode,
-                    singleCharMode:state.singleCharMode, currentScreenIdx:state.currentScreenIdx
+                    singleCharMode:state.singleCharMode, currentScreenIdx:state.currentScreenIdx,
+                    // preferencias del Amsler; el módulo activo NO se guarda,
+                    // igual que el modo de optotipo: cada sesión arranca limpia
+                    amslerLamina:state.amslerLamina, amslerDiagonales:state.amslerDiagonales
                 })); }catch(e){}
             }
 
@@ -956,6 +1229,9 @@
                 // paciente anterior no debe arrastrarse. Antes se guardaba en
                 // localStorage y luego se ignoraba, o sea que era dato muerto.
                 state.mode = 'letters';
+                state.modulo = 'optotipos';
+                state.recordarVolver = false;
+                state.amslerOjo = 'OD';
                 if(saved){
                     // Nada de resolución ni DPR guardados: los da el navegador en
                     // cada arranque. Del almacenamiento solo sale lo que ninguna
@@ -973,6 +1249,8 @@
                     if(typeof saved.singleCharMode==='boolean') state.singleCharMode=saved.singleCharMode;
                     if(typeof saved.currentScreenIdx==='number')
                         state.currentScreenIdx=Math.min(SCREENS.length-1, Math.max(0, saved.currentScreenIdx));
+                    if(AMSLER_LAMINAS.some(l=>l.id===saved.amslerLamina)) state.amslerLamina=saved.amslerLamina;
+                    if(typeof saved.amslerDiagonales==='boolean') state.amslerDiagonales=saved.amslerDiagonales;
                 } else {
                     state.bichromatic=false;
                 }
@@ -1229,7 +1507,12 @@
                     return;
                 }
                 if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) e.preventDefault();
-                if(e.key==='ArrowUp'){
+                /* Fuera del módulo de optotipos solo siguen vivos los atajos que
+                   valen en cualquiera: calibrar, la barra, los atajos, salir. El
+                   resto navegaría una pantalla que nadie está viendo. */
+                if (state.modulo !== 'optotipos' && !['c','C','h','H','?','Escape','m','M'].includes(e.key)) return;
+                if(e.key==='m'||e.key==='M'){ if(!e.ctrlKey&&!e.metaKey) entrarModulo('optotipos'); }
+                else if(e.key==='ArrowUp'){
                     if (state.highlightMode) moveHighlight(-1);
                     else navigateToScreen(state.currentScreenIdx-1);
                 }
@@ -1289,10 +1572,24 @@
                 socket.on('peers', (n) => updateRemoteStatus(n));
                 socket.on('disconnect', () => { state.remoteJoined = false; updateRemoteStatus(0); });
                 socket.on('comando', (cmd) => {
-                    if (cmd.startsWith('Mode:')) {
+                    if (cmd.startsWith('Modulo:')) {
+                        entrarModulo(cmd.slice(7));
+                    } else if (cmd === 'VolverDicho') {
+                        state.recordarVolver = false;
+                        emitirEspejo();
+                    } else if (cmd.startsWith('A:')) {
+                        if (state.modulo === 'amsler') amslerComando(cmd.slice(2));
+                    } else if (cmd.startsWith('Mode:')) {
+                        // los modos de optotipo solo aplican a su módulo
+                        if (state.modulo !== 'optotipos') return;
                         const modo = cmd.split(':')[1];
                         setMode(modo);
                         socket.emit('modo', modo);
+                    } else if (state.modulo !== 'optotipos') {
+                        // las flechas y los atajos del optotipo no significan
+                        // nada en otro módulo: mejor ignorarlos que navegar a
+                        // ciegas una pantalla que no se está viendo
+                        return;
                     } else {
                         const keyEvent = new KeyboardEvent('keydown', {
                             key: cmd.startsWith('Key') ? cmd.slice(3) : cmd,

@@ -120,8 +120,9 @@
         .remote-line.dimmed img { opacity: 0.10; }
 
         .remote-ann-left, .remote-ann-right {
-            font-family: 'Segoe UI', 'Helvetica Neue', sans-serif;
-            font-weight: 600;
+            font-family: 'OpticianSans', 'Segoe UI', 'Helvetica Neue', sans-serif;
+            font-weight: normal;
+            letter-spacing: 0.5px;
             width: 45px;
             text-align: center;
             font-size: 12px;
@@ -211,7 +212,7 @@
     <div class="mode-grid" id="mode-buttons">
         <button data-mode="letters" class="active-mode">Letras</button>
         <button data-mode="numbers">Números</button>
-        <button data-mode="pediatric">Figuras</button>
+        <button data-mode="pediatric">LEA</button>
         <button data-mode="e_directional">E direc.</button>
     </div>
 
@@ -325,16 +326,15 @@
 
         /* El espejo no está a escala: es una vista previa y todas las líneas se
            dibujan igual de grandes. Lo que sí tiene que cuadrar es que letras y
-           figuras midan aprox. lo mismo entre sí, con el mismo criterio que la
+           figuras midan lo mismo entre sí, con el mismo criterio que la
            pantalla del paciente: INK_PX es la altura de la tinta, no el
-           cuadratín. Aquí basta el ratio nominal de la fuente (las redondas
-           salen un 6% mayores); la medida por glifo solo hace falta en la
-           pantalla del paciente, que es la que mide. */
+           cuadratín. Los dos modos de texto llegan ya con ss01, donde todo
+           glifo mide 0,500 em exactos, así que el ratio nominal no aproxima
+           nada: es el valor. Los otros dos modos son SVG con su viewBox. */
         const INK_PX = 20;
         const CAP_HEIGHT_RATIO = 0.5;   // Optician Sans: mayúsculas = 500/1000 del cuadratín
         function optotypeBoxPx(aspect, ink){
-            return aspect >= 1 ? { w: ink, h: ink/aspect }
-                               : { w: ink*aspect, h: ink };
+            return { w: ink * aspect, h: ink };   // la altura manda, igual que en la pantalla
         }
 
         socket?.on('screenUpdate', (data) => {
@@ -374,6 +374,9 @@
                         const span = document.createElement('span');
                         span.className = 'remote-text';
                         span.textContent = ch.char;
+                        // ss01: todo glifo mide 0,500 em, así que el ratio
+                        // nominal de abajo es exacto y no una aproximación.
+                        if (ch.ss01) span.style.fontFeatureSettings = "'ss01'";
                         span.style.fontSize = (INK_PX / CAP_HEIGHT_RATIO) + 'px';
                         row.appendChild(span);
                     } else {

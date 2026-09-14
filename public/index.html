@@ -134,9 +134,8 @@
 
         #dpr-input { width: 70px; }
 
-        /* En un módulo que no es optotipos, los controles del optotipo no
-           significan nada: se van de la barra en vez de quedarse mintiendo. */
-        #calibration-bar.modo-modulo .mode-selector { display:none; }
+        /* Los controles del optotipo no significan nada en otro módulo. */
+        #calibration-bar.modo-modulo .mode-selector,
         #calibration-bar.modo-modulo .cal-group,
         #calibration-bar.modo-modulo .cal-sep { display:none; }
 
@@ -155,12 +154,25 @@
            Cada módulo dibuja su estímulo aquí, centrado y a tamaño físico. Es
            una capa hermana de #lines-container, no un reemplazo: el módulo de
            optotipos sigue usando la suya intacta. */
+        /* Fija y a pantalla completa, no dentro de #test-area: el estímulo de
+           un módulo tiene que disponer del alto entero del monitor. Con la
+           barra y el pie descontados se perdía un grado de campo en el Amsler,
+           que es justo lo que esta prueba mide. z-index 90 la deja por debajo
+           de la barra (100), así que pulsar H la trae de vuelta encima si hace
+           falta, y por debajo de la calibración (300), que sigue funcionando. */
         #modulo-area {
-            position:absolute; inset:0;
+            position:fixed; inset:0; z-index:90;
             display:flex; align-items:center; justify-content:center;
             overflow:hidden;
         }
         #modulo-area.oculto, #lines-container.oculto { display:none; }
+        /* En un módulo la pantalla es el estímulo y nada más. La barra se
+           repliega con la misma clase que ya usaba el botón ▲, así que H sigue
+           sirviendo para asomarla. */
+        body.en-modulo #footer,
+        body.en-modulo #shortcuts-toggle { display:none; }
+        /* El panel de atajos y el de calibración siguen por encima de la capa
+           (181 y 300 contra 90), así que ? y C funcionan igual desde el teclado. */
         #modulo-nombre {
             font-family:'OpticianSans','Segoe UI',sans-serif;
             font-size:11px; letter-spacing:1.6px; color:#7a7a7a;
@@ -563,10 +575,13 @@
                 const ladoPx = Math.max(2, Math.round(idealPx * dpr)) / dpr;
                 const ladoMM = state.cssPxPerMM > 0 ? ladoPx / state.cssPxPerMM : idealMM;
                 const gradoReal = 2 * Math.atan(ladoMM / 2 / D) * 180 / Math.PI;
-                const area = d.testArea.getBoundingClientRect();
+                /* Se mide la ventana, no #test-area: la capa del módulo es fija
+                   a pantalla completa, así que no depende de si la barra está
+                   plegada ni de la transición de 0,3 s de su plegado. */
+                const anchoPx = window.innerWidth, altoPx = window.innerHeight;
                 // cuadros enteros a cada lado del centro, sin pasar de ±10°
                 const porLado = n => Math.max(1, Math.min(AMSLER_SEMICAMPO, Math.floor((n / 2) / ladoPx)));
-                const cx = porLado(area.width), cy = porLado(area.height);
+                const cx = porLado(anchoPx), cy = porLado(altoPx);
                 return {
                     ladoMM, ladoPx, cx, cy, gradoReal,
                     gradosX: +(cx * gradoReal).toFixed(1),
@@ -578,7 +593,7 @@
 
             function renderAmsler(){
                 const lam = AMSLER_LAMINAS.find(l => l.id === state.amslerLamina) || AMSLER_LAMINAS[0];
-                d.testArea.style.background = lam.fondo;
+                d.moduloArea.style.background = lam.fondo;
                 if (!state.isCalibrated) { d.moduloArea.innerHTML = ''; return; }
                 const g = amslerGeometria();
                 const w = g.cx * 2 * g.ladoPx, h = g.cy * 2 * g.ladoPx;
@@ -948,16 +963,22 @@
                 d.linesContainer.classList.toggle('oculto', !esOpto);
                 d.moduloArea.classList.toggle('oculto', esOpto);
                 d.calBar.classList.toggle('modo-modulo', !esOpto);
+                document.body.classList.toggle('en-modulo', !esOpto);
                 /* El fondo bicromático es del optotipo: dejarlo puesto en otro
                    módulo pintaría media rejilla de Amsler sobre rojo y media
                    sobre verde. Se apaga sin tocar la preferencia guardada. */
                 d.testArea.classList.toggle('bichromatic', esOpto && state.bichromatic);
+                /* Al entrar en un módulo la barra se repliega sola; al volver a
+                   optotipos vuelve. Es la misma clase del botón ▲, así que el
+                   estado del icono se mantiene coherente. */
+                d.calBar.classList.toggle('collapsed', !esOpto);
+                d.btnToggle.textContent = esOpto ? '▲' : '▼';
                 if (esOpto) {
                     d.testArea.style.background = '';
                     d.moduloNombre.textContent = '';
                     renderOptotipos();
                 } else if (m.id === 'menu') {
-                    d.testArea.style.background = '#000000';
+                    d.moduloArea.style.background = '#000000';
                     d.moduloArea.innerHTML = '';
                     d.moduloNombre.textContent = 'sin estímulo · el mando está en el menú';
                 } else if (m.id === 'amsler') {
@@ -1071,7 +1092,7 @@
             // Un módulo declarado pero sin construir lo dice en la pantalla, en
             // vez de dejarla en blanco y parecer que algo se rompió.
             function renderPendiente(m){
-                d.testArea.style.background = '#000000';
+                d.moduloArea.style.background = '#000000';
                 d.moduloArea.innerHTML =
                     '<div style="font-family:\'OpticianSans\',sans-serif;color:#3a3a3a;'
                   + 'font-size:15px;letter-spacing:2px;text-align:center;line-height:2;">'

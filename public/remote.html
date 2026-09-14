@@ -269,6 +269,31 @@
         .lista-niv .pct { font-family: monospace; font-size: 9px; color: #555; width: 32px; text-align: right; flex-shrink: 0; }
         .lista-niv .limite { color: #d9863f; }
 
+        /* ═══════════ CONTROLES DE WORTH Y SCHOBER ═══════════ */
+        .trio { display: flex; gap: 6px; }
+        .trio button {
+            flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center;
+            justify-content: center; gap: 2px; padding: 9px 0; border-radius: 8px;
+            background: #1a1a1a; border: 1px solid #2b2b2b; color: #bbb; font: inherit;
+        }
+        .trio button.sel { background: #f1c40f; border-color: #f1c40f; color: #151515; }
+        .trio button.no-entra { border-color: rgba(231,76,60,0.5); color: #6a6a6a; }
+        .trio button.sel.no-entra { background: #e74c3c; border-color: #e74c3c; color: #fff; }
+        .trio .g { font-size: 13px; font-weight: 600; }
+        .trio .mm { font-family: monospace; font-size: 9px; opacity: 0.75; }
+
+        .tabla {
+            display: flex; flex-direction: column; gap: 1px;
+            background: #262626; border-radius: 8px; overflow: hidden;
+        }
+        .tabla .f {
+            display: flex; align-items: center; gap: 10px;
+            background: #1a1a1a; padding: 9px 11px; min-height: 40px;
+        }
+        .tabla .f .a { font-family: monospace; font-size: 11px; width: 92px; flex-shrink: 0; }
+        .tabla .f .b { font-size: 12.5px; flex-grow: 1; font-weight: 600; }
+        .tabla .f .c { font-family: monospace; font-size: 9px; color: #5e5e5e; flex-shrink: 0; }
+
         /* Botones de modo */
         .mode-grid {
             display: grid;
@@ -444,6 +469,35 @@
             <div class="nota-geo" id="pelli-geo"></div>
         </div>
 
+        <!-- Panel de Worth -->
+        <div id="panel-worth" class="bloque oculto">
+            <div class="grupo-tit">Tamaño de los puntos</div>
+            <div class="trio" id="worth-tamanos"></div>
+            <div class="nota-geo" id="worth-techo"></div>
+            <button class="conmut" onclick="enviar('W:ojo')">
+                <span class="et">Gafa: rojo en <strong id="worth-ojo">OD</strong></span>
+                <span class="val" style="color:#f1c40f;">INVERTIR</span>
+            </button>
+            <div class="grupo-tit">Qué significa lo que responde</div>
+            <div class="tabla" id="worth-lectura"></div>
+        </div>
+
+        <!-- Panel de Schober -->
+        <div id="panel-schober" class="bloque oculto">
+            <div class="grupo-tit">Anillos visibles</div>
+            <div class="trio" id="schober-anillos"></div>
+            <div class="grupo-tit">Filtro rojo en</div>
+            <div class="trio" id="schober-ojos"></div>
+            <button class="conmut" onclick="enviar('S:inv')">
+                <span class="et">Cruz <strong id="schober-color">roja</strong></span>
+                <span class="val" style="color:#f1c40f;">INVERTIR</span>
+            </button>
+            <div class="nota-geo" id="schober-deriv"></div>
+            <div class="grupo-tit">Dónde cae la cruz</div>
+            <div class="tabla" id="schober-lectura"></div>
+            <div class="nota-geo" id="schober-geo"></div>
+        </div>
+
         <!-- Panel de un módulo declarado pero sin construir -->
         <div id="panel-pendiente" class="bloque oculto">
             <div style="background:#1a1a1a; border:1px solid #2b2b2b; border-radius:10px; padding:14px;">
@@ -584,6 +638,8 @@
             ver($r('panel-optotipos'), mod === 'optotipos');
             ver($r('panel-amsler'),    mod === 'amsler');
             ver($r('panel-pelli'),     mod === 'contraste');
+            ver($r('panel-worth'),     mod === 'worth');
+            ver($r('panel-schober'),   mod === 'schober');
             ver($r('panel-pendiente'), !info.hecho);
 
             const espejo = $r('remote-screen');
@@ -591,6 +647,8 @@
             if (mod === 'optotipos')   { espejoOptotipos(espejo, data); updateFuncButtons(data); }
             else if (mod === 'amsler') { espejoAmsler(espejo, data); pintarAmsler(data); }
             else if (mod === 'contraste') { espejoPelli(espejo, data); pintarPelli(data); }
+            else if (mod === 'worth')     { espejoWorth(espejo, data); pintarWorth(data); }
+            else if (mod === 'schober')   { espejoSchober(espejo, data); pintarSchober(data); }
             else                       { espejoPendiente(espejo, info); }
         });
 
@@ -788,6 +846,109 @@
               + (alLimite.length ? '  \u00b7  niveles ' + alLimite.join(' y ') + ' salen a '
                  + alLimite.map(n => 255 - (p.niveles.find(x => x.n === n).codigo)).join(' y ')
                  + ' c\u00f3digos del blanco: ah\u00ed manda el panel, no la prueba' : '');
+        }
+
+        /* ═══════════ WORTH ═══════════ */
+        function espejoWorth(espejo, data) {
+            const w = data.worth || {};
+            if (!w.cabe) {
+                espejo.innerHTML = '<div style="font-family:monospace;font-size:11px;color:#e74c3c;'
+                                 + 'text-align:center;line-height:1.8;">NO CABE<br>'
+                                 + '<span style="color:#7a4a45;">el punto pide ' + (w.puntoMM ?? 0) + ' mm</span></div>';
+                return;
+            }
+            const L = 108, r = 12;
+            espejo.innerHTML =
+                '<svg width="' + L + '" height="' + L + '" viewBox="0 0 ' + L + ' ' + L + '">'
+              + '<circle cx="' + L/2 + '" cy="' + r + '" r="' + r + '" fill="#ff0000"/>'
+              + '<circle cx="' + r + '" cy="' + L/2 + '" r="' + r + '" fill="#00ff00"/>'
+              + '<circle cx="' + (L-r) + '" cy="' + L/2 + '" r="' + r + '" fill="#00ff00"/>'
+              + '<circle cx="' + L/2 + '" cy="' + (L-r) + '" r="' + r + '" fill="#fff"/></svg>';
+        }
+
+        function pintarWorth(data) {
+            const w = data.worth || {};
+            $r('worth-ojo').textContent = w.ojoRojo || 'OD';
+            const cont = $r('worth-tamanos');
+            cont.innerHTML = '';
+            (w.tamanos || []).forEach(t => {
+                const b = document.createElement('button');
+                b.className = (t.id === w.tam ? 'sel ' : '') + (t.entra ? '' : 'no-entra');
+                b.innerHTML = '<span class="g"></span><span class="mm"></span>';
+                b.querySelector('.g').textContent = t.label;
+                b.querySelector('.mm').textContent = t.entra ? (t.sub ? t.sub + ' · ' + t.mm + ' mm' : t.mm + ' mm') : 'no cabe';
+                b.addEventListener('click', () => enviar('W:tam:' + t.id));
+                cont.appendChild(b);
+            });
+            $r('worth-techo').textContent =
+                'el rombo ocupa 3,4 di\u00e1metros de alto, as\u00ed que a esta distancia el techo son '
+              + (w.techoG ?? 0) + '\u00b0'
+              + (w.cabe ? '  \u00b7  rombo ' + (w.rombosMM ?? 0) + ' mm'
+                        : '  \u00b7  para ' + (w.tam === '1.25' ? '1,25\u00b0' : (w.tam || '') + '\u00b0')
+                          + ' hay que estar a ' + (w.distMax ?? 0) + ' m o menos');
+            pintarTabla($r('worth-lectura'), (w.lectura || []).map(l => ({ a: l.ve, b: l.significa, c: '', color: l.color })));
+        }
+
+        /* ═══════════ SCHOBER ═══════════ */
+        function espejoSchober(espejo, data) {
+            const s = data.schober || {};
+            const cA = s.invertido ? '#ff0000' : '#00ff00';
+            const cC = s.invertido ? '#00ff00' : '#ff0000';
+            const n = Math.max(1, s.anillos || 1), L = 150, paso = (L / 2) / (n + 0.3);
+            let anillos = '';
+            for (let i = 1; i <= n; i++) anillos += '<circle cx="0" cy="0" r="' + (i*paso).toFixed(1)
+                + '" fill="none" stroke="' + cA + '" stroke-width="1.8"/>';
+            const brazo = (n * paso * 1.12).toFixed(1);
+            espejo.innerHTML =
+                '<svg width="' + L + '" height="' + L + '" viewBox="0 0 ' + L + ' ' + L + '">'
+              + '<g transform="translate(' + L/2 + ',' + L/2 + ')">' + anillos
+              + '<path d="M0 -' + brazo + 'V' + brazo + 'M-' + brazo + ' 0H' + brazo + '" stroke="' + cC + '" stroke-width="2.6"/>'
+              + '</g></svg>';
+        }
+
+        function pintarSchober(data) {
+            const s = data.schober || {};
+            $r('schober-color').textContent = s.colorCruz || 'roja';
+            const anillos = $r('schober-anillos');
+            anillos.innerHTML = '';
+            ['3','5','7'].forEach(n => {
+                const b = document.createElement('button');
+                b.className = n === s.anillosPedidos ? 'sel' : '';
+                b.innerHTML = '<span class="g">' + n + '</span>'
+                            + '<span class="mm">' + (parseInt(n,10) <= (s.caben ?? 0) ? '\u00b1' + n + '\u0394' : 'no caben') + '</span>';
+                b.addEventListener('click', () => enviar('S:anillos:' + n));
+                anillos.appendChild(b);
+            });
+            const ojos = $r('schober-ojos');
+            ojos.innerHTML = '';
+            ['OD','OI'].forEach(o => {
+                const b = document.createElement('button');
+                b.className = o === s.ojoRojo ? 'sel' : '';
+                b.innerHTML = '<span class="g">' + o + '</span>';
+                b.addEventListener('click', () => { if (o !== s.ojoRojo) enviar('S:ojo'); });
+                ojos.appendChild(b);
+            });
+            $r('schober-deriv').textContent = s.derivacion || '';
+            pintarTabla($r('schober-lectura'), (s.lectura || []).map(l => ({ a: l.donde, b: l.que, c: l.nota, color: l.color })));
+            $r('schober-geo').textContent =
+                '1\u0394 = ' + (s.pasoMM ?? 0) + ' mm a esta distancia  \u00b7  rango \u00b1' + (s.anillos ?? 0) + '\u0394'
+              + ((s.anillos ?? 0) < parseInt(s.anillosPedidos || '0', 10) ? '  \u00b7  se pidieron ' + s.anillosPedidos + ' y caben ' + s.caben : '')
+              + '  \u00b7  izquierda y derecha son las del paciente';
+        }
+
+        function pintarTabla(cont, filas) {
+            cont.innerHTML = '';
+            filas.forEach(f => {
+                const d = document.createElement('div');
+                d.className = 'f';
+                d.innerHTML = '<span class="a"></span><span class="b"></span><span class="c"></span>';
+                d.querySelector('.a').textContent = f.a;
+                d.querySelector('.a').style.color = f.color || '#fff';
+                d.querySelector('.b').textContent = f.b;
+                d.querySelector('.b').style.color = f.color || '#e8e8e8';
+                d.querySelector('.c').textContent = f.c || '';
+                cont.appendChild(d);
+            });
         }
 
         /* El espejo de optotipos: el de siempre, ahora en su propia función. */

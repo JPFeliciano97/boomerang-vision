@@ -514,8 +514,8 @@
             const MODULOS = [
                 { id:'optotipos', titulo:'Optotipos',        sub:'Letras · números · LEA · E direccional', grupo:'Agudeza visual',           hecho:true,  distFija:null },
                 { id:'contraste', titulo:'Pelli-Robson',     sub:'8 niveles · 0,30 log',                   grupo:'Sensibilidad al contraste', hecho:true,  distFija:1 },
-                { id:'worth',     titulo:'Luces de Worth',   sub:'Fusión y supresión · gafa rojo-verde',   grupo:'Binocularidad',            hecho:false, distFija:null },
-                { id:'schober',   titulo:'Schober',          sub:'Cruz y anillos · forias',                grupo:'Binocularidad',            hecho:false, distFija:null },
+                { id:'worth',     titulo:'Luces de Worth',   sub:'Fusión y supresión · gafa rojo-verde',   grupo:'Binocularidad',            hecho:true,  distFija:null },
+                { id:'schober',   titulo:'Schober',          sub:'Cruz y anillos · forias',                grupo:'Binocularidad',            hecho:true,  distFija:null },
                 { id:'color',     titulo:'Pseudoisocromático', sub:'Láminas de puntos · cribado',          grupo:'Visión del color',         hecho:false, distFija:null },
                 { id:'amsler',    titulo:'Rejilla de Amsler', sub:'3 láminas · 1 cuadro = 1°',             grupo:'Mácula',                   hecho:true,  distFija:1 },
                 { id:'relax',     titulo:'Relax acomodativo', sub:'Para retinoscopía y fondo de ojo',      grupo:'Fijación',                 hecho:false, distFija:null },
@@ -745,6 +745,167 @@
                 saveToStorage();
             }
 
+            /* ═══════════ GAFA ROJO-VERDE: WORTH Y SCHOBER ═══════════
+               Los dos usan los primarios puros del monitor, que es para lo que
+               están hechos los filtros: el rojo del panel pasa el filtro rojo y
+               lo bloquea el verde, y al revés. Nada de rojos "bonitos". */
+            const ROJO_PURO = '#ff0000', VERDE_PURO = '#00ff00';
+
+            /* ── Worth ──
+               Cuatro puntos en rombo: arriba rojo, los dos laterales verdes,
+               abajo blanco. El blanco lo ven los dos ojos y es la referencia.
+
+               El tamaño se pide en grados y NO todos caben: el rombo ocupa 3,4
+               diámetros de punto de alto (es la proporción que usa la suite,
+               no una norma), así que el punto más grande que entra son el alto
+               de la pantalla entre 3,4. Eso pone un techo angular que baja con
+               la distancia, y el 1,25° clásico del farol deja de caber pasados
+               los 4 m. El módulo ofrece los tres tamaños de siempre y dice
+               cuál es imposible aquí, en vez de dibujar un rombo recortado. */
+            const WORTH_ROMBO = 3.4;
+            const WORTH_TAMANOS = [
+                { id: '1.25', label: '1,25°', grados: 1.25 },
+                { id: '2',    label: '2°',    grados: 2 },
+                { id: '3',    label: '3°',    grados: 3 },
+                /* El cuarto no es un tamaño clásico: es el mayor que cabe a la
+                   distancia de la sala. Sin él el módulo es un callejón sin
+                   salida desde la silla de lejos, donde el techo son 0,84° y
+                   los tres de arriba no entran: el optometrista entraría al
+                   test para leer un cartel rojo. Con él puede hacerlo desde
+                   donde está, sabiendo el ángulo exacto que está usando. */
+                { id: 'max',  label: 'máx',   grados: null }
+            ];
+            function anguloAMM(grados, metros){ return 2 * metros * 1000 * Math.tan(grados * Math.PI / 360); }
+            function worthTecho(){
+                const D = distanciaModulo();
+                const ladoMM = state.cssPxPerMM > 0
+                    ? Math.min(window.innerWidth, window.innerHeight) / state.cssPxPerMM / WORTH_ROMBO : 0;
+                // un 2% de holgura: justo en el techo el rombo toca el borde
+                const g = 2 * Math.atan(ladoMM / 2 / (D * 1000)) * 180 / Math.PI;
+                return { mm: ladoMM, grados: g * 0.98 };
+            }
+            function worthGrados(tam){
+                return tam.grados == null ? worthTecho().grados : tam.grados;
+            }
+            function worthGeometria(){
+                const D = distanciaModulo();
+                const tam = WORTH_TAMANOS.find(t => t.id === state.worthTam) || WORTH_TAMANOS[1];
+                const puntoMM = anguloAMM(worthGrados(tam), D);
+                const rombosMM = WORTH_ROMBO * puntoMM;
+                const altoMM = state.cssPxPerMM > 0 ? window.innerHeight / state.cssPxPerMM : 0;
+                const anchoMM = state.cssPxPerMM > 0 ? window.innerWidth / state.cssPxPerMM : 0;
+                const cabe = rombosMM <= altoMM && rombosMM <= anchoMM;
+                const maxMM = Math.min(altoMM, anchoMM) / WORTH_ROMBO;
+                const maxG = 2 * Math.atan(maxMM / 2 / (D * 1000)) * 180 / Math.PI;
+                const distMax = (maxMM / 2) / Math.tan(worthGrados(tam) * Math.PI / 360) / 1000;
+                return { tam, grados: worthGrados(tam), puntoMM, rombosMM, cabe, maxG, distMax,
+                         puntoPx: puntoMM * state.cssPxPerMM, rombosPx: rombosMM * state.cssPxPerMM };
+            }
+            function renderWorth(){
+                d.moduloArea.style.background = '#000000';
+                if (!state.isCalibrated) { d.moduloArea.innerHTML = ''; return; }
+                const g = worthGeometria();
+                if (!g.cabe) {
+                    d.moduloArea.innerHTML =
+                        '<div style="font-family:\'OpticianSans\',sans-serif;color:#5a2a2a;font-size:15px;'
+                      + 'letter-spacing:2px;text-align:center;line-height:2;">NO CABE A ' + distanciaModulo()
+                      + ' M<br><span style="font-size:11px;color:#452020;">EL PUNTO DE ' + g.tam.label
+                      + ' PIDE ' + g.puntoMM.toFixed(0) + ' MM</span></div>';
+                    d.moduloNombre.textContent = 'Worth · no cabe a ' + distanciaModulo() + ' m · techo '
+                        + g.maxG.toFixed(2) + '° · para ' + g.tam.label + ' hay que estar a ' + g.distMax.toFixed(1) + ' m o menos';
+                    return;
+                }
+                const r = g.puntoPx / 2, L = g.rombosPx;
+                const c = (L / 2).toFixed(2);
+                const borde = (L / 2 - r).toFixed(2);
+                d.moduloArea.innerHTML =
+                    `<svg width="${L}" height="${L}" viewBox="0 0 ${L} ${L}" shape-rendering="geometricPrecision">
+                       <circle cx="${c}" cy="${r.toFixed(2)}" r="${r.toFixed(2)}" fill="${ROJO_PURO}"/>
+                       <circle cx="${r.toFixed(2)}" cy="${c}" r="${r.toFixed(2)}" fill="${VERDE_PURO}"/>
+                       <circle cx="${(L - r).toFixed(2)}" cy="${c}" r="${r.toFixed(2)}" fill="${VERDE_PURO}"/>
+                       <circle cx="${c}" cy="${(L - r).toFixed(2)}" r="${r.toFixed(2)}" fill="#ffffff"/>
+                     </svg>`;
+                d.moduloNombre.textContent = `Worth · punto ${g.puntoMM.toFixed(0)} mm = ${g.grados.toFixed(2)}° a `
+                    + `${distanciaModulo()} m${g.tam.grados == null ? ' (el máximo que cabe)' : ''} · `
+                    + `rombo ${g.rombosMM.toFixed(0)} mm · rojo en ${state.worthOjoRojo}`;
+            }
+
+            /* ── Schober ──
+               Anillos concéntricos de un color y cruz del otro. El paso entre
+               anillos ES una dioptría prismática: 1Δ desplaza 1 cm a 1 m, o sea
+               D/100 mm a D mm. De lejos el paso crece y en la media pantalla
+               caben menos anillos, así que el rango medible se estrecha justo
+               cuando el paso se hace más grande. */
+            function schoberGeometria(){
+                const D = distanciaModulo() * 1000;
+                const pasoMM = D / 100;                       // 1Δ
+                const pasoPx = pasoMM * state.cssPxPerMM;
+                const pedidos = parseInt(state.schoberAnillos, 10) || 5;
+                const medio = Math.min(window.innerWidth, window.innerHeight) / 2;
+                const caben = pasoPx > 0 ? Math.max(0, Math.floor(medio / pasoPx)) : 0;
+                const anillos = Math.min(pedidos, caben);
+                return { pasoMM, pasoPx, pedidos, caben, anillos };
+            }
+            function renderSchober(){
+                d.moduloArea.style.background = '#000000';
+                if (!state.isCalibrated) { d.moduloArea.innerHTML = ''; return; }
+                const g = schoberGeometria();
+                if (g.anillos < 1) {
+                    d.moduloArea.innerHTML =
+                        '<div style="font-family:\'OpticianSans\',sans-serif;color:#5a2a2a;font-size:15px;'
+                      + 'letter-spacing:2px;text-align:center;">NI UN ANILLO CABE A ' + distanciaModulo() + ' M</div>';
+                    d.moduloNombre.textContent = 'Schober · 1Δ son ' + g.pasoMM.toFixed(0)
+                        + ' mm a ' + distanciaModulo() + ' m y no cabe en la pantalla';
+                    return;
+                }
+                const cAnillo = state.schoberInvertido ? ROJO_PURO : VERDE_PURO;
+                const cCruz   = state.schoberInvertido ? VERDE_PURO : ROJO_PURO;
+                const R = g.anillos * g.pasoPx;          // radio del anillo exterior
+                /* Fino a propósito: lo que se juzga es dónde cae el centro de
+                   la cruz respecto a un anillo, y un trazo gordo es ambigüedad
+                   añadida. A 6 m el paso son 181 px, así que 1/30 deja la línea
+                   en 6 px: un 3% del paso, o sea 0,03Δ de incertidumbre. */
+                const trazo = Math.max(2, Math.round(g.pasoPx / 30));
+                /* La cruz pasa de largo del último anillo: así se ve hacia qué
+                   lado cae incluso cuando el desplazamiento se sale del rango
+                   que los anillos pueden cuantificar. */
+                const brazo = R * 1.12;
+                const S = 2 * brazo;                     // lienzo cuadrado, centro en S/2
+                let anillos = '';
+                for (let i = 1; i <= g.anillos; i++) {
+                    anillos += `<circle cx="0" cy="0" r="${(i * g.pasoPx).toFixed(2)}" fill="none" `
+                             + `stroke="${cAnillo}" stroke-width="${trazo}"/>`;
+                }
+                d.moduloArea.innerHTML =
+                    `<svg width="${S.toFixed(2)}" height="${S.toFixed(2)}" viewBox="0 0 ${S.toFixed(2)} ${S.toFixed(2)}"
+                          shape-rendering="geometricPrecision">
+                       <g transform="translate(${(S/2).toFixed(2)},${(S/2).toFixed(2)})">
+                         ${anillos}
+                         <path d="M0 ${(-brazo).toFixed(2)}V${brazo.toFixed(2)}M${(-brazo).toFixed(2)} 0H${brazo.toFixed(2)}"
+                               stroke="${cCruz}" stroke-width="${(trazo * 1.5).toFixed(2)}"/>
+                       </g>
+                     </svg>`;
+                d.moduloNombre.textContent = `Schober · 1Δ = ${g.pasoMM.toFixed(0)} mm a ${distanciaModulo()} m · `
+                    + `±${g.anillos}Δ de rango` + (g.anillos < g.pedidos ? ` (se pidieron ${g.pedidos} y caben ${g.caben})` : '')
+                    + ` · cruz ${state.schoberInvertido ? 'verde' : 'roja'} · filtro rojo en ${state.schoberOjoRojo}`;
+            }
+
+            function worthComando(resto){
+                const [que, valor] = resto.split(':');
+                if (que === 'tam' && WORTH_TAMANOS.some(t => t.id === valor)) state.worthTam = valor;
+                else if (que === 'ojo') state.worthOjoRojo = state.worthOjoRojo === 'OD' ? 'OI' : 'OD';
+                else return;
+                renderScreen(); saveToStorage();
+            }
+            function schoberComando(resto){
+                const [que, valor] = resto.split(':');
+                if (que === 'anillos' && ['3','5','7'].includes(valor)) state.schoberAnillos = valor;
+                else if (que === 'inv') state.schoberInvertido = !state.schoberInvertido;
+                else if (que === 'ojo') state.schoberOjoRojo = state.schoberOjoRojo === 'OD' ? 'OI' : 'OD';
+                else return;
+                renderScreen(); saveToStorage();
+            }
+
             const LETTERS = ['A','C','D','E','H','K','N','O','R','S','V','Z'];
             const NUMBERS = ['0','1','2','3','4','5','6','7','8','9'];
 
@@ -787,6 +948,8 @@
                 modulo:'optotipos', recordarVolver:false,
                 amslerLamina:'blanco', amslerDiagonales:false, amslerOjo:'OD',
                 pelliFila:1, pelliSemilla:0,
+                worthTam:'2', worthOjoRojo:'OD',
+                schoberAnillos:'5', schoberInvertido:false, schoberOjoRojo:'OD',
             };
 
             const $ = id => document.getElementById(id);
@@ -1115,6 +1278,10 @@
                     d.moduloNombre.textContent = 'sin estímulo · el mando está en el menú';
                 } else if (m.id === 'contraste') {
                     renderPelli();
+                } else if (m.id === 'worth') {
+                    renderWorth();
+                } else if (m.id === 'schober') {
+                    renderSchober();
                 } else if (m.id === 'amsler') {
                     renderAmsler();
                 } else {
@@ -1224,6 +1391,80 @@
                                 alLimite: 255 - v.codigo <= 2
                             };
                         })
+                    };
+                } else if (m.id === 'worth') {
+                    const g = state.isCalibrated ? worthGeometria() : null;
+                    const rojoOD = state.worthOjoRojo === 'OD';
+                    const otro = rojoOD ? 'OI' : 'OD';
+                    datos.worth = {
+                        tam: state.worthTam,
+                        ojoRojo: state.worthOjoRojo,
+                        cabe: g ? g.cabe : false,
+                        puntoMM: g ? +g.puntoMM.toFixed(0) : 0,
+                        rombosMM: g ? +g.rombosMM.toFixed(0) : 0,
+                        techoG: g ? +g.maxG.toFixed(2) : 0,
+                        distMax: g ? +g.distMax.toFixed(1) : 0,
+                        grados: g ? +g.grados.toFixed(2) : 0,
+                        tamanos: WORTH_TAMANOS.map(t => {
+                            const gr = state.isCalibrated ? worthGrados(t) : 0;
+                            const mm = state.isCalibrated ? anguloAMM(gr, distanciaModulo()) : 0;
+                            const entra = state.isCalibrated && WORTH_ROMBO * mm <= Math.min(window.innerWidth, window.innerHeight) / state.cssPxPerMM;
+                            return { id: t.id, label: t.grados == null ? gr.toFixed(2).replace('.', ',') + '°' : t.label,
+                                     sub: t.grados == null ? 'el máximo' : null,
+                                     mm: +mm.toFixed(0), entra: entra };
+                        }),
+                        /* El filtro rojo transmite el rojo: el ojo que lo lleva
+                           ve el punto rojo, el otro los verdes. El blanco lo
+                           ven los dos. De ahí sale qué significa cada respuesta,
+                           y por eso las dos últimas filas se intercambian al
+                           cambiar de ojo el filtro. */
+                        lectura: [
+                            { ve: '4 puntos', significa: 'Fusión normal', color: '#27ae60' },
+                            { ve: '5 puntos', significa: 'Diplopía · no hay fusión', color: '#e8e8e8' },
+                            { ve: '2 rojos',  significa: 'Supresión del ' + otro, color: '#ff6b6b' },
+                            { ve: '3 verdes', significa: 'Supresión del ' + state.worthOjoRojo, color: '#51cf66' }
+                        ]
+                    };
+                } else if (m.id === 'schober') {
+                    const g = state.isCalibrated ? schoberGeometria() : null;
+                    /* La lectura no es una convención que se elija: el filtro
+                       rojo transmite el rojo, así que el ojo que lo lleva ve lo
+                       pintado en rojo. Quién ve la CRUZ sale de dos cosas y de
+                       nada más: en qué ojo va el filtro y de qué color está la
+                       cruz. A partir de ahí manda la regla de la diplopía: en
+                       exo la imagen del ojo derecho se percibe a la IZQUIERDA
+                       (cruzada) y la del izquierdo a la derecha; en endo, al
+                       contrario. En vertical, el ojo que se desvía hacia arriba
+                       ve su imagen hacia abajo. Por eso invertir los colores o
+                       pasar el filtro al otro ojo da la vuelta a la tabla
+                       entera, y por eso se calcula en vez de escribirse. */
+                    const cruzRoja = !state.schoberInvertido;
+                    const ojoCruz = cruzRoja ? state.schoberOjoRojo
+                                             : (state.schoberOjoRojo === 'OD' ? 'OI' : 'OD');
+                    const otroOjo = ojoCruz === 'OD' ? 'OI' : 'OD';
+                    const cruzEsDerecho = ojoCruz === 'OD';
+                    datos.schober = {
+                        anillosPedidos: state.schoberAnillos,
+                        anillos: g ? g.anillos : 0,
+                        caben: g ? g.caben : 0,
+                        pasoMM: g ? +g.pasoMM.toFixed(0) : 0,
+                        invertido: state.schoberInvertido,
+                        ojoRojo: state.schoberOjoRojo,
+                        ojoCruz: ojoCruz,
+                        ojoAnillos: otroOjo,
+                        colorCruz: cruzRoja ? 'roja' : 'verde',
+                        derivacion: 'Filtro rojo en ' + state.schoberOjoRojo + ', cruz '
+                                  + (cruzRoja ? 'roja' : 'verde') + ' → la cruz la ve el ' + ojoCruz
+                                  + ', los anillos el ' + otroOjo + '.',
+                        lectura: [
+                            { donde: 'Centrada',       que: 'Ortoforia', nota: 'sin desviación latente', color: '#27ae60' },
+                            { donde: 'A su izquierda', que: cruzEsDerecho ? 'Exoforia' : 'Endoforia',
+                              nota: cruzEsDerecho ? 'diplopía cruzada' : 'diplopía homónima', color: '#e8e8e8' },
+                            { donde: 'A su derecha',   que: cruzEsDerecho ? 'Endoforia' : 'Exoforia',
+                              nota: cruzEsDerecho ? 'diplopía homónima' : 'diplopía cruzada', color: '#e8e8e8' },
+                            { donde: 'Abajo',          que: 'Hiperforia ' + ojoCruz, nota: 'el ojo de la cruz sube', color: '#bbb' },
+                            { donde: 'Arriba',         que: 'Hiperforia ' + otroOjo, nota: 'el de los anillos sube', color: '#bbb' }
+                        ]
                     };
                 } else if (m.id === 'amsler') {
                     const g = state.isCalibrated ? amslerGeometria() : null;
@@ -1380,7 +1621,8 @@
                     // preferencias del Amsler; el módulo activo NO se guarda,
                     // igual que el modo de optotipo: cada sesión arranca limpia
                     amslerLamina:state.amslerLamina, amslerDiagonales:state.amslerDiagonales,
-                    pelliFila:state.pelliFila
+                    pelliFila:state.pelliFila, worthTam:state.worthTam,
+                    schoberAnillos:state.schoberAnillos, schoberInvertido:state.schoberInvertido
                 })); }catch(e){}
             }
 
@@ -1397,6 +1639,8 @@
                 state.modulo = 'optotipos';
                 state.recordarVolver = false;
                 state.amslerOjo = 'OD';
+                state.worthOjoRojo = 'OD';
+                state.schoberOjoRojo = 'OD';
                 if(saved){
                     // Nada de resolución ni DPR guardados: los da el navegador en
                     // cada arranque. Del almacenamiento solo sale lo que ninguna
@@ -1417,6 +1661,9 @@
                     if(AMSLER_LAMINAS.some(l=>l.id===saved.amslerLamina)) state.amslerLamina=saved.amslerLamina;
                     if(typeof saved.amslerDiagonales==='boolean') state.amslerDiagonales=saved.amslerDiagonales;
                     if(typeof saved.pelliFila==='number' && saved.pelliFila>=1 && saved.pelliFila<=PELLI_FILAS) state.pelliFila=saved.pelliFila;
+                    if(WORTH_TAMANOS.some(t=>t.id===saved.worthTam)) state.worthTam=saved.worthTam;
+                    if(['3','5','7'].includes(saved.schoberAnillos)) state.schoberAnillos=saved.schoberAnillos;
+                    if(typeof saved.schoberInvertido==='boolean') state.schoberInvertido=saved.schoberInvertido;
                 } else {
                     state.bichromatic=false;
                 }
@@ -1747,6 +1994,10 @@
                         if (state.modulo === 'amsler') amslerComando(cmd.slice(2));
                     } else if (cmd.startsWith('P:')) {
                         if (state.modulo === 'contraste') pelliComando(cmd.slice(2));
+                    } else if (cmd.startsWith('W:')) {
+                        if (state.modulo === 'worth') worthComando(cmd.slice(2));
+                    } else if (cmd.startsWith('S:')) {
+                        if (state.modulo === 'schober') schoberComando(cmd.slice(2));
                     } else if (cmd.startsWith('Mode:')) {
                         // los modos de optotipo solo aplican a su módulo
                         if (state.modulo !== 'optotipos') return;

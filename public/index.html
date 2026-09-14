@@ -540,31 +540,59 @@
                huecos reales la caja del <span> coincide exactamente con la
                tinta, y entonces las separaciones de la norma se ponen tal cual. */
             /* Optician Sans trae en su conjunto estilístico ss01 el juego con
-               proporciones de optotipo: todos los glifos miden exactamente
-               0,500 em de alto, sin el sobresalto óptico que en el juego por
-               defecto hace 0,532 a los redondos. Se usa para los números.
-               El canvas no aplica variantes OpenType, así que estas métricas no
-               se pueden medir en caliente: están medidas del propio .woff
-               rasterizando cada dígito con la variante activa. */
-            const SS01_DIGITOS = {
+               proporciones de optotipo: TODOS los glifos miden exactamente
+               0,500 em de alto. En el juego por defecto los redondos llevan
+               sobresalto óptico y miden 0,520 — los dígitos 0 3 6 8 9 y las
+               letras C O S — o 0,510 los medio redondos (2 5 y el 6). Eso es
+               correcto tipográficamente y falso como optotipo: un 4% de más de
+               altura es media línea de la escala. Con ss01 se acaba el problema
+               en el origen y estas métricas valen para números y letras.
+
+               El canvas NO aplica variantes OpenType, así que measureText no
+               puede medirlas en caliente. Están medidas del propio .woff
+               rasterizando cada glifo a 1600 px dentro de un SVG con la
+               variante activa y buscando la caja de tinta, y redondeadas al
+               escalón real de la fuente (0,005 em). left/right son los huecos
+               laterales del glifo: left + tinta + right = su avance, y el
+               render los descuenta con márgenes negativos para que la caja del
+               <span> sea exactamente la tinta.
+
+               Nota de forma: la A y la V dibujan 0,560 em de ancho contra los
+               0,500 de alto, así que son un 12% más anchas que una letra de
+               Sloan. La separación de la línea sigue siendo un ALTO de
+               optotipo y no el ancho de cada glifo, que es lo que mantiene el
+               ritmo uniforme que pide la norma. */
+            const SS01_METRICAS = {
                 '0': { ratio: 0.5, left: 0.075, right: 0.075 },
                 '1': { ratio: 0.5, left: 0.075, right: 0.075 },
                 '2': { ratio: 0.5, left: 0.075, right: 0.075 },
                 '3': { ratio: 0.5, left: 0.065, right: 0.065 },
                 '4': { ratio: 0.5, left: 0.050, right: 0.050 },
-                '5': { ratio: 0.5, left: 0.070, right: 0.070 },
-                '6': { ratio: 0.5, left: 0.070, right: 0.070 },
+                '5': { ratio: 0.5, left: 0.075, right: 0.065 },
+                '6': { ratio: 0.5, left: 0.075, right: 0.065 },
                 '7': { ratio: 0.5, left: 0.050, right: 0.050 },
                 '8': { ratio: 0.5, left: 0.065, right: 0.065 },
-                '9': { ratio: 0.5, left: 0.070, right: 0.070 }
+                '9': { ratio: 0.5, left: 0.065, right: 0.075 },
+                'A': { ratio: 0.5, left: 0.030, right: 0.030 },
+                'C': { ratio: 0.5, left: 0.075, right: 0.075 },
+                'D': { ratio: 0.5, left: 0.075, right: 0.075 },
+                'E': { ratio: 0.5, left: 0.075, right: 0.075 },
+                'H': { ratio: 0.5, left: 0.075, right: 0.075 },
+                'K': { ratio: 0.5, left: 0.075, right: 0.060 },
+                'N': { ratio: 0.5, left: 0.075, right: 0.075 },
+                'O': { ratio: 0.5, left: 0.075, right: 0.075 },
+                'R': { ratio: 0.5, left: 0.075, right: 0.055 },
+                'S': { ratio: 0.5, left: 0.065, right: 0.065 },
+                'V': { ratio: 0.5, left: 0.030, right: 0.030 },
+                'Z': { ratio: 0.5, left: 0.060, right: 0.060 }
             };
-            function usaSS01(){ return state.mode === 'numbers'; }
+            function usaSS01(){ return state.mode === 'numbers' || state.mode === 'letters'; }
 
             const PROBE_PX = 1000;
             let CHAR_METRICS = {};
             let metricsCanvas = null;
             function charMetrics(ch){
-                if (usaSS01() && SS01_DIGITOS[ch]) return SS01_DIGITOS[ch];
+                if (usaSS01() && SS01_METRICAS[ch]) return SS01_METRICAS[ch];
                 if (CHAR_METRICS[ch]) return CHAR_METRICS[ch];
                 const fallback = { ratio: CAP_HEIGHT_RATIO, left: 0, right: 0 };
                 if (!document.fonts || !document.fonts.check(`1em ${OPTOTYPE_FONT}`)) return fallback;

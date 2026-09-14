@@ -539,10 +539,32 @@
                se descuenta se suma a la separación entre optotipos. Con ratio y
                huecos reales la caja del <span> coincide exactamente con la
                tinta, y entonces las separaciones de la norma se ponen tal cual. */
+            /* Optician Sans trae en su conjunto estilístico ss01 el juego con
+               proporciones de optotipo: todos los glifos miden exactamente
+               0,500 em de alto, sin el sobresalto óptico que en el juego por
+               defecto hace 0,532 a los redondos. Se usa para los números.
+               El canvas no aplica variantes OpenType, así que estas métricas no
+               se pueden medir en caliente: están medidas del propio .woff
+               rasterizando cada dígito con la variante activa. */
+            const SS01_DIGITOS = {
+                '0': { ratio: 0.5, left: 0.075, right: 0.075 },
+                '1': { ratio: 0.5, left: 0.075, right: 0.075 },
+                '2': { ratio: 0.5, left: 0.075, right: 0.075 },
+                '3': { ratio: 0.5, left: 0.065, right: 0.065 },
+                '4': { ratio: 0.5, left: 0.050, right: 0.050 },
+                '5': { ratio: 0.5, left: 0.070, right: 0.070 },
+                '6': { ratio: 0.5, left: 0.070, right: 0.070 },
+                '7': { ratio: 0.5, left: 0.050, right: 0.050 },
+                '8': { ratio: 0.5, left: 0.065, right: 0.065 },
+                '9': { ratio: 0.5, left: 0.070, right: 0.070 }
+            };
+            function usaSS01(){ return state.mode === 'numbers'; }
+
             const PROBE_PX = 1000;
             let CHAR_METRICS = {};
             let metricsCanvas = null;
             function charMetrics(ch){
+                if (usaSS01() && SS01_DIGITOS[ch]) return SS01_DIGITOS[ch];
                 if (CHAR_METRICS[ch]) return CHAR_METRICS[ch];
                 const fallback = { ratio: CAP_HEIGHT_RATIO, left: 0, right: 0 };
                 if (!document.fonts || !document.fonts.check(`1em ${OPTOTYPE_FONT}`)) return fallback;
@@ -775,6 +797,7 @@
                             span.textContent = ch.char;
                             const cm = charMetrics(ch.char);
                             const fs = h_css / cm.ratio;
+                            if (usaSS01()) span.style.fontFeatureSettings = "'ss01'";
                             span.style.fontSize = fs + 'px';
                             span.style.lineHeight = String(cm.ratio);            // alto de caja = tinta
                             span.style.marginLeft = (-cm.left * fs) + 'px';      // descontar el hueco
@@ -815,7 +838,8 @@
                                 key: ch.key || '',
                                 rot: ch.rot || 0,
                                 uri: ch.type === 'img' ? SVG_CACHE[ch.key] : null,
-                                aspect: ch.type === 'img' ? (SVG_ASPECT[ch.key] || 1) : 1
+                                aspect: ch.type === 'img' ? (SVG_ASPECT[ch.key] || 1) : 1,
+                                ss01: usaSS01()
                             }))
                         })),
                         cal: {

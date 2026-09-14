@@ -374,6 +374,9 @@
                         const span = document.createElement('span');
                         span.className = 'remote-text';
                         span.textContent = ch.char;
+                        // Con ss01 todos los glifos miden 0,500 em exactos, así que
+                        // el ratio nominal deja de ser una aproximación.
+                        if (ch.ss01) span.style.fontFeatureSettings = "'ss01'";
                         span.style.fontSize = (INK_PX / CAP_HEIGHT_RATIO) + 'px';
                         row.appendChild(span);
                     } else {

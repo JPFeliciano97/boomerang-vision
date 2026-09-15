@@ -220,51 +220,13 @@
             letter-spacing: 0.5px; margin-bottom: 3px;
         }
 
-        /* ═══ DISTANCIA DE LA SALA ═══
-           Mover la silla es cosa del que está al lado del paciente, o sea del
-           que tiene el móvil. Sin estos controles la distancia solo se podía
-           cambiar en el PC, y los cinco módulos que miden contra ella (Worth,
-           Schober, relajación, fijación, optotipos) seguían calculando con la
-           distancia vieja.
-
-           Vive en el CUERPO del panel, no en la cabecera. La primera versión
-           los metía arriba a la derecha y salían de 30×26 px: los controles más
-           pequeños de todo el mando, pegados uno al otro, haciendo lo contrario
-           el uno del otro, y cambiando la distancia con la que se mide. Un
-           resbalón ahí no es una molestia — es una medida mal tomada que nadie
-           va a notar, porque la cifra sigue saliendo y sigue pareciendo bien.
-           Agrandarlos en la cabecera no valía: a 320 px, dos botones de 44 px
-           más el valor dejan el título sin sitio. Aquí abajo hay ancho entero.
-           La cabecera conserva el valor, de solo lectura. */
-        #fila-distancia {
-            width: 100%; box-sizing: border-box; margin-bottom: 12px;
-            background: #141414; border: 1px solid #262626; border-radius: 10px;
-            padding: 10px 12px;
-        }
-        #fila-distancia .enc {
-            display: flex; align-items: baseline; justify-content: space-between;
-            margin-bottom: 8px;
-        }
-        /* Mismo rótulo que los grupos de los paneles (.grupo-tit), pero sin su
-           relleno: aquí va dentro de la caja, no separando bloques. */
-        #fila-distancia .enc .rot {
-            font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: #666;
-        }
-        #fila-distancia .enc .val {
-            font-family: monospace; font-size: 19px; color: #2980b9; font-weight: 700;
-        }
-        #fila-distancia .pasos { display: flex; gap: 8px; }
-        #fila-distancia .pasos button {
-            flex: 1; min-width: 0; min-height: 46px; padding: 8px 4px;
-            border: 1px solid #2f2f2f; border-radius: 9px; background: #1f1f1f; color: #ddd;
-            display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
-        }
-        #fila-distancia .pasos button:active { background: #2980b9; color: #fff; }
-        #fila-distancia .pasos .signo { font-size: 17px; line-height: 1; }
-        #fila-distancia .pasos .que {
-            font-size: 9px; text-transform: uppercase; letter-spacing: 0.6px; color: #7a7a7a;
-        }
-        #fila-distancia .pasos button:active .que { color: rgba(255,255,255,0.85); }
+        /* La distancia de la sala NO se toca desde aquí. Se declara una vez en
+           la configuración inicial de la pantalla y aquí solo se lee, en la
+           cabecera. Hubo dos pasos de ±0,5 m en este panel y se quitaron: la
+           distancia es una propiedad de la SALA, no un mando por test, y poder
+           cambiarla a mitad de una prueba invita justo al error que este sistema
+           existe para evitar — que la geometría y el sitio donde está sentado el
+           paciente dejen de coincidir sin que nada lo delate. */
 
         /* ═══════════ CONTROLES DEL AMSLER ═══════════ */
         .lista-lam { display: flex; flex-direction: column; gap: 6px; }
@@ -512,24 +474,6 @@
         </div>
 
         <div id="remote-screen"></div>
-
-        <!-- La distancia de la sala: encima de cualquier panel, así que no hay
-             que repetirla en los cinco módulos que la usan. Se esconde en los
-             tres que traen la suya fija y en el menú. -->
-        <div id="fila-distancia" class="oculto">
-            <div class="enc">
-                <span class="rot">Distancia de la sala</span>
-                <span class="val" id="fdist-val">—</span>
-            </div>
-            <div class="pasos">
-                <button onclick="enviar('D:menos')">
-                    <span class="signo">− 0,5 m</span><span class="que">acercar</span>
-                </button>
-                <button onclick="enviar('D:mas')">
-                    <span class="signo">+ 0,5 m</span><span class="que">alejar</span>
-                </button>
-            </div>
-        </div>
 
         <!-- Panel de optotipos: los controles que ya existían, intactos -->
         <div id="panel-optotipos" style="width:100%; display:flex; flex-direction:column; align-items:center;">
@@ -916,13 +860,6 @@
             const val = $r('mod-dist-val');
             val.textContent = (data.cal?.distanciaModulo ?? '—') + ' m';
             val.style.color = fija ? '#f0b26b' : '#2980b9';
-            /* Un módulo que fija su distancia (Pelli, Amsler y color, a 1 m) no la
-               negocia: ahí los pasos no pintan nada. Del menú no hay que
-               preocuparse — esta función no corre ahí y la vista entera del
-               módulo está oculta. */
-            $r('fila-distancia').classList.toggle('oculto', fija);
-            if (!fija) $r('fdist-val').textContent = (data.cal?.testDistanceM ?? '—') + ' m';
-
             pintarCalibracion(data.cal || {});
         }
 

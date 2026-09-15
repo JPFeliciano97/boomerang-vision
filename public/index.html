@@ -134,6 +134,25 @@
 
         #dpr-input { width: 70px; }
 
+        /* La distancia dentro de la configuración inicial. */
+        .card-dist {
+            display:flex; align-items:center; justify-content:center; gap:10px;
+            margin:4px 0 18px; padding:12px 14px; border-radius:10px;
+            background:rgba(41,128,185,0.10); border:1px solid rgba(41,128,185,0.4);
+            font-size:12px; color:#cfe3f0;
+        }
+        .card-dist input {
+            width:76px; min-height:38px; font-size:15px; font-weight:700; text-align:center;
+        }
+        .card-sub { margin-top:0; }
+
+        /* La distancia de sala: un valor, no un campo. */
+        .cal-fijo {
+            font-family:monospace; font-size:11px; color:#fff; font-weight:700;
+            padding:5px 8px; border:1px solid #333; border-radius:6px; background:#151515;
+            min-width:38px; text-align:center;
+        }
+
         /* Los controles del optotipo no significan nada en otro módulo. La
            DISTANCIA sí: Worth, Schober, relajación y fijación infantil calculan
            su estímulo físico contra state.testDistanceM, así que el campo se
@@ -377,13 +396,19 @@
     <div id="calibration-bar">
         <!-- Columna izquierda: lo único que hay que decirle al sistema -->
         <div class="left-group">
+            <!-- La distancia se VE aquí y se declara en la configuración inicial.
+                 Era un campo editable en cualquier momento, y eso invita al error
+                 que este sistema existe para evitar: que la geometría y el sitio
+                 donde está sentado el paciente dejen de coincidir a mitad de una
+                 prueba, sin que nada lo delate. La distancia es una propiedad de
+                 la SALA, no un mando por test. -->
             <div class="cal-group">
                 <label>Distancia</label>
-                <input type="number" id="test-distance" value="6" step="0.1" min="0.5">
+                <span id="dist-sala" class="cal-fijo">6</span>
                 <span class="cal-unit">m</span>
             </div>
             <div class="cal-sep"></div>
-            <button class="btn-sm" id="btn-card-cal" title="Medir la pantalla (C)">📏 CALIBRAR PANTALLA</button>
+            <button class="btn-sm" id="btn-card-cal" title="Configuración inicial: distancia y medida de la pantalla (C)">⚙ CONFIGURACIÓN</button>
         </div>
 
         <!-- Columna central: botón toggle + info -->
@@ -422,11 +447,22 @@
 
     <div id="card-cal" class="hidden">
         <div class="card-panel">
-            <h2>MEDIR LA PANTALLA</h2>
-            <p>Una sola vez por equipo. Apoye la referencia sobre la pantalla y arrastre
-               el círculo azul hasta que coincida con ella.<br>
-               Con eso el sistema mide los milímetros reales y ya no necesita que nadie
-               escriba resolución, pulgadas ni DPR: eso lo saca del navegador.</p>
+            <h2>CONFIGURACIÓN INICIAL</h2>
+            <p>Una sola vez por sala. Son las dos cosas que el navegador no puede
+               saber por sí mismo, y de las que sale el tamaño de todos los
+               estímulos: cuánto mide un milímetro en esta pantalla, y a cuántos
+               metros se sienta el paciente.</p>
+
+            <!-- La distancia va aquí y en ningún otro sitio. Fuera de esta
+                 configuración se ve pero no se cambia: una distancia editable a
+                 mitad de un test invita a que la geometría y el paciente dejen de
+                 coincidir sin que nada lo delate. -->
+            <label class="card-dist">Distancia a la que se sienta el paciente
+                <input type="number" id="test-distance" value="6" step="0.1" min="0.5"> m
+            </label>
+
+            <p class="card-sub">Y ahora la pantalla: apoye la referencia sobre ella y
+               arrastre el círculo azul hasta que coincida.</p>
             <div class="card-refs" id="card-refs">
                 <button data-ref="card" class="active">💳 Tarjeta</button>
                 <button data-ref="ruler">📐 Regla 100 mm</button>
@@ -439,7 +475,7 @@
             </div>
             <div id="card-readout"></div>
             <div class="card-actions">
-                <button id="card-save">✓ Guardar calibración</button>
+                <button id="card-save">✓ Guardar configuración</button>
                 <button id="card-cancel">Cancelar</button>
             </div>
             <details class="card-fallback">
@@ -462,7 +498,7 @@
         <div><kbd>B</kbd> Bicromático</div>
         <div><kbd>R</kbd> Resaltar línea</div>
         <div><kbd>U</kbd> Modo 1 carácter</div>
-        <div><kbd>C</kbd> Calibrar pantalla</div>
+        <div><kbd>C</kbd> Configuración inicial</div>
         <div><kbd>H</kbd> Ocultar panel</div>
         <div><kbd>M</kbd> Volver a optotipos</div>
         <div><kbd>?</kbd> Este menú</div>
@@ -1390,7 +1426,7 @@
 
             const $ = id => document.getElementById(id);
             const d = {
-                testDistance:$('test-distance'), monitorSize:$('monitor-size'),
+                testDistance:$('test-distance'), distSala:$('dist-sala'), monitorSize:$('monitor-size'),
                 btnToggle:$('btn-toggle-cal'),
                 btnCardCal:$('btn-card-cal'), cardCal:$('card-cal'), cardShape:$('card-shape'),
                 cardHandle:$('card-handle'), cardReadout:$('card-readout'),
@@ -1589,6 +1625,7 @@
                     state.calSource = 'monitor';
                 }
                 state.isCalibrated = state.cssPxPerMM > 0;
+                if (d.distSala) d.distSala.textContent = state.testDistanceM;
                 updateCalStatus();
             }
             function updateRemoteStatus(peers){
@@ -1708,28 +1745,6 @@
                   + 'Mida la pantalla con una tarjeta — tecla <strong style="color:#ddd;">C</strong>.'
                   + '</div></div>';
                 d.moduloNombre.textContent = 'sin calibrar · mida la pantalla con una tarjeta (tecla C)';
-            }
-
-            /* Distancia de sala desde el mando. El operador está junto al paciente,
-               no junto al teclado: si mueve la silla para que quepa el rombo de
-               Worth, tiene que poder decirlo desde el móvil, o el estímulo se
-               sigue calculando contra la distancia vieja. Paso de 0,5 m, que es
-               como se mueve una silla; el campo del PC admite el decimal fino. */
-            const DIST_MIN = 0.5, DIST_MAX = 10, DIST_PASO = 0.5;
-            function distanciaComando(valor){
-                const actual = state.testDistanceM;
-                let d2 = valor === 'mas'   ? actual + DIST_PASO
-                       : valor === 'menos' ? actual - DIST_PASO
-                       : parseFloat(valor);
-                if (!isFinite(d2)) return;
-                d2 = Math.min(DIST_MAX, Math.max(DIST_MIN, Math.round(d2 * 10) / 10));
-                if (d2 === actual) { emitirEspejo(); return; }
-                state.testDistanceM = d2;
-                d.testDistance.value = d2;
-                resolveCalibration();
-                state.lineChars = {};   // la línea cambia de tamaño: sus letras se resortean
-                renderScreen();
-                saveToStorage();
             }
 
             /* El repartidor: decide qué capa se dibuja. El módulo de optotipos
@@ -2163,8 +2178,14 @@
                 if (window.remoteSocket) window.remoteSocket.emit('modo', state.mode);
             }
 
+            /* Lee los dos campos de la configuración inicial y los aplica. La
+               llaman solo los dos botones que cierran esa configuración con un
+               sí — guardar la medida, o quedarse con las pulgadas —, nunca un
+               evento de teclado. */
             function applyCalibration(){
-                state.testDistanceM=parseFloat(d.testDistance.value)||6;
+                const dm = parseFloat(d.testDistance.value);
+                state.testDistanceM = (isFinite(dm) && dm >= 0.5 && dm <= 20) ? dm : 6;
+                d.testDistance.value = state.testDistanceM;
                 state.monitorInches=parseFloat(d.monitorSize.value)||24;
                 resolveCalibration();
                 state.lineChars={}; renderScreen();
@@ -2219,7 +2240,8 @@
                     // cada arranque. Del almacenamiento solo sale lo que ninguna
                     // API puede saber: la medida física y la distancia de la sala.
                     d.monitorSize.value=saved.monitorInches||24;
-                    d.testDistance.value=saved.testDistanceM||6;
+                    state.testDistanceM = saved.testDistanceM || 6;
+                    d.testDistance.value = state.testDistanceM;
                     state.cardPxPerMM=saved.cardPxPerMM||0;
                     state.cardDpr=saved.cardDpr||0;
                     state.cardDevW=saved.cardDevW||0;
@@ -2364,6 +2386,7 @@
             }
             function openCardCal(){
                 cardOpen = true;
+                d.testDistance.value = state.testDistanceM;   // parte de lo vigente
                 cardWidthPx = clampCardWidth(Math.round((state.cssPxPerMM || 3.8) * activeRef().w));
                 d.cardCal.classList.remove('hidden');
                 renderCardShape();
@@ -2389,16 +2412,12 @@
                     d.monitorSize.value = state.monitorInches;
                 }
                 closeCardCal();
-                resolveCalibration();
-                state.lineChars = {}; renderScreen();
-                saveToStorage();
+                applyCalibration();   // aplica también la distancia declarada arriba
             }
             function clearCardCal(){
                 state.cardPxPerMM = 0; state.cardDpr = 0; state.cardDevW = 0; state.cardDevH = 0;
                 closeCardCal();
-                resolveCalibration();
-                renderScreen();
-                saveToStorage();
+                applyCalibration();   // la distancia declarada arriba también cuenta por esta vía
             }
 
             function toggleCalPanel(){
@@ -2444,7 +2463,8 @@
             }
 
             d.modeBtns.forEach(btn => btn.addEventListener('click', () => setMode(btn.dataset.mode)));
-            d.testDistance.addEventListener('change',applyCalibration);
+            /* Sin listener de 'change': la distancia se aplica al guardar la
+               configuración inicial, no en cuanto alguien teclea en el campo. */
             d.monitorSize.addEventListener('change',applyCalibration);
             d.btnToggle.addEventListener('click',toggleCalPanel);
             d.btnBic.addEventListener('click',toggleBichromatic);
@@ -2563,8 +2583,6 @@
                 socket.on('comando', (cmd) => {
                     if (cmd.startsWith('Modulo:')) {
                         entrarModulo(cmd.slice(7));
-                    } else if (cmd.startsWith('D:')) {
-                        distanciaComando(cmd.slice(2));
                     } else if (cmd === 'VolverDicho') {
                         state.recordarVolver = false;
                         emitirEspejo();

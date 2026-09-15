@@ -149,17 +149,19 @@ export default async function pruebaModulos({ pc, tel, abrir }) {
         /[\d,.]+\s*°|mm|Δ|′/.test(nombre), nombre ? '' : 'el nombre del módulo está vacío');
     }
 
-    /* Los tres módulos de cerca traen su distancia fija y no la negocian. */
+    /* La distancia se lee en la cabecera de cualquier módulo y no se toca en
+       ninguno: se declara una vez en la configuración inicial de la pantalla.
+       Los tres de cerca la traen fija a 1 m y lo dicen con otra etiqueta. */
+    const et = (await tel.textContent('#mod-dist-et')).trim();
+    const val = (await tel.textContent('#mod-dist-val')).trim();
     if (mod.distFija != null) {
-      const et = (await tel.textContent('#mod-dist-et')).trim();
-      const val = (await tel.textContent('#mod-dist-val')).trim();
-      const pasos = await tel.evaluate(() => {
-        const f = document.getElementById('fila-distancia');
-        return !!f && !f.classList.contains('oculto');
-      });
       m.comprobar(mod.nombre.padEnd(19) + ` fija la distancia en ${mod.distFija} m`,
-        et.toLowerCase() === 'acercado' && val === mod.distFija + ' m' && !pasos,
-        `«${et}» ${val}` + (pasos ? ' · CON pasos de distancia, no debería' : ' · sin pasos'));
+        et.toLowerCase() === 'acercado' && val === mod.distFija + ' m',
+        `«${et}» ${val}`);
+    } else {
+      m.comprobar(mod.nombre.padEnd(19) + ' lee la distancia de la sala',
+        et.toLowerCase() === 'distancia' && /^[\d.,]+\s*m$/.test(val),
+        `«${et}» ${val}`);
     }
   }
 

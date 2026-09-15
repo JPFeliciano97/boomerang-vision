@@ -310,6 +310,113 @@ export default async function pruebaGeometria({ pc, tel, abrir }) {
       pelli.arriba.toFixed(1) + ' px = ' + (pelli.arriba / pelli.altoLetra).toFixed(3) + ' altos');
   }
 
+  /* ── El anillo de los símbolos LEA, y que sea uniforme ─────────────────
+     El juego LEA se apoya en que los cuatro símbolos se desenfoquen hasta
+     manchas equivalentes en el umbral, y para eso el trazo tiene que valer lo
+     mismo en todas partes. El círculo lo cumple por definición: es un
+     stroke-width. La manzana no, porque estaba dibujada como dos beziers
+     independientes —la de fuera y la de dentro— con relleno evenodd, y dos
+     curvas hechas a mano no se mantienen paralelas.
+
+     Se mide con una transformada de distancia sobre la tinta: en un anillo de
+     grosor constante las distancias al borde se reparten uniformemente, así
+     que el percentil 99 vale unas dos veces la mediana. Donde el anillo
+     engorda, el percentil 99 se despega. Medido: el círculo da 1,96 y la
+     manzana trazada 2,00 — el mismo anillo; la manzana de contorno doble daba
+     2,61.
+
+     La comparación es contra el CÍRCULO y no contra un número fijo, porque el
+     cuadrado y la casa tienen esquinas y ahí el grosor se despega por
+     geometría y no por descuido. */
+  await abrir('Optotipos');
+  await pc.click('.mode-btn[data-mode="pediatric"]');
+  await pc.waitForTimeout(700);
+  /* La primera pantalla dibuja UN símbolo —es la línea 20/400— así que hay que
+     bajar hasta una que tenga las cinco posiciones y enseñe los cuatro. */
+  const cuantosSimbolos = () => pc.evaluate(() =>
+    new Set([...document.querySelectorAll('#lines-container img')].map(i => i.src)).size);
+  for (let i = 0; i < 6 && (await cuantosSimbolos()) < 4; i++) {
+    await pc.keyboard.press('ArrowDown');
+    await pc.waitForTimeout(350);
+  }
+  /* Y si en esa línea no salieron los cuatro, se remezcla: el alfabeto tiene
+     cuatro símbolos y la línea cinco posiciones, así que con unas cuantas
+     barajadas aparecen todos. */
+  for (let i = 0; i < 12 && (await cuantosSimbolos()) < 4; i++) {
+    await pc.keyboard.press('ArrowRight');
+    await pc.waitForTimeout(200);
+  }
+
+  const anillos = await pc.evaluate(async () => {
+    const S = 360;
+    const uniformidad = async uri => {
+      const img = new Image();
+      await new Promise(ok => { img.onload = ok; img.src = uri; });
+      const c = document.createElement('canvas'); c.width = S; c.height = S;
+      const g = c.getContext('2d');
+      g.fillStyle = '#fff'; g.fillRect(0, 0, S, S);
+      const esc = Math.min(S / img.width, S / img.height) * 0.9;
+      const w = img.width * esc, h = img.height * esc;
+      g.drawImage(img, (S - w) / 2, (S - h) / 2, w, h);
+      const d = g.getImageData(0, 0, S, S).data;
+      const INF = 1e6, dist = new Float32Array(S * S);
+      for (let i = 0; i < S * S; i++) dist[i] = d[i * 4] < 128 ? INF : 0;
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) { const i = y * S + x; if (!dist[i]) continue;
+        let v = dist[i];
+        if (x > 0) v = Math.min(v, dist[i-1] + 1);
+        if (y > 0) v = Math.min(v, dist[i-S] + 1);
+        if (x > 0 && y > 0) v = Math.min(v, dist[i-S-1] + 1.414);
+        if (x < S-1 && y > 0) v = Math.min(v, dist[i-S+1] + 1.414);
+        dist[i] = v; }
+      for (let y = S-1; y >= 0; y--) for (let x = S-1; x >= 0; x--) { const i = y * S + x; if (!dist[i]) continue;
+        let v = dist[i];
+        if (x < S-1) v = Math.min(v, dist[i+1] + 1);
+        if (y < S-1) v = Math.min(v, dist[i+S] + 1);
+        if (x < S-1 && y < S-1) v = Math.min(v, dist[i+S+1] + 1.414);
+        if (x > 0 && y < S-1) v = Math.min(v, dist[i+S-1] + 1.414);
+        dist[i] = v; }
+      const vs = [];
+      for (let i = 0; i < S * S; i++) if (dist[i] > 0 && dist[i] < INF) vs.push(dist[i]);
+      vs.sort((a, b) => a - b);
+      if (vs.length < 500) return null;
+      const p50 = vs[Math.floor(vs.length * 0.5)], p99 = vs[Math.floor(vs.length * 0.99)];
+      return +(p99 / p50).toFixed(3);
+    };
+    /* Por el src COMPLETO. La primera versión agrupaba por los últimos doce
+       caracteres del data-URI y dos de los cuatro símbolos coinciden ahí, así
+       que medía tres y decía que faltaba uno: el defecto estaba en la sonda. */
+    const uris = {};
+    for (const img of document.querySelectorAll('#lines-container img')) uris[img.src] = img.src;
+    /* Los cuatro están en SVG_CACHE, pero eso no es alcanzable desde aquí: se
+       leen del DOM, que es lo que el paciente ve de verdad. */
+    const fuera = {};
+    for (const [k, u] of Object.entries(uris)) fuera[k] = await uniformidad(u);
+    return fuera;
+  });
+
+  const valores = Object.values(anillos).filter(v => v != null);
+  /* El círculo es el anillo perfecto y da el valor de referencia; el resto de
+     los símbolos CURVOS no puede despegarse de él más de un 10 %. El cuadrado
+     y la casa quedan fuera de la comparación por sus esquinas — y para saber
+     cuál es cuál se ordenan: el más uniforme de los cuatro es el círculo. */
+  /* Se compara contra el MÁS UNIFORME de los cuatro, no contra un número fijo,
+     y se exige que los cuatro entren en un 10 % de él. La primera versión de
+     esta comprobación pedía «al menos dos dentro del 10 %» y pasaba con la
+     manzana vieja puesta: el círculo y la casa ya son dos. Reinyectada, la
+     manzana de contorno doble da 2,62 contra 1,91 de referencia y ahora sí
+     queda fuera. */
+  const ref = Math.min(...valores);
+  const dentro = valores.filter(v => v <= ref * 1.10);
+  m.comprobar('los cuatro símbolos LEA tienen el anillo de grosor uniforme',
+    valores.length >= 4 && dentro.length === valores.length,
+    valores.length >= 4
+      ? 'p99/p50: ' + valores.map(v => v.toFixed(2)).join(' · ')
+        + ` · el más uniforme ${ref.toFixed(2)} · fuera del 10 %: `
+        + valores.filter(v => v > ref * 1.10).map(v => v.toFixed(2)).join(', ') || 'ninguno'
+      : 'solo ' + valores.length + ' símbolos medidos');
+  await pc.click('.mode-btn[data-mode="letters"]');
+  await pc.waitForTimeout(400);
+
   /* ── La medida estándar de Worth y de Schober ───────────────────────────
      Los dos dibujan una figura de gafa rojo-verde y ninguno es una prueba de
      agudeza: lo que se juzga es la forma —cuántos puntos se ven, dónde cae la

@@ -5,7 +5,7 @@ npm test
 ```
 
 Levanta el servidor en un puerto libre, abre Chromium, empareja una pantalla
-con un mando **de verdad** por el código de sala, y pasa 143 comprobaciones en
+con un mando **de verdad** por el código de sala, y pasa 156 comprobaciones en
 unos tres minutos.
 
 - `0` — todo pasa
@@ -50,11 +50,11 @@ al medir píxeles dibujados:
 
 | | |
 |---|---|
-| `optotipos.mjs`   | Las 56 líneas de los cuatro modos y las seis pantallas: alto de tinta uniforme por línea y coincidente con el tamaño físico anunciado. Y el 20/20 a mano, que es la referencia de la que sale toda la escala. |
-| `modulos.mjs`     | El corte de estímulo: que deje la pantalla del paciente sin nada en LAS DOS capas y que al reanudar vuelva el mismo test con lo que estaba puesto. Los ocho módulos dibujan estímulo, sacan un solo panel, declaran su geometría y no desbordan a lo ancho en los tres tamaños de móvil (412×915, 360×640 y 915×412), con ningún control por debajo del mínimo táctil. Los tres de cerca traen su distancia fija y no ofrecen pasos, y el menú da el veredicto de cada test antes de entrar — con la cifra que cambia con la distancia de la sala. |
-| `geometria.mjs`   | Color: que cada lámina —cifra o figura— tenga puntos suficientes para leerse y un color distinto del fondo, midiendo el mosaico dibujado. La luz del relax, que lo que se pide sea lo que se dibuja. Amsler: los cuatro contornos con el grosor de las líneas interiores, la rejilla centrada, el paso en píxeles enteros del dispositivo, el cuadro a 1° de arco. Pelli: los grises calculados, que **ninguno quede pegado al blanco** —el defecto que dejaba dos filas invisibles— y que el techo dibujado sea 1,00 log CS, más los altos de tabla y el margen. Worth y Schober: que dibujen la **medida estándar** sin llenar la pantalla, que Worth no ofrezca tamaños imposibles, y que los anillos que se eligen sean los que se dibujan. Y la invariancia de Schober al invertir colores y cambiar de ojo. |
+| `optotipos.mjs`   | Las 56 líneas de los cuatro modos y las seis pantallas: alto de tinta uniforme por línea y coincidente con el tamaño físico anunciado. Y el 20/20 a mano, que es la referencia de la que sale toda la escala. Más el juego de números, barrido en las seis pantallas y cuatro mezclas: **ninguna saca un 0**, que con `ss01` lleva barra diagonal y a 6 m es un 8. |
+| `modulos.mjs`     | El corte de estímulo: que deje la pantalla del paciente sin nada en LAS DOS capas y que al reanudar vuelva el mismo test con lo que estaba puesto. Los ocho módulos dibujan estímulo, sacan un solo panel, declaran su geometría y no desbordan a lo ancho en los tres tamaños de móvil (412×915, 360×640 y 915×412), con ningún control por debajo del mínimo táctil. Los tres de cerca traen su distancia fija y no ofrecen pasos, y el menú da el veredicto de cada test antes de entrar — con la cifra que cambia con la distancia de la sala. Y el mando como gesto: `device-width` sin ancho fijo, sin pellizco, y los tres avisos largos plegados con el título delante. Más la fuente, medida carácter a carácter en las dos páginas: ninguna letra pintada con una fuente que no la tiene. |
+| `geometria.mjs`   | Color: que cada lámina —cifra o figura— tenga puntos suficientes para leerse y un color distinto del fondo, midiendo el mosaico dibujado. La luz del relax, que lo que se pide sea lo que se dibuja. Amsler: los cuatro contornos con el grosor de las líneas interiores, la rejilla centrada, el paso en píxeles enteros del dispositivo, el cuadro a 1° de arco. Pelli: los grises calculados, que **ninguno quede pegado al blanco** —el defecto que dejaba dos filas invisibles— y que el techo dibujado sea 1,00 log CS, más los altos de tabla y el margen. Worth y Schober: que dibujen la **medida estándar** sin llenar la pantalla, que Worth no ofrezca tamaños imposibles, y que los anillos que se eligen sean los que se dibujan. Y la invariancia de Schober al invertir colores y cambiar de ojo. LEA: que los cuatro símbolos tengan el anillo del mismo grosor, midiendo con una transformada de distancia el p99 frente al p50 del trazo dibujado. |
 | `regresiones.mjs` | Los defectos que ya estuvieron en producción una vez: los tripletes de Pelli seguidos del alfabeto Sloan, la fila de contraste heredada del paciente anterior, la barra de calibración desplegándose sola, y la distancia de sala editable desde un test. |
-| `sin-mando.mjs`   | La pantalla sola, sin móvil: los ocho módulos son alcanzables solo desde el mando, así que todo el armazón podría romper el uso más común sin que ninguna prueba de módulos lo notara. |
+| `sin-mando.mjs`   | La pantalla sola, sin móvil — incluida la tecla `N`, que la corta: los ocho módulos son alcanzables solo desde el mando, así que todo el armazón podría romper el uso más común sin que ninguna prueba de módulos lo notara. |
 | `arranque.mjs`    | El recorrido de un equipo nuevo: la configuración se abre sola, pide la distancia y la medida de la pantalla, muestra el QR, y un móvil que sigue ESE código llega a los ocho módulos. Nace de medir ese camino y encontrarlo roto: el QR vivía en un panel que arranca oculto, así que la suite clínica entera era invisible al abrir la app por primera vez. |
 | `caidas.mjs`      | Lo que pasa cuando la conexión se cae a media prueba — el suceso más probable de todos, porque un móvil se bloquea la pantalla a los 30 s. Lo que no puede pasar: que la pantalla del paciente se quede en blanco, que el móvil vuelva a otro módulo del que está la pantalla, o que los comandos dejen de llegar sin decirlo. |
 | `calibracion.mjs` | Cuánto se puede confiar en el milímetro, y si alguien lo dice donde se lee. Siembra una calibración de tarjeta **de otra pantalla** —lo que deja un portátil desconectado del monitor de la consulta— y exige que el mando lo diga, porque dentro de un módulo la barra del PC está plegada y el pie escondido. |
@@ -118,7 +118,7 @@ falla con el defecto puesto, y la coordenada no miente.
 lee en un mosaico de 30 puntos no es su área sino su parte más estrecha, y eso
 solo se puede medir sobre la MÁSCARA — en la lámina dibujada los puntos son
 puntos y una transformada de distancia mide su geometría, no la de la silueta.
-Así que las siete escalas se calibraron una vez, midiendo, y las cifras están
+Así que las seis escalas se calibraron una vez, midiendo, y las cifras están
 en el comentario de `COLOR_FIGURAS` para que nadie tenga que volver a
 deducirlas. Lo que la suite sí sujeta es el área y la separación cromática, que
 es lo que se puede leer de lo dibujado.
@@ -163,8 +163,16 @@ en `public/index.html` y comprobando que la ejecución se pone roja:
 | el tamaño de Worth y el paso de 1Δ de Schober | cuatro comprobaciones: Worth dibujaba un cartel de «NO CABE» a 6 m, ofrecía 4 botones de tamaño, Schober llenaba el 89,9 % del lado corto y con 3, 5 o 7 anillos dibujaba 2 |
 | el color sin juego de figuras, y el relax con tres luces | `el color ofrece un juego de figuras` y `la luz del relax se regula de forma continua` |
 | sin corte de estímulo | `el mando puede cortar el estímulo sin salir del test` |
+| la pantalla muda mientras está en negro | `un mando que se recarga se reconstruye` — las dos vistas ocultas, el mando esperando para siempre |
+| la N fuera de la lista blanca de teclas | `la tecla N del PC corta el estímulo también dentro de un módulo` |
+| el modo de optotipo solo por el evento | `el modo que marca el mando es el que dibuja la pantalla` — la pantalla en LEA y el mando en «Letras» |
 | la capa de optotipos sin esconder | ocho comprobaciones, incluida `con el mando en el menú la pantalla no enseña nada` |
 | la distancia editable desde un test | `la barra muestra la distancia sin dejar editarla` |
+| el `0` de vuelta en el juego de números | `el juego de números no usa el 0` — la barra diagonal de ss01 y el 8 son el mismo borrón |
+| la manzana LEA rellena de antes | `los cuatro símbolos LEA tienen el anillo de grosor uniforme` — 2,62 frente a 1,91 de p99/p50 |
+| Optician Sans en los rótulos de la pantalla y del mando | `ninguna letra se pinta con una fuente que no la tiene` — «Fijación», «±», «Δ» y «·» caían a la fuente de reserva |
+| el viewport fijo de 412 px del mando | dos comprobaciones: `se adapta al ancho real del móvil` y `no se puede pellizcar para ampliar` |
+| los avisos del mando sin plegar | dos comprobaciones: `salen plegados, sin tapar los controles` — 93, 93 y 208 px con el texto desplegado — y `tocar el título despliega el texto entero` |
 
 La sonda del color se estrenó con uno de esos fallos y conviene que quede
 escrito: agrupaba por cromaticidad TODOS los píxeles pintados, papel de la

@@ -294,6 +294,235 @@ export default async function pruebaModulos({ pc, tel, abrir }) {
   await tel.locator('#schober-anillos button .g').filter({ hasText: /^5$/ }).first().click();
   await tel.waitForTimeout(500);
 
+  /* ══ El mando no se pellizca y no se va de lado ══════════════════════
+     Dos cosas distintas y las dos medibles.
+
+     La primera: el mando declaraba `width=412` FIJO en su viewport. En un
+     móvil de 360 px de ancho el navegador encoge la página entera para que
+     quepan esos 412 — y eso es exactamente «tener que hacer zoom out», solo
+     que lo hace el navegador de entrada y el texto queda pequeño. Con
+     `device-width` la maqueta se adapta al ancho real, que es lo que las
+     comprobaciones de los tres tamaños ya sujetan.
+
+     La segunda: el zoom por pellizco. Aquí no hace falta —no hay nada que
+     ampliar, y con guantes o con prisa un pellizco accidental deja la interfaz
+     desplazada y al operador buscando el botón— así que se desactiva y solo
+     queda el desplazamiento vertical. */
+  const gestos = await tel.evaluate(() => {
+    const meta = (document.querySelector('meta[name=viewport]') || {}).content || '';
+    const est = getComputedStyle(document.body);
+    return { meta,
+             touchAction: est.touchAction,
+             overflowX: est.overflowX,
+             anchoDeclarado: /width\s*=\s*(\d+)/.test(meta) ? +RegExp.$1 : null };
+  });
+  m.comprobar('el mando se adapta al ancho real del móvil, sin declarar uno fijo',
+    /width\s*=\s*device-width/.test(gestos.meta) && gestos.anchoDeclarado === null,
+    `viewport: «${gestos.meta}»`);
+  m.comprobar('y no se puede pellizcar para ampliar: solo arriba y abajo',
+    /user-scalable\s*=\s*no/.test(gestos.meta) && /maximum-scale\s*=\s*1/.test(gestos.meta)
+      && /pan-y/.test(gestos.touchAction),
+    `user-scalable y maximum-scale en el meta · touch-action «${gestos.touchAction}»`);
+
+  /* ══ Y los avisos no le roban la pantalla ═══════════════════════════
+     Tres paneles llevan un aviso largo: por qué el relax es lo contrario de un
+     optotipo, por qué la fijación no suena, y el párrafo del color que dice que
+     esto no son las cartillas de Ishihara. Son textos que hay que poder leer,
+     pero que se leen UNA vez: el del color medía 208 px de los 1.447 que medía
+     el panel, una pantalla y media de móvil desplazándose por delante de los
+     controles cada vez que se entra.
+
+     Plegados, el título sigue delante —la advertencia no se esconde— y el
+     desarrollo se abre al tocarlo. Se mide lo que ocupa cerrado, que su texto
+     no esté pintado, y que abrirlo lo traiga: un aviso que no se puede abrir
+     es un aviso censurado, no plegado. */
+  const avisoDe = async modulo => {
+    await abrir(modulo);
+    return tel.evaluate(() => {
+      const a = [...document.querySelectorAll('#vista-modulo .aviso')].find(e => e.offsetParent);
+      if (!a) return null;
+      const txt = a.querySelector('.txt');
+      /* Dentro de un <details> cerrado el rect MIENTE: Chromium salta el
+         contenido de la maquetación (content-visibility) y devuelve el último
+         tamaño que tuvo, así que getBoundingClientRect, offsetHeight y
+         offsetParent dan los tres «visible» con el aviso plegado. Medido:
+         cerrado 44 px de aviso y 165 px de texto. La única señal que distingue
+         es checkVisibility(), que da false cerrado y true abierto. */
+      return { alto: Math.round(a.getBoundingClientRect().height),
+               etiqueta: a.tagName,
+               titulo: (a.querySelector('.tit') || {}).textContent || '',
+               textoVisible: !txt || typeof txt.checkVisibility !== 'function'
+                             || txt.checkVisibility(),
+               letras: (txt || {}).textContent ? txt.textContent.trim().length : 0 };
+    });
+  };
+  const avisos = [];
+  for (const modulo of ['Relax acomodativo', 'Fijación infantil', 'Pseudoisocromático']) {
+    const a = await avisoDe(modulo);
+    if (a) avisos.push([modulo, a]);
+  }
+  m.comprobar('los tres avisos largos del mando salen plegados, sin tapar los controles',
+    avisos.length === 3 && avisos.every(([, a]) => a.alto <= 60 && !a.textoVisible
+      && a.letras > 100 && a.titulo.trim().length > 5),
+    avisos.map(([mod, a]) => `${mod.split(' ')[0]} ${a.alto} px`
+      + (a.textoVisible ? ' con el texto DESPLEGADO' : '') + ` · «${a.titulo.slice(0, 22)}»`).join(' · ')
+    || 'ningún aviso encontrado');
+
+  /* Y el texto está ahí: se abre tocando el título. No se pulsa a ciegas —un
+     clic sobre algo que no existe cuesta 30 s de espera y se lleva la suite
+     entera por delante, que ya pasó dos veces— así que primero se pregunta si
+     hay título que tocar. */
+  await abrir('Pseudoisocromático');
+  const hayTitulo = await tel.evaluate(() => !!document.querySelector('#panel-color .aviso > summary'));
+  if (hayTitulo) { await tel.click('#panel-color .aviso > summary'); await tel.waitForTimeout(350); }
+  const abierto = await tel.evaluate(() => {
+    const a = document.querySelector('#panel-color .aviso');
+    const txt = a && a.querySelector('.txt');
+    return { alto: a ? Math.round(a.getBoundingClientRect().height) : 0,
+             visible: !!(txt && typeof txt.checkVisibility === 'function'
+                         && txt.checkVisibility()),
+             dice: !!(txt && /Ishihara/.test(txt.textContent)) };
+  });
+  m.comprobar('y tocar el título despliega el texto entero',
+    hayTitulo && abierto.visible && abierto.alto > 120 && abierto.dice,
+    hayTitulo ? `${abierto.alto} px abierto · texto ${abierto.visible ? 'a la vista' : 'SIN PINTAR'}`
+              : 'el aviso no tiene título que tocar: no se puede plegar ni desplegar');
+
+  /* ══ Ninguna letra pintada con una fuente que no la tiene ═══════════
+     Optician Sans es la fuente de los optotipos y tiene 111 caracteres: las
+     letras, las cifras, y poco más. NO tiene ni una vocal acentuada, ni la ñ,
+     ni la ü, ni «·», ni «±», ni «Δ» — y el rótulo que el optometrista lee en la
+     pantalla del paciente está escrito con ella y usa los cuatro. Cada uno de
+     esos caracteres cae a OTRA fuente en mitad de la palabra, así que
+     «Fijación» sale con seis letras de una fuente y una de otra.
+
+     No se comprueba leyendo el CSS: se MIDE. Para cada carácter del texto se
+     compara su ancho pedido con la fuente y su ancho pedido con una familia que
+     no existe. Si miden lo mismo, el glifo lo puso la fuente de reserva y no la
+     que el CSS declara. */
+  const letrasHuerfanas = pagina => pagina.evaluate(() => {
+    const c = document.createElement('canvas').getContext('2d');
+    const faltan = ch => {
+      if (/\s/.test(ch)) return false;
+      c.font = '40px OpticianSans';
+      const conFuente = c.measureText(ch).width;
+      c.font = '40px NingunaFuenteQueExista';
+      return Math.abs(conFuente - c.measureText(ch).width) < 0.01;
+    };
+    const salida = [];
+    const visible = e => {
+      const s = getComputedStyle(e);
+      return s.display !== 'none' && s.visibility !== 'hidden' && e.offsetParent !== null;
+    };
+    for (const e of document.querySelectorAll('*')) {
+      if (!/OpticianSans/i.test(getComputedStyle(e).fontFamily)) continue;
+      if (!visible(e)) continue;
+      const propio = [...e.childNodes]
+        .filter(n => n.nodeType === 3).map(n => n.textContent).join('');
+      const malas = [...new Set([...propio].filter(faltan))];
+      if (malas.length) {
+        salida.push({ donde: e.id || e.className || e.tagName.toLowerCase(),
+                      chars: malas.join(''), texto: propio.replace(/\s+/g, ' ').trim().slice(0, 40) });
+      }
+    }
+    return salida;
+  });
+
+  /* Se recorren los ocho módulos: el rótulo de la pantalla cambia con cada uno
+     y cada uno trae sus propios acentos. */
+  const huerfanas = [];
+  for (const mod of MODULOS) {
+    await abrir(mod.nombre);
+    for (const [quien, pagina] of [['pantalla', pc], ['mando', tel]]) {
+      for (const x of await letrasHuerfanas(pagina)) {
+        huerfanas.push(quien + ' · ' + x.donde + ' · «' + x.chars + '» en «' + x.texto + '»');
+      }
+    }
+  }
+  m.comprobar('ningún texto se pinta con una fuente que no tiene sus caracteres',
+    huerfanas.length === 0,
+    huerfanas.length ? huerfanas.length + ' sitios: ' + huerfanas.slice(0, 4).join(' | ')
+                     : 'los ocho módulos, pantalla y mando');
+
+  /* La tecla N, DENTRO de un módulo. En la pantalla sola siempre se está en
+     optotipos, así que allí la N nunca topa con la lista blanca de teclas que
+     sobreviven fuera de optotipos — y es justo dentro de un módulo donde hace
+     falta: el optometrista está de pie junto al PC, entra alguien en la sala y
+     el panel de atajos anuncia la tecla sin condiciones. */
+  await abrir('Rejilla de Amsler');
+  await pc.keyboard.press('n');
+  await pc.waitForTimeout(500);
+  const conN = await capasConContenido();
+  m.comprobar('la tecla N del PC corta el estímulo también dentro de un módulo',
+    conN.estimulo === 0 && conN.optotipos === 0 && /CORTAD/i.test(conN.nombre),
+    `estímulo ${conN.estimulo} · «${conN.nombre.slice(0, 46)}»`);
+  await pc.keyboard.press('n');
+  await pc.waitForTimeout(500);
+
+  /* ══ Un mando que se recarga tiene que reconstruirse del espejo ══════
+     El mando no guarda estado de navegación a propósito: lo pinta todo de lo
+     que le llega por el socket. Eso vale mientras la pantalla SIGA emitiendo,
+     y hay dos sitios donde dejó de hacerlo.
+
+     Con el estímulo cortado: si la pantalla no emite mientras está en negro,
+     un móvil que se recarga —o uno nuevo que entra a la sala— se queda para
+     siempre en «esperando la pantalla…», con las dos vistas ocultas y sin
+     botón con el que reanudar. La pantalla del paciente en negro y el mando
+     sin forma de sacarla es el peor estado de todo este sistema.
+
+     Y el modo de optotipo: el espejo lleva `mode`, pero si el mando solo
+     atiende al evento de cambio, tras recargarse marca «Letras» mientras el
+     paciente está viendo LEA. Un mando que dice otra cosa que la pantalla es
+     lo que esta suite entera existe para evitar. */
+  const mandoVivo = () => tel.evaluate(() => ({
+    enModulo: !document.getElementById('vista-modulo').classList.contains('oculto'),
+    enMenu: !document.getElementById('vista-menu').classList.contains('oculto'),
+    corteOn: !!document.querySelector('#corte-estimulo.on'),
+    modo: (document.querySelector('#mode-buttons button.sel') || {}).textContent || '—',
+    titulo: (document.getElementById('mod-titulo') || {}).textContent || ''
+  }));
+
+  await abrir('Schober');
+  await tel.click('#corte-estimulo');
+  await tel.waitForTimeout(700);
+  await tel.reload();
+  await tel.evaluate(() => document.fonts.ready);
+  await tel.waitForTimeout(3000);
+  const trasRecarga = await mandoVivo();
+  m.comprobar('con el estímulo cortado, un mando que se recarga se reconstruye',
+    trasRecarga.enModulo && /Schober/.test(trasRecarga.titulo),
+    trasRecarga.enModulo ? `vuelve a «${trasRecarga.titulo}»`
+                         : 'las dos vistas ocultas: el mando se quedó esperando la pantalla');
+  m.comprobar('y encuentra el botón con el que reanudar, encendido',
+    trasRecarga.corteOn,
+    trasRecarga.corteOn ? '' : 'el botón de corte no está marcado: no se sabe que la pantalla está en negro');
+  /* Se reanuda recargando la PANTALLA, no pulsando el botón del mando: si el
+     mando está roto —que es justo lo que esta comprobación mide— pulsarlo se
+     queda esperando treinta segundos y rompe la suite entera en vez de dar un
+     fallo legible. El corte no se guarda, así que un F5 lo levanta siempre. */
+  await pc.reload();
+  await pc.evaluate(() => document.fonts.ready);
+  await pc.waitForTimeout(1800);
+  await pc.click('#card-cancel').catch(() => {});
+  await pc.waitForTimeout(2600);
+
+  /* El modo de optotipo, por el mismo camino. */
+  await tel.locator('#mode-buttons button').filter({ hasText: 'LEA' }).first().click()
+    .catch(() => {});
+  await tel.waitForTimeout(700);
+  const enPantalla = await pc.evaluate(() =>
+    document.querySelectorAll('#lines-container img').length > 0 ? 'LEA' : 'texto');
+  await tel.reload();
+  await tel.evaluate(() => document.fonts.ready);
+  await tel.waitForTimeout(3000);
+  const modoTras = await mandoVivo();
+  m.comprobar('y el modo de optotipo que marca el mando es el que dibuja la pantalla',
+    /LEA/.test(modoTras.modo) && enPantalla === 'LEA',
+    `la pantalla dibuja ${enPantalla} y el mando marca «${modoTras.modo.trim()}»`);
+  await tel.locator('#mode-buttons button').filter({ hasText: 'Letras' }).first().click()
+    .catch(() => {});
+  await tel.waitForTimeout(600);
+
   /* ══ El menú dice en qué situación queda cada test ════════════════
      Lo dice ANTES de entrar, para que el optometrista vea que Worth no cabe a
      6 m sin entrar a leer un cartel rojo. El veredicto lo calcula la pantalla

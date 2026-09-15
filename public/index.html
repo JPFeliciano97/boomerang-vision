@@ -9,6 +9,27 @@
     <script src="/qrcode.js"></script>
     <style>
         /* ═══════════ FUENTE OPTICIAN SANS ═══════════ */
+        /* ═══════════ DÓNDE VA OPTICIAN SANS Y DÓNDE NO ═══════════
+           Optician Sans tiene 111 caracteres: las letras, las cifras y poco
+           más. NO tiene ninguna vocal acentuada, ni la ñ, ni la ü, ni «·», ni
+           «±», ni «Δ», ni el punto decimal. Medido leyendo el cmap del .woff.
+
+           Así que solo se usa en dos sitios, y en ninguno más:
+             · los OPTOTIPOS — letras, números y las filas del Pelli-Robson,
+               donde además ss01 fija los 0,500 em de alto de los que sale toda
+               la geometría;
+             · el rótulo BOOMERANG VISION.
+
+           Todo lo demás va en --ui o en monoespaciada. El rótulo del módulo
+           estaba en Optician Sans y decía cosas como «Fijación infantil · 1,20°
+           = 126 mm · ±8,1°»: seis caracteres de esa línea caían a otra fuente
+           en mitad de la palabra. Las cifras de agudeza también, por el punto
+           decimal del «0.05». Hay una comprobación que lo mide en los ocho
+           módulos, en pantalla y en mando. */
+        :root {
+            --ui: 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
+            --num: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+        }
         @font-face {
             font-family: 'OpticianSans';
             src: url('/OpticianSans.woff') format('woff');
@@ -241,7 +262,7 @@
         /* El panel de atajos y el de calibración siguen por encima de la capa
            (181 y 300 contra 90), así que ? y C funcionan igual desde el teclado. */
         #modulo-nombre {
-            font-family:'OpticianSans','Segoe UI',sans-serif;
+            font-family: var(--ui);
             font-size:11px; letter-spacing:1.6px; color:#7a7a7a;
             text-transform:uppercase; white-space:nowrap;
         }
@@ -279,10 +300,12 @@
         .optotype-line.dimmed .optotype-text,
         .optotype-line.dimmed img { opacity: 0.10; }
         .line-annotation-left, .line-annotation-right {
-            /* Las cifras de agudeza en la misma tipografía que los optotipos.
-               Optician Sans tiene un solo peso: pedirle 600 hacía que el
-               navegador la engordara por su cuenta. */
-            font-family: 'OpticianSans', 'Segoe UI', 'Helvetica Neue', sans-serif;
+            /* Monoespaciada, no la de los optotipos: son cifras con punto
+               decimal —«0.05»— y Optician Sans no tiene el punto, así que ese
+               carácter caía a otra fuente en mitad del número. Además una
+               monoespaciada alinea la columna, que es lo que se quiere de una
+               cifra que se lee de reojo al lado de la línea. */
+            font-family: var(--num);
             font-weight: normal;
             letter-spacing: 0.5px;
             line-height: 1;
@@ -349,7 +372,8 @@
             box-shadow:0 12px 40px rgba(0,0,0,0.6);
         }
         .card-panel h2 {
-            font-family:'OpticianSans','Arial Black',Impact,sans-serif;
+            /* «CONFIGURACIÓN INICIAL» lleva una Ó que esta fuente no tiene. */
+            font-family: var(--ui);
             font-weight:normal; font-size:18px; letter-spacing:1px; color:#fff; margin-bottom:6px;
         }
         .card-panel p { color:#aaa; font-size:12px; line-height:1.6; margin-bottom:16px; }
@@ -601,7 +625,20 @@
                 circle: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 60"><circle cx="30" cy="30" r="26.25" fill="none" stroke="#000" stroke-width="7.5"/></svg>`,
                 square: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 60"><rect x="3.75" y="3.75" width="52.5" height="52.5" fill="none" stroke="#000" stroke-width="7.5"/></svg>`,
                 house: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 76.5 60"><path fill="#000" fill-rule="evenodd" d="M0,23.1 L38.25,0 L76.5,23.1 L65.2,23.1 L65.2,60 L11.3,60 L11.3,23.1 Z M38.25,7.7 L58.6,20 L58.6,53.4 L17.9,53.4 L17.9,20 Z"/></svg>`,
-                apple: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="1.85 4.485 56.3 52.555"><path fill="#000" fill-rule="evenodd" d="M30,14 C26,7 20,3 14,5 C5,8 1,17 2,28 C3,40 10,51 19,56 C23,58 27,57 30,54 C33,57 37,58 41,56 C50,51 57,40 58,28 C59,17 55,8 46,5 C40,3 34,7 30,14 Z M30,23 C27,17 22,14 17,16 C10,19 9,25 10,31 C11,40 16,46 22,49 C25,51 28,50 30,47 C32,50 35,51 38,49 C44,46 49,40 50,31 C51,25 50,19 43,16 C38,14 33,17 30,23 Z"/></svg>`
+                /* La manzana va TRAZADA, no como contorno doble. La versión
+                   anterior dibujaba dos curvas —la de fuera y la de dentro— a mano
+                   y con relleno evenodd: dos beziers independientes no se mantienen
+                   paralelas, así que el anillo engordaba y adelgazaba a lo largo del
+                   recorrido. En un optotipo eso no es un detalle estético: el juego
+                   LEA se apoya en que los cuatro símbolos se desenfoquen hasta
+                   manchas equivalentes, y para eso el trazo tiene que ser el mismo
+                   en todas partes y en los cuatro. Con una sola línea central y
+                   stroke-width el grosor es exacto por construcción, como en el
+                   círculo y el cuadrado.
+                   La forma sigue la manzana del juego: hombros altos y redondos, una
+                   V honda entre los dos —que el trazo convierte en un hueco interior
+                   con punta, que es lo que se reconoce— y una muesca pequeña abajo. */
+                apple: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 60"><path fill="none" stroke="#000" stroke-width="7.5" stroke-linejoin="round" stroke-linecap="round" d="M30,17 C26,7 21,3 17.5,5 C10,8 4.8,18 4.8,30 C4.8,42 13,55 20.5,54.2 C24,53.8 27,50 30,49.5 C33,50 36,53.8 39.5,54.2 C47,55 55.2,42 55.2,30 C55.2,18 50,8 42.5,5 C39,3 34,7 30,17 Z"/></svg>`
             };
             for (let [k,v] of Object.entries(LEA_SVGS)) registerOptotype('P_'+k, v);
 
@@ -767,19 +804,16 @@
             }
 
             /* ═══════════ PELLI-ROBSON ═══════════
-               Ocho niveles a la vez con pasos de 0,30 log, de log CS 0,00 a
-               2,10. Con 16 pasos de 0,15 se gana resolución pero no caben en
-               pantalla, y el número de filas es justo lo que fija el tamaño de
-               letra: ocho letras más siete separaciones de media letra son 11,5
-               alturas, así que el alto de la pantalla dividido por 11,5 ES la
-               letra. De ahí sale el 1 m fijo: a 6 m esa letra daría 0,25° y el
-               paciente fallaría por agudeza y no por contraste.
+               Los niveles a la vez, y el número de filas es justo lo que fija el
+               tamaño de letra: cinco letras más cuatro separaciones de media
+               letra son 7 alturas, y con un cuarto de margen arriba y abajo, 7,5
+               — así que el alto de la pantalla dividido por 7,5 ES la letra. De
+               ahí sale el 1 m fijo: a 6 m esa letra daría 0,38° y el paciente
+               fallaría por agudeza y no por contraste.
 
                La tinta no es una opacidad: es el código que hay que pedirle al
                panel para que la letra tenga el contraste de Weber del nivel. Con
-               gamma 2,2, código = 255·(1−c)^(1/2,2). Los dos niveles más tenues
-               salen en el 253 y el 254 de 255, o sea a uno y dos pasos del
-               blanco: ahí manda el panel y no la prueba, y el módulo lo dice. */
+               gamma 2,2, código = 255·(1−c)^(1/2,2). */
             /* Cinco filas de 0 a 1,00 log CS, en pasos de 0,25.
                Eran ocho de 0 a 2,10 en pasos de 0,30, y eso no se podía usar:
                por encima de 1,00 log estos monitores no enseñan NADA — los dos
@@ -1352,7 +1386,7 @@
 
                Se dibujan en una caja de lado 1 centrada en el origen y cada
                una trae su escala medida, abajo. */
-            /* Cada figura trae su ESCALA, y las siete están calibradas, no
+            /* Cada figura trae su ESCALA, y las seis están calibradas, no
                puestas a ojo. El procedimiento: buscar la escala que deja el
                área de la silueta en el 20 % del disco —el doble que una cifra
                de dos dígitos, que es lo que un niño necesita— y medir después
@@ -1361,24 +1395,26 @@
 
                  figura      escala   área   brazo
                  círculo     0,448    20 %   4,1 puntos
-                 cuadrado    0,429    20 %   3,5
                  corazón     0,554    20 %   3,6
-                 casa        0,507    20 %   3,4
+                 cuadrado    0,429    20 %   3,5
                  estrella    0,535    20 %   3,3
                  triángulo   0,566    20 %   3,2
-                 cruz        0,496    26 %   3,1
+                 luna        0,786    26 %   3,1
 
-               La estrella y la cruz salieron primero en 2,6 y 2,5 puntos, por
-               debajo del borrón. La estrella se arregló ENGORDÁNDOLA en vez de
-               agrandándola —el radio interior subió de 0,48 a 0,64 del
-               exterior— porque crecer la habría dejado comiéndose el disco, y
-               sin fondo alrededor no hay nada en lo que esconderse.
+               Aquí hubo antes una CASA y una CRUZ, y salieron por lo que se
+               mide en la sala y no con una regla: un niño de tres años no
+               reconoce la forma de una casa en una silueta plana —le falta el
+               tejado, las ventanas, todo lo que la hace una casa— y una cruz
+               no la nombra. Quedan seis formas básicas, las que un niño
+               nombra o señala sin dudar.
 
-               La cruz no se deja: es casi toda brazo, así que engordarla la
-               convierte en un octógono —medido: con el brazo en 0,26 deja de
-               leerse como cruz— y adelgazarla la rompe. A esa figura hubo que
-               darle sitio: el 26 % del disco en vez del 20 %, que es lo que
-               pone su brazo en 3,1 puntos con la forma intacta.
+               La estrella y la luna hubo que engordarlas. La estrella salió en
+               2,6 puntos de brazo y se arregló subiendo el radio interior de
+               0,48 a 0,64 del exterior: crecer la habría dejado comiéndose el
+               disco, y sin fondo alrededor no hay nada en lo que esconderse.
+               La luna es casi toda brazo y no se deja engordar sin dejar de
+               ser una luna, así que a esa se le dio sitio: el 26 % del disco
+               en vez del 20 %, que es lo que pone su brazo en 3,1 puntos.
 
                Tres puntos de brazo bastan aquí y en una cifra no: en un 5 lo
                que lleva la identidad es el TRAZO, y si el trazo se rompe el 5
@@ -1405,16 +1441,24 @@
                     k.bezierCurveTo(-0.74, 0.02, -0.40, -0.56, 0, -0.20);
                     k.bezierCurveTo(0.40, -0.56, 0.74, 0.02, 0, 0.52);
                     k.closePath(); } },
-                cruz: { nombre: 'cruz', escala: 0.496, trazar: k => {
-                    const b = 0.22, l = 0.58;
-                    k.moveTo(-b, -l); k.lineTo(b, -l); k.lineTo(b, -b); k.lineTo(l, -b);
-                    k.lineTo(l, b); k.lineTo(b, b); k.lineTo(b, l); k.lineTo(-b, l);
-                    k.lineTo(-b, b); k.lineTo(-l, b); k.lineTo(-l, -b); k.lineTo(-b, -b);
-                    k.closePath(); } },
-                casa: { nombre: 'casa', escala: 0.507, trazar: k => {
-                    k.moveTo(-0.50, -0.06); k.lineTo(0, -0.52); k.lineTo(0.50, -0.06);
-                    k.lineTo(0.34, -0.06); k.lineTo(0.34, 0.50); k.lineTo(-0.34, 0.50);
-                    k.lineTo(-0.34, -0.06); k.closePath(); } }
+                /* La luna: el hueco de una circunferencia desplazada sobre otra.
+                   Los dos sentidos de arco importan y la primera versión los
+                   tenía invertidos — el exterior iba por la derecha y salía una
+                   lente en vez de una luna, con un 3 % de área en vez del 26 %.
+                   El exterior va por la IZQUIERDA (anticlockwise) y el interior
+                   por la derecha. */
+                luna: { nombre: 'luna', escala: 0.786, trazar: k => {
+                    const R = 0.5, c = 0.40, r = 0.55;
+                    const x = (R * R - r * r + c * c) / (2 * c);
+                    const y = Math.sqrt(R * R - x * x);
+                    /* Y centrada: la caja de la luna va de −0,5 a x, así que su
+                       centro cae a la izquierda del origen y la silueta salía
+                       pegada a un lado del disco. Se desplaza media caja. */
+                    k.translate((0.5 - x) / 2, 0);
+                    k.moveTo(x, -y);
+                    k.arc(0, 0, R, Math.atan2(-y, x), Math.atan2(y, x), true);
+                    k.arc(c, 0, r, Math.atan2(y, x - c), Math.atan2(-y, x - c), false);
+                    k.closePath(); } }
             };
             const COLOR_JUEGOS = [
                 { id: 'numeros', nombre: 'Números', sub: 'para quien lee' },
@@ -1458,9 +1502,13 @@
                   que:'Desaparece para el deután' },
                 { id:5, tipo:'oculta', eje:'deutan', figura:'corazon',
                   que:'Desaparece para el deután' },
-                { id:6, tipo:'oculta', eje:'tritan', figura:'cruz',
+                { id:6, tipo:'oculta', eje:'tritan', figura:'luna',
                   que:'Desaparece para el tritán' },
-                { id:7, tipo:'oculta', eje:'tritan', figura:'casa',
+                /* Seis figuras para siete láminas: la estrella se repite en el
+                   otro eje. Repetir una forma no resta nada —lo que cambia de
+                   una lámina a otra es la línea de confusión, no el dibujo— y
+                   es mejor que meter una séptima forma que el niño no nombre. */
+                { id:7, tipo:'oculta', eje:'tritan', figura:'estrella',
                   que:'Desaparece para el tritán' }
             ].map(l => ({ ...l, resp: COLOR_FIGURAS[l.figura].nombre }));
 
@@ -1658,7 +1706,7 @@
             }
 
             const LETTERS = ['A','C','D','E','H','K','N','O','R','S','V','Z'];
-            const NUMBERS = ['0','1','2','3','4','5','6','7','8','9'];
+            const NUMBERS = ['1','2','3','4','5','6','7','8','9'];   // sin el 0: ver pruebas/optotipos.mjs
 
             // decimal = la fracción exacta (20/x), no el redondeo a dos cifras:
             // de ahí sale el tamaño físico, y 0.13 en vez de 0.1333 lo falseaba un 2.5%.
@@ -2139,6 +2187,15 @@
                     d.moduloArea.innerHTML = '';
                     d.testArea.classList.remove('bichromatic');
                     d.moduloNombre.textContent = 'estímulo CORTADO · ' + m.titulo + ' sigue puesto';
+                    /* Y SE SIGUE EMITIENDO EL ESPEJO. Este return salía antes del
+                       emitirEspejo() del final y dejaba a la pantalla muda
+                       mientras estaba en negro: un móvil que se recargaba —o uno
+                       nuevo que entraba en la sala— se quedaba para siempre en
+                       «esperando la pantalla», con las dos vistas ocultas y sin
+                       botón con el que reanudar. La pantalla del paciente en
+                       negro y el mando sin forma de sacarla es el peor estado de
+                       todo este sistema. */
+                    emitirEspejo();
                     return;
                 }
                 if (esOpto) {
@@ -2469,7 +2526,7 @@
             function renderPendiente(m){
                 d.moduloArea.style.background = '#000000';
                 d.moduloArea.innerHTML =
-                    '<div style="font-family:\'OpticianSans\',sans-serif;color:#3a3a3a;'
+                    '<div style="font-family:var(--ui);color:#3a3a3a;'
                   + 'font-size:15px;letter-spacing:2px;text-align:center;line-height:2;">'
                   + m.titulo.toUpperCase() + '<br><span style="font-size:11px;color:#2e2e2e;">TODAV\u00cdA NO CONSTRUIDO</span></div>';
                 d.moduloNombre.textContent = m.titulo + ' · pendiente';
@@ -2939,9 +2996,17 @@
                 }
                 if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) e.preventDefault();
                 /* Fuera del módulo de optotipos solo siguen vivos los atajos que
-                   valen en cualquiera: calibrar, la barra, los atajos, salir. El
-                   resto navegaría una pantalla que nadie está viendo. */
-                if (state.modulo !== 'optotipos' && !['c','C','h','H','?','Escape','m','M'].includes(e.key)) return;
+                   valen en cualquiera: calibrar, la barra, los atajos, salir y
+                   cortar el estímulo. El resto navegaría una pantalla que nadie
+                   está viendo.
+                   La N estaba fuera de esta lista y ahí no cortaba nada, que es
+                   justo donde hace falta: en la pantalla sola siempre se está en
+                   optotipos, así que la tecla parecía funcionar. Dentro de un
+                   módulo —el optometrista de pie junto al PC, alguien entra en la
+                   sala— no hacía nada, y el panel de atajos la anuncia sin
+                   condiciones. */
+                if (state.modulo !== 'optotipos'
+                    && !['c','C','h','H','?','Escape','m','M','n','N'].includes(e.key)) return;
                 if(e.key==='m'||e.key==='M'){ if(!e.ctrlKey&&!e.metaKey) entrarModulo('optotipos'); }
                 else if(e.key==='ArrowUp'){
                     if (state.highlightMode) moveHighlight(-1);

@@ -52,6 +52,25 @@ export default async function pruebaSinMando({ navegador, url }) {
   m.comprobar('la tecla M deja la pantalla en optotipos',
     d.lineas > 0 && d.moduloOculto && !d.enModulo, `${d.lineas} líneas`);
 
+  /* La N corta el estímulo, y tiene que hacerlo SIN el móvil: es el uso más
+     común de todo esto y el panel de atajos la anuncia sin condiciones. */
+  await pc.keyboard.press('n'); await pc.waitForTimeout(400);
+  const cortada = await pc.evaluate(() => ({
+    lineas: document.querySelectorAll('#lines-container > div').length,
+    lineasOcultas: document.getElementById('lines-container').classList.contains('oculto'),
+    estimulo: document.getElementById('modulo-area').children.length,
+    nombre: (document.getElementById('modulo-nombre') || {}).textContent || ''
+  }));
+  m.comprobar('la tecla N corta el estímulo en la pantalla sola',
+    cortada.lineasOcultas && cortada.estimulo === 0 && /CORTAD/i.test(cortada.nombre),
+    `optotipos ${cortada.lineasOcultas ? 'ocultos' : 'A LA VISTA (' + cortada.lineas + ' líneas)'}`
+    + ` · estímulo ${cortada.estimulo} · «${cortada.nombre.slice(0, 40)}»`);
+
+  await pc.keyboard.press('n'); await pc.waitForTimeout(400);
+  const reanudada = await estado();
+  m.comprobar('y volver a pulsarla devuelve los optotipos',
+    reanudada.lineas > 0 && reanudada.moduloOculto, `${reanudada.lineas} líneas`);
+
   m.comprobar('sin errores de consola en todo el recorrido', errores.length === 0,
     errores.length ? errores.slice(0, 3).join(' | ') : 'ninguno');
 

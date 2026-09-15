@@ -61,6 +61,33 @@ const TAMANOS = [
   { nombre: 'horizontal 915×412', w: 915, h: 412 }
 ];
 
+/* Los grupos de opciones mutuamente excluyentes del panel VISIBLE.
+   Lo de «visible» no es un detalle: los paneles ocultos guardan sus botones en
+   el DOM, y una sonda que mire todo #vista-modulo cuenta los de los otros siete
+   módulos. La primera versión de esta consulta lo hacía y acusaba a Amsler de
+   tener opciones de Worth.
+
+   Lo que se busca es un grupo donde TODAS las opciones son imposibles a la
+   distancia de la sala. Eso deja al operador eligiendo entre cosas que no van a
+   pasar, y peor: ninguna coincide con lo que la pantalla dibuja de verdad.
+   Worth tenía ese defecto y se arregló con un cuarto tamaño — el mayor que
+   cabe. Esta comprobación existe para que el siguiente módulo con opciones
+   físicas no lo repita. */
+const GRUPOS_VISIBLES = (tel, paneles) => tel.evaluate(ids => {
+  const p = ids.map(i => document.getElementById(i)).find(e => e && !e.classList.contains('oculto'));
+  if (!p) return [];
+  return [...p.querySelectorAll('.trio, .cuarteto, .mode-grid, .lista-lam, .lista-niv')]
+    .map(g => {
+      const o = [...g.querySelectorAll('button')].map(e => e.textContent.replace(/\s+/g, ' ').trim());
+      return {
+        n: o.length,
+        imposibles: o.filter(t => /no cabe|no caben/i.test(t)).length,
+        muestra: o.slice(0, 4).join(' | ')
+      };
+    })
+    .filter(g => g.n > 1);
+}, paneles);
+
 /* Todo lo que se toca en la vista de módulo, con su tamaño dibujado. Se miran
    los <button> y cualquier cosa con onclick, porque en este mando varias filas
    pulsables son <div onclick>. Lo que está oculto mide 0 y no cuenta. */
@@ -105,6 +132,15 @@ export default async function pruebaModulos({ pc, tel, abrir }) {
     m.comprobar(mod.nombre.padEnd(19) + ' no desborda a lo ancho en 412 px',
       desborde.horizontal === 0,
       `desplazamiento vertical ${desborde.vertical} px, horizontal ${desborde.horizontal} px`);
+
+    /* Ningún grupo de opciones puede estar imposible por completo. */
+    const grupos = await GRUPOS_VISIBLES(tel, PANELES);
+    const rotos = grupos.filter(g => g.imposibles === g.n);
+    m.comprobar(mod.nombre.padEnd(19) + ' ofrece al menos una opción posible por grupo',
+      rotos.length === 0,
+      rotos.length
+        ? rotos.map(g => `${g.n} de ${g.n} imposibles: ${g.muestra}`).join(' · ')
+        : grupos.map(g => g.n + (g.imposibles ? ` (${g.imposibles} imposibles)` : '')).join(' + ') || 'sin grupos');
 
     /* Cada módulo declara su estímulo en grados; si no lo dice, alguien
        cambió el estímulo sin cambiar lo que anuncia. */

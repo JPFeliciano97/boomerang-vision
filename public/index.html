@@ -875,15 +875,31 @@
                D/100 mm a D mm. De lejos el paso crece y en la media pantalla
                caben menos anillos, así que el rango medible se estrecha justo
                cuando el paso se hace más grande. */
+            /* Los rangos que se ofrecen, y un cuarto que no es un número fijo.
+               El paso entre anillos ES 1Δ, así que el rango que cabe lo dicta la
+               pantalla: a 6 m, 1Δ son 60 mm y solo entran 2 anillos. Con los
+               tres rangos clásicos el módulo ofrecía desde la silla de lejos
+               tres botones que decían los tres «no caben», que dibujaban los
+               tres lo mismo, y ninguno de los cuales era lo que se estaba
+               dibujando: elegías 5 y medías con 2.
+               Es el mismo defecto que tenía Worth y se arregla igual: una cuarta
+               opción que es el rango que de verdad entra, con su cifra escrita. */
+            const SCHOBER_RANGOS = [
+                { id: '3',   label: '3',    anillos: 3 },
+                { id: '5',   label: '5',    anillos: 5 },
+                { id: '7',   label: '7',    anillos: 7 },
+                { id: 'max', label: 'máx',  anillos: null }
+            ];
             function schoberGeometria(){
                 const D = distanciaModulo() * 1000;
                 const pasoMM = D / 100;                       // 1Δ
                 const pasoPx = pasoMM * state.cssPxPerMM;
-                const pedidos = parseInt(state.schoberAnillos, 10) || 5;
                 const medio = Math.min(window.innerWidth, window.innerHeight) / 2;
                 const caben = pasoPx > 0 ? Math.max(0, Math.floor(medio / pasoPx)) : 0;
+                const esMax = state.schoberAnillos === 'max';
+                const pedidos = esMax ? caben : (parseInt(state.schoberAnillos, 10) || 5);
                 const anillos = Math.min(pedidos, caben);
-                return { pasoMM, pasoPx, pedidos, caben, anillos };
+                return { pasoMM, pasoPx, pedidos, caben, anillos, esMax };
             }
             function renderSchober(){
                 d.moduloArea.style.background = '#000000';
@@ -925,7 +941,9 @@
                        </g>
                      </svg>`;
                 d.moduloNombre.textContent = `Schober · 1Δ = ${g.pasoMM.toFixed(0)} mm a ${distanciaModulo()} m · `
-                    + `±${g.anillos}Δ de rango` + (g.anillos < g.pedidos ? ` (se pidieron ${g.pedidos} y caben ${g.caben})` : '')
+                    + `±${g.anillos}Δ de rango`
+                    + (g.esMax ? ' (el máximo que cabe)'
+                               : (g.anillos < g.pedidos ? ` (se pidieron ${g.pedidos} y caben ${g.caben})` : ''))
                     + ` · cruz ${state.schoberInvertido ? 'verde' : 'roja'} · filtro rojo en ${state.schoberOjoRojo}`;
             }
 
@@ -938,7 +956,7 @@
             }
             function schoberComando(resto){
                 const [que, valor] = resto.split(':');
-                if (que === 'anillos' && ['3','5','7'].includes(valor)) state.schoberAnillos = valor;
+                if (que === 'anillos' && SCHOBER_RANGOS.some(r => r.id === valor)) state.schoberAnillos = valor;
                 else if (que === 'inv') state.schoberInvertido = !state.schoberInvertido;
                 else if (que === 'ojo') state.schoberOjoRojo = state.schoberOjoRojo === 'OD' ? 'OI' : 'OD';
                 else return;
@@ -1931,6 +1949,19 @@
                     const cruzEsDerecho = ojoCruz === 'OD';
                     datos.schober = {
                         anillosPedidos: state.schoberAnillos,
+                        /* Las opciones viajan con su nota calculada en vez de que
+                           el mando las escriba: así añadir un rango es tocar una
+                           lista y no dos ficheros, y el «máx» puede decir cuánto
+                           es sin que el móvil repita la geometría. */
+                        rangos: SCHOBER_RANGOS.map(r => ({
+                            id: r.id,
+                            label: r.label,
+                            entra: g ? (r.anillos == null || r.anillos <= g.caben) : true,
+                            nota: !g ? ''
+                                : r.anillos == null ? '±' + g.caben + 'Δ'
+                                : r.anillos <= g.caben ? '±' + r.anillos + 'Δ'
+                                : 'no caben'
+                        })),
                         anillos: g ? g.anillos : 0,
                         caben: g ? g.caben : 0,
                         pasoMM: g ? +g.pasoMM.toFixed(0) : 0,
@@ -2203,7 +2234,7 @@
                     if(AMSLER_LAMINAS.some(l=>l.id===saved.amslerLamina)) state.amslerLamina=saved.amslerLamina;
                     if(typeof saved.amslerDiagonales==='boolean') state.amslerDiagonales=saved.amslerDiagonales;
                     if(WORTH_TAMANOS.some(t=>t.id===saved.worthTam)) state.worthTam=saved.worthTam;
-                    if(['3','5','7'].includes(saved.schoberAnillos)) state.schoberAnillos=saved.schoberAnillos;
+                    if(SCHOBER_RANGOS.some(r => r.id === saved.schoberAnillos)) state.schoberAnillos = saved.schoberAnillos;
                     if(typeof saved.schoberInvertido==='boolean') state.schoberInvertido=saved.schoberInvertido;
                     if(RELAX_TIPOS.some(t=>t.id===saved.relaxTipo)) state.relaxTipo=saved.relaxTipo;
                     if(RELAX_LUCES.includes(saved.relaxLuz)) state.relaxLuz=saved.relaxLuz;

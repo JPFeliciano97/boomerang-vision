@@ -1159,14 +1159,20 @@
         function pintarSchober(data) {
             const s = data.schober || {};
             $r('schober-color').textContent = s.colorCruz || 'roja';
+            /* Los rangos vienen de la pantalla con su nota ya calculada. Antes
+               estaban escritos aquí como ['3','5','7'] y el móvil repetía la
+               geometría para decidir cuál cabía: dos sitios que podían dejar de
+               estar de acuerdo, y un cuarto rango imposible de añadir sin tocar
+               los dos. */
             const anillos = $r('schober-anillos');
             anillos.innerHTML = '';
-            ['3','5','7'].forEach(n => {
+            (s.rangos || []).forEach(r => {
                 const b = document.createElement('button');
-                b.className = n === s.anillosPedidos ? 'sel' : '';
-                b.innerHTML = '<span class="g">' + n + '</span>'
-                            + '<span class="mm">' + (parseInt(n,10) <= (s.caben ?? 0) ? '\u00b1' + n + '\u0394' : 'no caben') + '</span>';
-                b.addEventListener('click', () => enviar('S:anillos:' + n));
+                b.className = r.id === s.anillosPedidos ? 'sel' : '';
+                if (!r.entra) b.classList.add('no-entra');
+                b.innerHTML = '<span class="g">' + r.label + '</span>'
+                            + '<span class="mm">' + r.nota + '</span>';
+                b.addEventListener('click', () => enviar('S:anillos:' + r.id));
                 anillos.appendChild(b);
             });
             const ojos = $r('schober-ojos');

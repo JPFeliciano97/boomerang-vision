@@ -151,6 +151,16 @@
         }
         .fila-mod:active { background: #232323; }
         .fila-mod.no-hecho { opacity: 0.45; }
+        /* El azulejo del icono. Está en el lienzo de diseño desde el principio
+           y el mando no lo tenía: ocho filas de texto seguidas se leen todas
+           igual, y con el dibujo delante el módulo se reconoce sin leer —que es
+           lo que hace falta con un paciente sentado delante. */
+        .fila-mod .icono {
+            width: 34px; height: 34px; border-radius: 8px; background: #232323;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0; color: #f1c40f;
+        }
+        .fila-mod .icono svg { display: block; }
         .fila-mod .txt { flex-grow: 1; min-width: 0; }
         .fila-mod .tit { font-size: 14px; font-weight: 600; color: #e8e8e8; }
         .fila-mod .sub { font-size: 11px; color: #777; margin-top: 2px; }
@@ -187,41 +197,6 @@
         .fila-mod .tag.fuera     { color: #d9534f; }
         .fila-mod .tag.sincal    { color: #8a7550; }
 
-        #aviso-volver {
-            display: flex; align-items: center; gap: 10px; margin-bottom: 12px;
-            background: rgba(243,156,18,0.12); border: 1px solid rgba(243,156,18,0.45);
-            border-radius: 10px; padding: 11px 12px; margin-bottom: 4px;
-        }
-        #aviso-volver .txt { flex-grow: 1; }
-        #aviso-volver .tit { font-size: 12px; font-weight: 700; color: #f0b26b; }
-        #aviso-volver .sub { font-size: 11px; color: #c99a3f; margin-top: 3px; line-height: 1.4; }
-        #aviso-volver button {
-            flex-shrink: 0; background: #f39c12; color: #151515; border: none;
-            border-radius: 8px; padding: 11px 14px; font-size: 12px; font-weight: 700;
-        }
-
-        .cabecera {
-            display: flex; align-items: center; gap: 10px; margin-bottom: 12px;
-        }
-        /* 44×44, no 40×40: es el control más usado del mando y el área de
-           40×40 se queda en 1.600 px², por debajo del equivalente a un objetivo
-           táctil de 44. Cuatro píxeles que no se notan y una diana que sí. */
-        .cabecera .atras {
-            width: 44px; height: 44px; flex-shrink: 0; border: 1px solid #2f2f2f;
-            border-radius: 8px; background: #232323; color: #ccc; font-size: 20px;
-            line-height: 1; padding: 0;
-        }
-        .cabecera .txt { flex-grow: 1; min-width: 0; }
-        .cabecera .tit { font-size: 15px; font-weight: 600; color: #fff; }
-        .cabecera .sub {
-            font-size: 9px; text-transform: uppercase; letter-spacing: 1px;
-            color: #777; margin-top: 2px;
-        }
-        .cabecera .dist { flex-shrink: 0; text-align: right; }
-        .cabecera .dist .et {
-            font-size: 8px; text-transform: uppercase; letter-spacing: 1px; color: #5e5e5e;
-        }
-        .cabecera .dist .val { font-family: monospace; font-size: 13px; margin-top: 2px; }
         /* ═══ DE DÓNDE SALE EL MILÍMETRO ═══
            Todo el sistema cuelga de una sola cantidad: cuántos píxeles CSS mide
            un milímetro. Los ocho módulos calculan su estímulo contra ella, y hay
@@ -246,6 +221,37 @@
             display: block; font-size: 12px; font-weight: 700; color: #e7796b;
             letter-spacing: 0.5px; margin-bottom: 3px;
         }
+
+        /* ═══════════ CABECERA DE UN MÓDULO ═══════════
+           Este bloque se perdió al quitar los pasos de distancia: iba pegado a
+           su CSS y se borró con él. Sin él la cabecera se apilaba —título,
+           grupo y distancia uno debajo de otro— y el botón de volver medía
+           8,5×19 px, que es lo que midieron las pruebas de dedo en los tres
+           tamaños de móvil. El control más usado del mando, imposible de
+           acertar. */
+        .cabecera {
+            display: flex; align-items: center; gap: 10px; margin-bottom: 12px;
+        }
+        /* 44×44, no 40×40: es el control más usado del mando y el área de
+           40×40 se queda en 1.600 px², por debajo del equivalente a un objetivo
+           táctil de 44. Cuatro píxeles que no se notan y una diana que sí. */
+        .cabecera .atras {
+            width: 44px; height: 44px; flex-shrink: 0; border: 1px solid #2f2f2f;
+            border-radius: 8px; background: #232323; color: #ccc; font-size: 20px;
+            line-height: 1; padding: 0;
+        }
+        .cabecera .atras:active { background: #2e2e2e; }
+        .cabecera .txt { flex-grow: 1; min-width: 0; }
+        .cabecera .tit { font-size: 15px; font-weight: 600; color: #fff; }
+        .cabecera .sub {
+            font-size: 9px; text-transform: uppercase; letter-spacing: 1px;
+            color: #777; margin-top: 2px;
+        }
+        .cabecera .dist { flex-shrink: 0; text-align: right; }
+        .cabecera .dist .et {
+            font-size: 8px; text-transform: uppercase; letter-spacing: 1px; color: #5e5e5e;
+        }
+        .cabecera .dist .val { font-family: monospace; font-size: 13px; color: #ddd; margin-top: 2px; }
 
         /* La distancia de la sala NO se toca desde aquí. Se declara una vez en
            la configuración inicial de la pantalla y aquí solo se lee, en la
@@ -359,8 +365,23 @@
         /* ═══════════ FIJACIÓN: RELAX E INFANTIL ═══════════ */
         @keyframes esp-rebote    { from { transform: translateY(-16px); } to { transform: translateY(16px); } }
         @keyframes esp-recorrido { from { transform: translateX(-22px) rotate(-12deg); } to { transform: translateX(22px) rotate(12deg); } }
-        @keyframes esp-molinete  { from { transform: rotate(0deg); } to { transform: rotate(180deg); } }
-        @keyframes esp-destellos { from { transform: scale(0.75); opacity: 0.6; } to { transform: scale(1.1); opacity: 1; } }
+        @keyframes esp-giro      { from { transform: rotate(0deg); } to { transform: rotate(180deg); } }
+        @keyframes esp-latido    { from { transform: scale(0.75); opacity: 0.6; } to { transform: scale(1.1); opacity: 1; } }
+
+        /* La rejilla de figuras: se elige por el DIBUJO, no por el nombre —
+           quien la usa está mirando al niño, no leyendo el mando. Tres
+           columnas caben a 320 px con el botón por encima del mínimo de
+           dedo (área ≥ 44² y lado corto ≥ 32). */
+        .figuras { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+        .figuras button {
+            display: flex; flex-direction: column; align-items: center; gap: 3px;
+            padding: 8px 4px 7px; border-radius: 9px; min-height: 62px;
+            background: #1a1a1a; border: 1px solid #2b2b2b; color: inherit; font: inherit;
+        }
+        .figuras button.sel { border-color: #f1c40f; background: #232323; }
+        .figuras svg { display: block; }
+        .figuras .n { font-size: 10.5px; color: #8a8a8a; }
+        .figuras button.sel .n { color: #f1c40f; }
 
         .cuarteto { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
         .cuarteto button {
@@ -466,14 +487,6 @@
     <!-- El recordatorio vive FUERA de las dos vistas a propósito: si solo se
          viera en el menú, desaparecería justo al entrar en optotipos, que es
          donde medir con el paciente todavía a 1 m hace daño. -->
-    <div id="aviso-volver" class="bloque oculto">
-        <div class="txt">
-            <div class="tit">El paciente sigue acercado</div>
-            <div class="sub" id="aviso-volver-sub"></div>
-        </div>
-        <button onclick="enviar('VolverDicho')">Hecho</button>
-    </div>
-
     <!-- ═══ VISTA: MENÚ DE MÓDULOS ═══ -->
     <div id="vista-menu" class="bloque oculto">
         <!-- Las tres cosas de las que depende todo lo de abajo: qué pantalla,
@@ -556,7 +569,7 @@
                 </div>
                 <div style="text-align:right;">
                     <div class="et">Nivel</div>
-                    <div class="nivel"><span id="pelli-fila">1</span><span style="color:#555;">/8</span></div>
+                    <div class="nivel"><span id="pelli-fila">1</span><span style="color:#555;">/<span id="pelli-total">5</span></span></div>
                     <div class="mini" id="pelli-pct"></div>
                 </div>
             </div>
@@ -569,18 +582,16 @@
                 </button>
             </div>
             <div class="pista">El umbral es el log CS de la <strong>última fila que lea bien</strong>. Se empieza arriba y se baja.</div>
-            <div class="grupo-tit">Los ocho niveles · 0,30 log por paso</div>
+            <div class="grupo-tit" id="pelli-tit-niveles">Los niveles</div>
             <div id="pelli-niveles" class="lista-niv"></div>
             <button class="conmut" onclick="enviar('P:nuevas')" style="justify-content:center;">
-                <span class="et">Letras nuevas en las ocho filas</span>
+                <span class="et">Letras nuevas en todas las filas</span>
             </button>
             <div class="nota-geo" id="pelli-geo"></div>
         </div>
 
         <!-- Panel de Worth -->
         <div id="panel-worth" class="bloque oculto">
-            <div class="grupo-tit">Tamaño de los puntos</div>
-            <div class="trio" id="worth-tamanos"></div>
             <div class="nota-geo" id="worth-techo"></div>
             <button class="conmut" onclick="enviar('W:ojo')">
                 <span class="et">Gafa: rojo en <strong id="worth-ojo">OD</strong></span>
@@ -592,8 +603,9 @@
 
         <!-- Panel de Schober -->
         <div id="panel-schober" class="bloque oculto">
-            <div class="grupo-tit">Anillos visibles</div>
+            <div class="grupo-tit">Anillos visibles · la figura mide lo mismo</div>
             <div class="trio" id="schober-anillos"></div>
+            <div class="nota-geo" id="schober-delta"></div>
             <div class="grupo-tit">Filtro rojo en</div>
             <div class="trio" id="schober-ojos"></div>
             <button class="conmut" onclick="enviar('S:inv')">
@@ -621,8 +633,10 @@
 
         <!-- Panel de la fijación infantil -->
         <div id="panel-infantil" class="bloque oculto">
-            <div class="grupo-tit">Secuencia</div>
-            <div class="cuarteto" id="inf-secuencias"></div>
+            <div class="grupo-tit">Figura</div>
+            <div class="figuras" id="inf-figuras"></div>
+            <div class="grupo-tit">Movimiento</div>
+            <div class="cuarteto" id="inf-movimientos"></div>
             <div class="grupo-tit">Velocidad</div>
             <div class="trio" id="inf-velocidades"></div>
             <button class="conmut grande" id="inf-congelar" onclick="enviar('I:congelar')">
@@ -783,19 +797,11 @@
            nada: es el valor. Los otros dos modos son SVG con su viewBox. */
         /* Las figuras del espejo: las mismas que dibuja la pantalla, a tamaño
            de vista previa. El espejo no está a escala. */
-        const FIG_INF = {
-            rebote: '<circle cx="30" cy="30" r="26" fill="#e8574c"/><circle cx="30" cy="30" r="9" fill="#fff"/>',
-            molinete: '<path d="M30 30L30 2A28 28 0 0 1 54 16Z" fill="#e8574c"/>'
-                    + '<path d="M30 30L54 16A28 28 0 0 1 54 44Z" fill="#f0b26b"/>'
-                    + '<path d="M30 30L54 44A28 28 0 0 1 30 58Z" fill="#7fb069"/>'
-                    + '<path d="M30 30L30 58A28 28 0 0 1 6 44Z" fill="#4f9bd9"/>'
-                    + '<path d="M30 30L6 44A28 28 0 0 1 6 16Z" fill="#9b6bbf"/>'
-                    + '<path d="M30 30L6 16A28 28 0 0 1 30 2Z" fill="#e8c84c"/>',
-            recorrido: '<circle cx="30" cy="30" r="25" fill="#f0b26b"/>'
-                     + '<circle cx="22" cy="24" r="4" fill="#2a2a2a"/><circle cx="38" cy="24" r="4" fill="#2a2a2a"/>'
-                     + '<path d="M20 38 Q30 47 40 38" stroke="#2a2a2a" stroke-width="3.5" fill="none" stroke-linecap="round"/>',
-            destellos: '<path d="M30 2l7.7 17.1L56 21.3l-13.1 12.2L46 52l-16-9.8L14 52l3.1-18.5L4 21.3l18.3-2.2z" fill="#7fb069"/>'
-        };
+        /* Las figuras NO se guardan aquí. Vienen en el espejo, dibujadas por
+           la misma constante que pinta la pantalla del paciente: tenerlas dos
+           veces significaba que añadir una era editar dos ficheros y acordarse
+           de los dos, y el día que se olvidara el mando enseñaría una figura
+           distinta de la que el niño está mirando. */
 
         const INK_PX = 20;
         const CAP_HEIGHT_RATIO = 0.5;   // Optician Sans: mayúsculas = 500/1000 del cuadratín
@@ -816,7 +822,6 @@
             const enMenu = mod === 'menu';
             ver($r('vista-menu'), enMenu);
             ver($r('vista-modulo'), !enMenu);
-            pintarAviso(data);
             if (enMenu) { pintarMenu(data); return; }
 
             const info = (data.modulos || []).find(m => m.id === mod)
@@ -845,16 +850,29 @@
             else                       { espejoPendiente(espejo, info); }
         });
 
-        function pintarAviso(data) {
-            ver($r('aviso-volver'), !!data.recordarVolver);
-            if (!data.recordarVolver) return;
-            const enOpto = (data.modulo || 'optotipos') === 'optotipos';
-            $r('aviso-volver-sub').textContent = enOpto
-                ? 'Está midiendo agudeza y el paciente puede seguir a 1 m. Devuélvalo a '
-                  + (data.cal?.testDistanceM ?? '—') + ' m: desde más cerca los optotipos salen bien dibujados y mal medidos.'
-                : 'Devuélvalo a ' + (data.cal?.testDistanceM ?? '—') + ' m antes del siguiente test, '
-                  + 'o la agudeza saldrá medida a la distancia equivocada.';
-        }
+        /* Un glifo por módulo, el mismo que el lienzo de diseño. Por id, no por
+           posición: añadir un módulo no debe desplazar los iconos de los demás. */
+        const ICONO_MOD = {
+            optotipos: '<path d="M3 5h14"/><path d="M5 10h10"/><path d="M7.5 15h5"/>',
+            contraste: '<circle cx="10" cy="10" r="7"/><path d="M10 3a7 7 0 0 1 0 14z" fill="currentColor" stroke="none"/>',
+            worth:     '<circle cx="10" cy="4" r="2.1" fill="currentColor" stroke="none"/>'
+                     + '<circle cx="4.4" cy="10" r="2.1"/><circle cx="15.6" cy="10" r="2.1"/><circle cx="10" cy="16" r="2.1"/>',
+            schober:   '<circle cx="10" cy="10" r="7.2"/><circle cx="10" cy="10" r="3.6"/>'
+                     + '<path d="M10 5.2v9.6M5.2 10h9.6"/>',
+            color:     '<g fill="currentColor" stroke="none"><circle cx="10" cy="4.6" r="2"/>'
+                     + '<circle cx="4.8" cy="7.6" r="2"/><circle cx="15.2" cy="7.6" r="2"/>'
+                     + '<circle cx="10" cy="10.6" r="2"/><circle cx="4.8" cy="13.6" r="2"/>'
+                     + '<circle cx="15.2" cy="13.6" r="2"/><circle cx="10" cy="16.6" r="2"/></g>',
+            amsler:    '<path d="M3 3h14v14H3zM7.7 3v14M12.3 3v14M3 7.7h14M3 12.3h14" stroke-width="1.3"/>'
+                     + '<circle cx="10" cy="10" r="1.5" fill="currentColor" stroke="none"/>',
+            relax:     '<circle cx="10" cy="10" r="8" stroke-width="0.8" opacity="0.4"/>'
+                     + '<circle cx="10" cy="10" r="5.4" stroke-width="1.1" opacity="0.7"/>'
+                     + '<circle cx="10" cy="10" r="1.6" fill="currentColor" stroke="none"/>',
+            infantil:  '<path d="M10 2.8l1.9 4.2 4.3.5-3.2 3 .9 4.4-3.9-2.3-3.9 2.3.9-4.4-3.2-3 4.3-.5z"/>'
+        };
+        const iconoSVG = id => '<svg width="20" height="20" viewBox="0 0 20 20" fill="none"'
+            + ' stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">'
+            + (ICONO_MOD[id] || '') + '</svg>';
 
         function pintarMenu(data) {
             pintarTiraEstado(data.cal || {});
@@ -880,7 +898,8 @@
                 const tag = ver.etiqueta || (!m.hecho ? 'pendiente'
                           : (m.distFija != null ? 'a ' + m.distFija + ' m' : ''));
                 b.innerHTML =
-                    '<div class="txt"><div class="tit"></div><div class="sub"></div></div>'
+                    '<div class="icono">' + iconoSVG(m.id) + '</div>'
+                  + '<div class="txt"><div class="tit"></div><div class="sub"></div></div>'
                   + '<div class="tag ' + (ver.estado || '') + '"></div>';
                 b.querySelector('.tit').textContent = m.titulo;
                 b.querySelector('.sub').textContent = m.sub;
@@ -1028,9 +1047,9 @@
         }
 
         /* ═══════════ PELLI-ROBSON ═══════════
-           El espejo enseña las ocho filas con su tinta y marca la que está en
+           El espejo enseña las filas con su tinta y marca la que está en
            curso. La marca es SOLO del mando: en la pantalla del paciente las
-           ocho filas van iguales, o señalarle una sería decirle por dónde va.
+           filas van iguales, o señalarle una sería decirle por dónde va.
 
            Las tintas del espejo se aplanan a un mínimo legible porque el panel
            de un móvil no distingue el 253 del 254 sobre blanco; la pantalla del
@@ -1065,6 +1084,16 @@
             const niv = (p.niveles || []).find(n => n.n === p.fila) || { log: '0.00', pct: '100', codigo: 0 };
             $r('pelli-log').textContent = String(niv.log).replace('.', ',');
             $r('pelli-fila').textContent = p.fila ?? 1;
+            /* El total y el paso los dicta la pantalla, no este fichero: el
+               rango se recortó a 0–1,00 log porque por encima de 1,00 los
+               monitores de la consulta no enseñan NADA, y un rótulo a mano
+               aquí volvería a mentir la próxima vez que cambie. */
+            const totalFilas = (p.niveles || []).length || 1;
+            $r('pelli-total').textContent = totalFilas;
+            const ultimo = (p.niveles || [])[totalFilas - 1];
+            $r('pelli-tit-niveles').textContent =
+                'Los ' + totalFilas + ' niveles \u00b7 0 a ' + String(ultimo ? ultimo.log : '0.00').replace('.', ',')
+              + ' log CS \u00b7 ' + String((p.pasoLog ?? 0).toFixed(2)).replace('.', ',') + ' log por paso';
             $r('pelli-pct').textContent = String(niv.pct).replace('.', ',') + ' % de contraste';
             $r('pelli-arriba').disabled = (p.fila ?? 1) <= 1;
             $r('pelli-abajo').disabled  = (p.fila ?? 1) >= (p.niveles || []).length;
@@ -1099,14 +1128,10 @@
         }
 
         /* ═══════════ WORTH ═══════════ */
+        /* Worth ya no puede «no caber»: su medida es el 80 % del lado corto de
+           la pantalla y cabe por construcción, así que el espejo no tiene un
+           estado de cartel rojo que enseñar. */
         function espejoWorth(espejo, data) {
-            const w = data.worth || {};
-            if (!w.cabe) {
-                espejo.innerHTML = '<div style="font-family:monospace;font-size:11px;color:#e74c3c;'
-                                 + 'text-align:center;line-height:1.8;">NO CABE<br>'
-                                 + '<span style="color:#7a4a45;">el punto pide ' + (w.puntoMM ?? 0) + ' mm</span></div>';
-                return;
-            }
             const L = 108, r = 12;
             espejo.innerHTML =
                 '<svg width="' + L + '" height="' + L + '" viewBox="0 0 ' + L + ' ' + L + '">'
@@ -1116,26 +1141,19 @@
               + '<circle cx="' + L/2 + '" cy="' + (L-r) + '" r="' + r + '" fill="#fff"/></svg>';
         }
 
+        /* No hay tamaño que elegir: la medida es una, el 80 % del lado corto,
+           y lo único que hay que saber es el ángulo que sale de ella a la
+           distancia de la sala — que es lo que se apunta en la ficha. Los tres
+           tamaños clásicos que había aquí eran tres botones para una decisión
+           que la física ya había tomado: a 6 m ninguno cabía. */
         function pintarWorth(data) {
             const w = data.worth || {};
             $r('worth-ojo').textContent = w.ojoRojo || 'OD';
-            const cont = $r('worth-tamanos');
-            cont.innerHTML = '';
-            (w.tamanos || []).forEach(t => {
-                const b = document.createElement('button');
-                b.className = (t.id === w.tam ? 'sel ' : '') + (t.entra ? '' : 'no-entra');
-                b.innerHTML = '<span class="g"></span><span class="mm"></span>';
-                b.querySelector('.g').textContent = t.label;
-                b.querySelector('.mm').textContent = t.entra ? (t.sub ? t.sub + ' · ' + t.mm + ' mm' : t.mm + ' mm') : 'no cabe';
-                b.addEventListener('click', () => enviar('W:tam:' + t.id));
-                cont.appendChild(b);
-            });
             $r('worth-techo').textContent =
-                'el rombo ocupa 3,4 di\u00e1metros de alto, as\u00ed que a esta distancia el techo son '
-              + (w.techoG ?? 0) + '\u00b0'
-              + (w.cabe ? '  \u00b7  rombo ' + (w.rombosMM ?? 0) + ' mm'
-                        : '  \u00b7  para ' + (w.tam === '1.25' ? '1,25\u00b0' : (w.tam || '') + '\u00b0')
-                          + ' hay que estar a ' + (w.distMax ?? 0) + ' m o menos');
+                'punto ' + (w.puntoMM ?? 0) + ' mm = ' + (w.grados ?? 0) + '\u00b0'
+              + '  \u00b7  rombo ' + (w.rombosMM ?? 0) + ' mm = ' + (w.rombosGrados ?? 0) + '\u00b0'
+              + '  a ' + (data.cal?.distanciaModulo ?? '\u2014') + ' m'
+              + '  \u00b7  medida est\u00e1ndar: el 80 % del lado corto de la pantalla';
             pintarTabla($r('worth-lectura'), (w.lectura || []).map(l => ({ a: l.ve, b: l.significa, c: '', color: l.color })));
         }
 
@@ -1159,22 +1177,26 @@
         function pintarSchober(data) {
             const s = data.schober || {};
             $r('schober-color').textContent = s.colorCruz || 'roja';
-            /* Los rangos vienen de la pantalla con su nota ya calculada. Antes
-               estaban escritos aquí como ['3','5','7'] y el móvil repetía la
-               geometría para decidir cuál cabía: dos sitios que podían dejar de
-               estar de acuerdo, y un cuarto rango imposible de añadir sin tocar
-               los dos. */
+            /* Las opciones vienen de la pantalla con su Δ por anillo ya
+               calculado. Antes estaban escritas aquí como ['3','5','7'] y el
+               móvil repetía la geometría para decidir cuál cabía: dos sitios
+               que podían dejar de estar de acuerdo. Ninguna «no cabe» ya —
+               la figura mide lo mismo con las tres y lo que cambia es la
+               finura con la que se lee. */
             const anillos = $r('schober-anillos');
             anillos.innerHTML = '';
-            (s.rangos || []).forEach(r => {
+            (s.opciones || []).forEach(r => {
                 const b = document.createElement('button');
                 b.className = r.id === s.anillosPedidos ? 'sel' : '';
-                if (!r.entra) b.classList.add('no-entra');
                 b.innerHTML = '<span class="g">' + r.label + '</span>'
                             + '<span class="mm">' + r.nota + '</span>';
                 b.addEventListener('click', () => enviar('S:anillos:' + r.id));
                 anillos.appendChild(b);
             });
+            $r('schober-delta').textContent =
+                'la figura ocupa el 80 % del lado corto, as\u00ed que el RANGO lo fija la sala'
+              + ' (\u00b1' + (s.rango ?? 0) + '\u0394 a ' + (data.cal?.distanciaModulo ?? '\u2014') + ' m)'
+              + ' y los anillos la RESOLUCI\u00d3N: ahora ' + (s.deltaAnillo ?? 0) + '\u0394 por anillo';
             const ojos = $r('schober-ojos');
             ojos.innerHTML = '';
             ['OD','OI'].forEach(o => {
@@ -1187,8 +1209,8 @@
             $r('schober-deriv').textContent = s.derivacion || '';
             pintarTabla($r('schober-lectura'), (s.lectura || []).map(l => ({ a: l.donde, b: l.que, c: l.nota, color: l.color })));
             $r('schober-geo').textContent =
-                '1\u0394 = ' + (s.pasoMM ?? 0) + ' mm a esta distancia  \u00b7  rango \u00b1' + (s.anillos ?? 0) + '\u0394'
-              + ((s.anillos ?? 0) < parseInt(s.anillosPedidos || '0', 10) ? '  \u00b7  se pidieron ' + s.anillosPedidos + ' y caben ' + s.caben : '')
+                '1\u0394 son ' + (s.unaDioptriaMM ?? 0) + ' mm a esta distancia  \u00b7  paso entre anillos '
+              + (s.pasoMM ?? 0) + ' mm = ' + (s.deltaAnillo ?? 0) + '\u0394'
               + '  \u00b7  izquierda y derecha son las del paciente';
         }
 
@@ -1307,8 +1329,9 @@
             const i = data.infantil || {};
             const caja = document.createElement('div');
             caja.style.cssText = 'width:64px; height:64px; display:flex; align-items:center; justify-content:center;'
-                + (i.congelado ? '' : ' animation:esp-' + (i.secuencia || 'rebote') + ' ' + (i.seg || 1.5) + 's ease-in-out infinite alternate;');
-            caja.innerHTML = '<svg width="52" height="52" viewBox="0 0 60 60">' + (FIG_INF[i.secuencia] || '') + '</svg>';
+                + (i.congelado ? '' : ' animation:esp-' + (i.movimiento || 'rebote') + ' ' + (i.seg || 1.5) + 's ease-in-out infinite alternate;');
+            const svgFig = ((i.figuras || []).find(f => f.id === i.figura) || {}).svg || '';
+            caja.innerHTML = '<svg width="52" height="52" viewBox="0 0 60 60">' + svgFig + '</svg>';
             espejo.appendChild(caja);
             if (i.congelado) {
                 const t = document.createElement('div');
@@ -1319,16 +1342,27 @@
         }
         function pintarInfantil(data) {
             const i = data.infantil || {};
-            const secs = $r('inf-secuencias');
-            secs.innerHTML = '';
-            (i.secuencias || []).forEach(s => {
+            const figs = $r('inf-figuras');
+            figs.innerHTML = '';
+            (i.figuras || []).forEach(f => {
                 const b = document.createElement('button');
-                b.className = s.id === i.secuencia ? 'sel' : '';
+                b.className = f.id === i.figura ? 'sel' : '';
+                b.innerHTML = '<svg width="34" height="34" viewBox="0 0 60 60">' + f.svg + '</svg>'
+                            + '<span class="n"></span>';
+                b.querySelector('.n').textContent = f.nombre;
+                b.addEventListener('click', () => enviar('I:fig:' + f.id));
+                figs.appendChild(b);
+            });
+            const movs = $r('inf-movimientos');
+            movs.innerHTML = '';
+            (i.movimientos || []).forEach(s => {
+                const b = document.createElement('button');
+                b.className = s.id === i.movimiento ? 'sel' : '';
                 b.innerHTML = '<span class="n"></span><span class="s"></span>';
                 b.querySelector('.n').textContent = s.nombre;
                 b.querySelector('.s').textContent = s.sub;
-                b.addEventListener('click', () => enviar('I:sec:' + s.id));
-                secs.appendChild(b);
+                b.addEventListener('click', () => enviar('I:mov:' + s.id));
+                movs.appendChild(b);
             });
             const vels = $r('inf-velocidades');
             vels.innerHTML = '';

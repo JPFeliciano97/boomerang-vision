@@ -225,7 +225,17 @@ export default async function pruebaGeometria({ pc, tel, abrir }) {
   m.comprobar('el cuadro mide 1° de arco con menos de un 2 % de error',
     isFinite(grado) && Math.abs(grado - 1) < 0.02, `el módulo declara ${grado}°`);
 
-  // ── Pelli-Robson: los ocho códigos de gris y el margen ──────────────────
+  // ── Pelli-Robson: los grises tienen que SALIR del monitor ───────────────
+  /* El rango llega hasta 1,00 log CS y no más. No es una preferencia: los
+     monitores de la consulta no enseñan NADA por encima de eso. Con el paso
+     de 0,30 log y ocho filas, las dos últimas salían en código 253 y 254
+     sobre un blanco de 255 — un contraste de uno y dos códigos, que ningún
+     panel emite. El paciente «fallaba» un contraste que la pantalla nunca
+     dibujó, y el resultado quedaba peor de lo que el ojo es.
+
+     Así que lo que se mide aquí no es que haya N filas, sino que TODAS las
+     que hay se puedan ver: cada gris separado del blanco por un margen que
+     un panel de 8 bits sí distingue. */
   await abrir('Pelli-Robson');
   const pelli = await pc.evaluate(() => {
     const filas = [...document.querySelectorAll('#modulo-area > div > div')];
@@ -240,34 +250,152 @@ export default async function pruebaGeometria({ pc, tel, abrir }) {
       altoLetra: primera ? +primera.getBoundingClientRect().height.toFixed(2) : 0,
       altoTabla: cont ? +cont.getBoundingClientRect().height.toFixed(2) : 0,
       arriba: cont ? +cont.getBoundingClientRect().top.toFixed(2) : 0,
-      alto: window.innerHeight
+      alto: window.innerHeight,
+      nombre: (document.getElementById('modulo-nombre') || {}).textContent || ''
     };
   });
 
+  /* El paso lo declara el módulo en su propio rótulo (fila k/N y log CS de la
+     fila en curso), así que el reparto se deduce en vez de copiarse: si
+     mañana se reparte 0 a 1,00 en cuatro filas o en seis, esta prueba lo
+     sigue. Lo único fijo es el techo: 1,00 log. */
+  const tope = 1.00;
+  const pasoLog = pelli.n > 1 ? tope / (pelli.n - 1) : 0;
+
+  /* El techo no se lee de ningún rótulo: se RECUPERA de la tinta que la
+     pantalla pinta de verdad. Deshaciendo la gamma del gris más tenue sale
+     el log CS de la última fila — 243 devuelve 1,00, y el 254 de la cartilla
+     de ocho devolvía 2,07, que es el contraste que se pedía y que ningún
+     monitor de la consulta emite. */
+  const topeDibujado = (() => {
+    const c = Math.max(...pelli.codigos) / 255;
+    return -Math.log10(1 - Math.pow(c, 2.2));
+  })();
+  m.comprobar('la fila más tenue pide 1,00 log CS y no más',
+    Math.abs(topeDibujado - tope) < 0.02,
+    'la tinta dibujada equivale a ' + topeDibujado.toFixed(2) + ' log CS');
+
   /* Contraste de Weber convertido a código de 8 bits con gamma 2,2:
-     255·(1−c)^(1/2,2), con c = 10^(−0,30·(fila−1)). Se recalcula aquí en vez
-     de copiar los ocho números: si el sistema cambia el paso logarítmico, la
-     prueba lo sigue en vez de discrepar con razón equivocada. */
-  const esperados = Array.from({ length: 8 }, (_, i) => {
-    const c = 1 / Math.pow(10, i * 0.30);
+     255·(1−c)^(1/2,2), con c = 10^(−log). */
+  const esperados = Array.from({ length: pelli.n }, (_, i) => {
+    const c = 1 / Math.pow(10, i * pasoLog);
     return Math.round(255 * Math.pow(1 - c, 1 / 2.2));
   });
-  m.comprobar('ocho filas', pelli.n === 8, pelli.n + ' filas dibujadas');
-  m.comprobar('los ocho grises son los que sale el cálculo',
+  m.comprobar('los grises dibujados son los que sale el cálculo',
     JSON.stringify(pelli.codigos) === JSON.stringify(esperados),
     'dibujados ' + pelli.codigos.join(', ') + ' · calculados ' + esperados.join(', '));
 
-  /* Las ocho filas más siete medias separaciones son 11,5 altos de letra, y
-     el margen es un cuarto de letra arriba y abajo. Sin ese margen la primera
+  /* La comprobación que habría cazado el defecto: ningún gris a menos de
+     ocho códigos del blanco. Ocho es el escalón que un panel de 8 bits con
+     dithering enseña sin discusión; 253 y 254 no lo son. */
+  const MARGEN_BLANCO = 8;
+  const pegados = pelli.codigos.filter(c => 255 - c < MARGEN_BLANCO);
+  m.comprobar('ninguna fila queda pegada al blanco, invisible en el monitor',
+    pegados.length === 0,
+    pegados.length ? pegados.length + ' fila(s) en código ' + pegados.join(', ')
+                     + ' sobre blanco 255: el paciente falla un contraste que nunca se dibujó'
+                   : 'el más tenue es ' + Math.max(...pelli.codigos) + ', a '
+                     + (255 - Math.max(...pelli.codigos)) + ' códigos del blanco');
+
+  /* N filas más N−1 medias separaciones son (3N−1)/2 altos de letra, y el
+     margen es un cuarto de letra arriba y abajo. Sin ese margen la primera
      fila empezaba en el píxel 0, cortada. */
   if (pelli.altoLetra > 0) {
-    m.comprobar('la tabla mide 11,5 altos de letra',
-      Math.abs(pelli.altoTabla / pelli.altoLetra - 11.5) < 0.05,
-      (pelli.altoTabla / pelli.altoLetra).toFixed(3) + ' altos');
+    const altosEsperados = (3 * pelli.n - 1) / 2;
+    m.comprobar('la tabla mide ' + altosEsperados.toString().replace('.', ',') + ' altos de letra',
+      Math.abs(pelli.altoTabla / pelli.altoLetra - altosEsperados) < 0.05,
+      (pelli.altoTabla / pelli.altoLetra).toFixed(3) + ' altos con ' + pelli.n + ' filas');
     m.comprobar('queda un cuarto de letra de margen arriba',
       Math.abs(pelli.arriba / pelli.altoLetra - 0.25) < 0.05 && pelli.arriba > 1,
       pelli.arriba.toFixed(1) + ' px = ' + (pelli.arriba / pelli.altoLetra).toFixed(3) + ' altos');
   }
+
+  /* ── La medida estándar de Worth y de Schober ───────────────────────────
+     Los dos dibujan una figura de gafa rojo-verde y ninguno es una prueba de
+     agudeza: lo que se juzga es la forma —cuántos puntos se ven, dónde cae la
+     cruz—, no el umbral de un optotipo. Así que su tamaño no tiene por qué
+     salir de un ángulo clásico que a 6 m no cabe.
+
+     Lo que había: Worth ofrecía 1,25°, 2°, 3° y «máx». A 6 m el techo son
+     0,84°, así que los tres clásicos dibujaban un cartel rojo de NO CABE y el
+     «máx» llenaba la pantalla de lado a lado. Schober igual: el paso ERA 1Δ,
+     así que a 6 m solo entraban dos anillos y elegir 3, 5 o 7 dibujaba
+     siempre los mismos dos — se medía con dos creyendo haber elegido cinco.
+
+     Lo que se mide aquí: una medida estándar, el 80 % del lado corto, que
+     deja margen a los cuatro lados SIEMPRE; y en Schober, que se dibujen los
+     anillos que se piden, sea la distancia que sea. */
+  const OCUPA = 0.80, HOLGURA = 0.03;
+  const dibujado = () => pc.evaluate(() => {
+    const svg = document.querySelector('#modulo-area svg');
+    if (!svg) return null;
+    const r = svg.getBoundingClientRect();
+    return { w: +r.width.toFixed(1), h: +r.height.toFixed(1),
+             corto: Math.min(window.innerWidth, window.innerHeight),
+             anillos: svg.querySelectorAll('circle[fill="none"]').length,
+             puntos: svg.querySelectorAll('circle[fill]:not([fill="none"])').length,
+             texto: (document.getElementById('modulo-area').textContent || '').trim().slice(0, 40) };
+  });
+
+  await abrir('Luces de Worth');
+  const w = await dibujado();
+  m.comprobar('Worth dibuja su rombo a 6 m, sin carteles de que no cabe',
+    !!w && w.puntos === 4,
+    w ? (w.puntos === 4 ? 'los cuatro puntos' : 'no hay rombo: «' + w.texto + '»')
+      : 'no hay SVG: «' + ((await pc.textContent('#modulo-area')) || '').trim().slice(0, 40) + '»');
+  if (w) {
+    const ocupa = Math.max(w.w, w.h) / w.corto;
+    m.comprobar('y ocupa la medida estándar, no la pantalla entera',
+      Math.abs(ocupa - OCUPA) < HOLGURA,
+      (100 * ocupa).toFixed(1) + ' % del lado corto (' + w.corto + ' px)');
+  }
+
+  /* Y que no haya nada que elegir: el tamaño es uno. Un grupo de tamaños con
+     tres opciones imposibles era el defecto, no la solución. */
+  const opcionesWorth = await tel.evaluate(() => {
+    const p = document.getElementById('panel-worth');
+    if (!p || p.classList.contains('oculto')) return -1;
+    const g = document.getElementById('worth-tamanos');
+    return g ? g.querySelectorAll('button').length : 0;
+  });
+  m.comprobar('Worth no ofrece tamaños que elegir: la medida es una',
+    opcionesWorth === 0,
+    opcionesWorth < 0 ? 'el panel de Worth no está a la vista'
+                      : opcionesWorth + ' botones de tamaño en el mando');
+
+  await abrir('Schober');
+  const sch = await dibujado();
+  if (sch) {
+    const ocupaS = Math.max(sch.w, sch.h) / sch.corto;
+    m.comprobar('Schober ocupa la misma medida estándar',
+      Math.abs(ocupaS - OCUPA) < HOLGURA,
+      (100 * ocupaS).toFixed(1) + ' % del lado corto con ' + sch.anillos + ' anillos');
+  }
+
+  /* Los anillos que se piden son los que se dibujan. Este es el que acusaba
+     el defecto: a 6 m se elegían 7 y aparecían 2. */
+  /* Por el rótulo EXACTO del botón, no por «contiene un 5»: la nota de cada
+     opción lleva su Δ por anillo, y «0,59Δ cada uno» contiene un 5. La primera
+     versión de esta comprobación caía en eso y acusaba al módulo de dibujar 3
+     anillos cuando se pedían 5 — el defecto estaba en la prueba. */
+  const pedirAnillos = async etiqueta => {
+    await tel.locator('#schober-anillos button .g')
+      .filter({ hasText: new RegExp('^' + etiqueta + '$') }).first().click();
+    await tel.waitForTimeout(500);
+    return dibujado();
+  };
+  const tresYsiete = [];
+  for (const n of ['3', '5', '7']) {
+    const d = await pedirAnillos(n);
+    tresYsiete.push({ pedidos: +n, dibujados: d ? d.anillos : 0, ocupa: d ? Math.max(d.w, d.h) / d.corto : 0 });
+  }
+  m.comprobar('los anillos que se eligen son los que se dibujan, a 6 m',
+    tresYsiete.every(x => x.dibujados === x.pedidos),
+    tresYsiete.map(x => x.pedidos + '→' + x.dibujados).join(' · '));
+  m.comprobar('y la figura mide lo mismo con 3, 5 o 7 anillos',
+    tresYsiete.every(x => Math.abs(x.ocupa - tresYsiete[0].ocupa) < 0.01),
+    tresYsiete.map(x => (100 * x.ocupa).toFixed(1) + ' %').join(' · '));
+  await pedirAnillos('5');
 
   // ── Schober: la invariancia de invertir colores y cambiar de ojo ─────────
   await abrir('Schober');

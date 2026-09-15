@@ -51,8 +51,21 @@ test: poder cambiarla a mitad de una prueba invita a que la geometría y el
 sitio donde está sentado el paciente dejen de coincidir sin que nada lo delate.
 
 **Un módulo no ofrece opciones imposibles.** Si ninguna cabe a la distancia de
-la sala, hay que dar una que sí — como el «máx» de Worth y de Schober. Y la
-pantalla del paciente **nunca** se queda en negro sin explicación.
+la sala, o no hay opción que dar, o hay que dar una que sí. Worth ofrecía
+1,25°, 2° y 3° y a 6 m los tres decían «no cabe»; se arregló primero con un
+«máx» y después quitando la elección entera: ahora Worth y Schober dibujan una
+**medida estándar** —el 80 % del lado corto de la pantalla— que cabe por
+construcción, y lo que se dice es la cifra que sale de ella (el ángulo del
+punto, el rango en Δ). En Schober lo que se elige son los anillos visibles, y
+todos se dibujan: el plato fija el RANGO y los anillos la RESOLUCIÓN.
+
+Y la pantalla del paciente **nunca** se queda en negro sin explicación.
+
+**Lo que la pantalla no puede emitir no se pide.** El Pelli-Robson llegaba a
+2,10 log CS en ocho filas de 0,30 y las dos últimas salían en código 253 y 254
+sobre un blanco de 255 — un contraste que ningún panel dibuja. El paciente
+«fallaba» un contraste que nunca se pintó. Va de 0 a 1,00 log en cinco filas, y
+el gris más tenue queda a doce códigos del blanco.
 
 ## Las cartillas de Ishihara
 

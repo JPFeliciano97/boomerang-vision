@@ -194,14 +194,14 @@
         #calibration-bar.dist-fija .cal-group,
         #calibration-bar.dist-fija .cal-sep { display:none; }
 
-        /* ═══ SECUENCIAS DE FIJACIÓN INFANTIL ═══
+        /* ═══ MOVIMIENTOS DE FIJACIÓN INFANTIL ═══
            El recorrido y el rebote se mueven en vw/vh a propósito: lo que atrae
            a un niño es que la figura CRUCE la pantalla, y eso es relativo a la
            pantalla, no una medida física. El tamaño de la figura sí es físico. */
         @keyframes bv-rebote    { from { transform: translateY(-32vh); } to { transform: translateY(32vh); } }
         @keyframes bv-recorrido { from { transform: translateX(-38vw) rotate(-12deg); } to { transform: translateX(38vw) rotate(12deg); } }
-        @keyframes bv-molinete  { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        @keyframes bv-destellos {
+        @keyframes bv-giro      { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @keyframes bv-latido    {
             0%, 100% { transform: scale(0.72); opacity: 0.55; }
             50%      { transform: scale(1.12); opacity: 1; }
         }
@@ -553,6 +553,7 @@
         <div><kbd>C</kbd> Configuración inicial</div>
         <div><kbd>H</kbd> Ocultar panel</div>
         <div><kbd>M</kbd> Volver a optotipos</div>
+        <div><kbd>N</kbd> Cortar el estímulo</div>
         <div><kbd>?</kbd> Este menú</div>
         <div style="margin-top:10px; font-size:9px; color:#aaa;">Escanea para control remoto:</div>
         <div id="qr-container"></div>
@@ -618,13 +619,13 @@
                deja al paciente acercado, así que el mando avisa. */
             const MODULOS = [
                 { id:'optotipos', titulo:'Optotipos',        sub:'Letras · números · LEA · E direccional', grupo:'Agudeza visual',           hecho:true,  distFija:null },
-                { id:'contraste', titulo:'Pelli-Robson',     sub:'8 niveles · 0,30 log',                   grupo:'Sensibilidad al contraste', hecho:true,  distFija:1 },
+                { id:'contraste', titulo:'Pelli-Robson',     sub:'5 niveles · 0 a 1,00 log CS',           grupo:'Sensibilidad al contraste', hecho:true,  distFija:1 },
                 { id:'worth',     titulo:'Luces de Worth',   sub:'Fusión y supresión · gafa rojo-verde',   grupo:'Binocularidad',            hecho:true,  distFija:null },
                 { id:'schober',   titulo:'Schober',          sub:'Cruz y anillos · forias',                grupo:'Binocularidad',            hecho:true,  distFija:null },
                 { id:'color',     titulo:'Pseudoisocromático', sub:'Láminas de puntos · cribado',          grupo:'Visión del color',         hecho:true,  distFija:1 },
                 { id:'amsler',    titulo:'Rejilla de Amsler', sub:'3 láminas · 1 cuadro = 1°',             grupo:'Mácula',                   hecho:true,  distFija:1 },
                 { id:'relax',     titulo:'Relax acomodativo', sub:'Para retinoscopía y fondo de ojo',      grupo:'Fijación',                 hecho:true,  distFija:null },
-                { id:'infantil',  titulo:'Fijación infantil', sub:'Secuencias animadas',                   grupo:'Fijación',                 hecho:true,  distFija:null }
+                { id:'infantil',  titulo:'Fijación infantil', sub:'9 figuras · 4 movimientos',             grupo:'Fijación',                 hecho:true,  distFija:null }
             ];
             const MODULO = {};
             MODULOS.forEach(m => MODULO[m.id] = m);
@@ -686,7 +687,14 @@
                 const anchoPx = window.innerWidth, altoPx = window.innerHeight;
                 // cuadros enteros a cada lado del centro, sin pasar de ±10°
                 const porLado = n => Math.max(1, Math.min(AMSLER_SEMICAMPO, Math.floor((n / 2) / ladoPx)));
-                const cx = porLado(anchoPx), cy = porLado(altoPx);
+                /* CUADRADA, no rectangular. La cartilla de Amsler es un cuadrado
+                   de 20×20 cuadros y se mira como tal: el paciente compara los
+                   cuatro cuadrantes entre sí, y con más cuadros a los lados que
+                   arriba y abajo esa comparación deja de ser simétrica.
+                   Antes cada lado se calculaba por separado y en una pantalla
+                   16:9 salía 10×8. Ahora manda el lado corto. */
+                const porLadoCuadrado = Math.min(porLado(anchoPx), porLado(altoPx));
+                const cx = porLadoCuadrado, cy = porLadoCuadrado;
                 return {
                     ladoMM, ladoPx, cx, cy, gradoReal,
                     gradosX: +(cx * gradoReal).toFixed(1),
@@ -772,10 +780,20 @@
                gamma 2,2, código = 255·(1−c)^(1/2,2). Los dos niveles más tenues
                salen en el 253 y el 254 de 255, o sea a uno y dos pasos del
                blanco: ahí manda el panel y no la prueba, y el módulo lo dice. */
-            const PELLI_FILAS = 8;
-            const PELLI_PASO_LOG = 0.30;
-            const PELLI_ALTURAS = 11.5;      // 8 letras + 7 huecos de media letra
-            /* Y un cuarto de letra de margen arriba y abajo. Sin él las ocho
+            /* Cinco filas de 0 a 1,00 log CS, en pasos de 0,25.
+               Eran ocho de 0 a 2,10 en pasos de 0,30, y eso no se podía usar:
+               por encima de 1,00 log estos monitores no enseñan NADA — los dos
+               últimos niveles quedaban en código 253 y 254 sobre blanco 255, o
+               sea a uno y dos códigos del fondo. Una fila que nadie puede ver no
+               es una fila difícil, es una fila que miente sobre el resultado: el
+               paciente «falla» un contraste que la pantalla nunca dibujó.
+               Con cinco filas hasta 1,00 los códigos quedan en 0, 175, 215, 233
+               y 243 — separados y todos por debajo del blanco con margen. Y la
+               letra crece, porque el alto se reparte entre menos filas. */
+            const PELLI_FILAS = 5;
+            const PELLI_PASO_LOG = 0.25;
+            const PELLI_ALTURAS = 7;         // 5 letras + 4 huecos de media letra
+            /* Y un cuarto de letra de margen arriba y abajo. Sin él las
                filas ocupan el alto EXACTO de la ventana y la primera y la
                última quedan pegadas al borde -- de hecho la tinta de la
                primera empieza en el píxel 0 y se ve cortada. El margen cuesta
@@ -784,7 +802,7 @@
             const PELLI_SLOAN = 'CDHKNORSVZ';
             const PELLI_GAMMA = 2.2;
 
-            function pelliNivel(i){            // i de 1 a 8
+            function pelliNivel(i){            // i de 1 a PELLI_FILAS
                 const log = (i - 1) * PELLI_PASO_LOG;
                 const contraste = 1 / Math.pow(10, log);
                 const codigo = Math.round(255 * Math.pow(1 - contraste, 1 / PELLI_GAMMA));
@@ -842,7 +860,7 @@
                 const act = pelliNivel(state.pelliFila);
                 d.moduloNombre.textContent =
                     `Pelli-Robson · letra ${g.letraMM.toFixed(1)} mm = ${g.grados.toFixed(2)}° a ${distanciaModulo()} m · `
-                  + `fila ${act.n}/8 · log CS ${act.log.toFixed(2)} · ${(act.contraste * 100).toFixed(1)}% · código ${act.codigo}`;
+                  + `fila ${act.n}/${PELLI_FILAS} · log CS ${act.log.toFixed(2)} · ${(act.contraste * 100).toFixed(1)}% · código ${act.codigo}`;
             }
 
             function pelliComando(resto){
@@ -868,30 +886,46 @@
                lo bloquea el verde, y al revés. Nada de rojos "bonitos". */
             const ROJO_PURO = '#ff0000', VERDE_PURO = '#00ff00';
 
+            /* ── La medida estándar ──
+               Worth y Schober dibujan una figura de gafa rojo-verde, y
+               ninguno de los dos es una prueba de agudeza: lo que se juzga es
+               la FORMA —cuántos puntos se ven, dónde cae la cruz—, no el
+               umbral de un optotipo. Así que su tamaño no tiene por qué salir
+               de un ángulo clásico, y de hecho no puede: el 1,25° por punto
+               del farol de Worth pide un rombo de 445 mm a 6 m, y la pantalla
+               tiene 299 de alto.
+
+               Lo que había eran tres tamaños clásicos que a 6 m dibujaban un
+               cartel rojo de NO CABE y un cuarto —«máx»— que llenaba la
+               pantalla de lado a lado. Cuatro botones para una decisión que
+               la física ya había tomado.
+
+               Ahora la medida es UNA: la figura ocupa el 80 % del lado corto
+               de la pantalla, a cualquier distancia. Eso deja un décimo de
+               pantalla de margen a cada lado —nunca llena— y cabe siempre,
+               así que no hay opciones imposibles que ofrecer. El ángulo que
+               sale de ahí se calcula y SE DICE, que es lo que el
+               optometrista necesita apuntar; lo que no se hace es fingir que
+               se elige. */
+            const MEDIDA_ESTANDAR = 0.80;
+            /* La cruz de Schober rebasa el anillo exterior un 12 %, así que su
+               plato se calcula hacia atrás desde el 80 %: lo que ocupa el 80 %
+               es la figura DIBUJADA, no una circunferencia que nadie ve. */
+            const SCHOBER_REBASE = 1.12;
+            function ladoCortoMM(){
+                return state.cssPxPerMM > 0
+                    ? Math.min(window.innerWidth, window.innerHeight) / state.cssPxPerMM : 0;
+            }
+            function medidaEstandarMM(){ return ladoCortoMM() * MEDIDA_ESTANDAR; }
+            function mmAGrados(mm, metros){ return 2 * Math.atan(mm / 2 / (metros * 1000)) * 180 / Math.PI; }
+
             /* ── Worth ──
                Cuatro puntos en rombo: arriba rojo, los dos laterales verdes,
                abajo blanco. El blanco lo ven los dos ojos y es la referencia.
-
-               El tamaño se pide en grados y NO todos caben: el rombo ocupa 3,4
-               diámetros de punto de alto (es la proporción que usa la suite,
-               no una norma), así que el punto más grande que entra son el alto
-               de la pantalla entre 3,4. Eso pone un techo angular que baja con
-               la distancia, y el 1,25° clásico del farol deja de caber pasados
-               los 4 m. El módulo ofrece los tres tamaños de siempre y dice
-               cuál es imposible aquí, en vez de dibujar un rombo recortado. */
+               El rombo ocupa 3,4 diámetros de punto de alto (es la proporción
+               que usa la suite, no una norma), así que el punto sale del rombo
+               y no al revés. */
             const WORTH_ROMBO = 3.4;
-            const WORTH_TAMANOS = [
-                { id: '1.25', label: '1,25°', grados: 1.25 },
-                { id: '2',    label: '2°',    grados: 2 },
-                { id: '3',    label: '3°',    grados: 3 },
-                /* El cuarto no es un tamaño clásico: es el mayor que cabe a la
-                   distancia de la sala. Sin él el módulo es un callejón sin
-                   salida desde la silla de lejos, donde el techo son 0,84° y
-                   los tres de arriba no entran: el optometrista entraría al
-                   test para leer un cartel rojo. Con él puede hacerlo desde
-                   donde está, sabiendo el ángulo exacto que está usando. */
-                { id: 'max',  label: 'máx',   grados: null }
-            ];
             function anguloAMM(grados, metros){ return 2 * metros * 1000 * Math.tan(grados * Math.PI / 360); }
             /* El ángulo más grande que cabe en la pantalla a la distancia del
                módulo, dejando un margen. Varios estímulos se piden en grados y
@@ -900,51 +934,25 @@
                ángulo real, que es lo que hace el resto de la suite. */
             function gradosQueCaben(margen){
                 if (!(state.cssPxPerMM > 0)) return 0;
-                const ladoMM = Math.min(window.innerWidth, window.innerHeight) / state.cssPxPerMM * (margen || 0.94);
+                const ladoMM = ladoCortoMM() * (margen || 0.94);
                 return 2 * Math.atan(ladoMM / 2 / (distanciaModulo() * 1000)) * 180 / Math.PI;
-            }
-            function worthTecho(){
-                const D = distanciaModulo();
-                const ladoMM = state.cssPxPerMM > 0
-                    ? Math.min(window.innerWidth, window.innerHeight) / state.cssPxPerMM / WORTH_ROMBO : 0;
-                // un 2% de holgura: justo en el techo el rombo toca el borde
-                const g = 2 * Math.atan(ladoMM / 2 / (D * 1000)) * 180 / Math.PI;
-                return { mm: ladoMM, grados: g * 0.98 };
-            }
-            function worthGrados(tam){
-                return tam.grados == null ? worthTecho().grados : tam.grados;
             }
             function worthGeometria(){
                 const D = distanciaModulo();
-                const tam = WORTH_TAMANOS.find(t => t.id === state.worthTam) || WORTH_TAMANOS[1];
-                const puntoMM = anguloAMM(worthGrados(tam), D);
-                const rombosMM = WORTH_ROMBO * puntoMM;
-                const altoMM = state.cssPxPerMM > 0 ? window.innerHeight / state.cssPxPerMM : 0;
-                const anchoMM = state.cssPxPerMM > 0 ? window.innerWidth / state.cssPxPerMM : 0;
-                const cabe = rombosMM <= altoMM && rombosMM <= anchoMM;
-                const maxMM = Math.min(altoMM, anchoMM) / WORTH_ROMBO;
-                const maxG = 2 * Math.atan(maxMM / 2 / (D * 1000)) * 180 / Math.PI;
-                const distMax = (maxMM / 2) / Math.tan(worthGrados(tam) * Math.PI / 360) / 1000;
-                return { tam, grados: worthGrados(tam), puntoMM, rombosMM, cabe, maxG, distMax,
-                         puntoPx: puntoMM * state.cssPxPerMM, rombosPx: rombosMM * state.cssPxPerMM };
+                const rombosMM = medidaEstandarMM();
+                const puntoMM = rombosMM / WORTH_ROMBO;
+                return { puntoMM, rombosMM,
+                         grados: mmAGrados(puntoMM, D),
+                         rombosGrados: mmAGrados(rombosMM, D),
+                         puntoPx: puntoMM * state.cssPxPerMM,
+                         rombosPx: rombosMM * state.cssPxPerMM };
             }
             function renderWorth(){
                 d.moduloArea.style.background = '#000000';
                 if (!state.isCalibrated) return avisoSinCalibrar();
                 const g = worthGeometria();
-                if (!g.cabe) {
-                    d.moduloArea.innerHTML =
-                        '<div style="font-family:\'OpticianSans\',sans-serif;color:#5a2a2a;font-size:15px;'
-                      + 'letter-spacing:2px;text-align:center;line-height:2;">NO CABE A ' + distanciaModulo()
-                      + ' M<br><span style="font-size:11px;color:#452020;">EL PUNTO DE ' + g.tam.label
-                      + ' PIDE ' + g.puntoMM.toFixed(0) + ' MM</span></div>';
-                    d.moduloNombre.textContent = 'Worth · no cabe a ' + distanciaModulo() + ' m · techo '
-                        + g.maxG.toFixed(2) + '° · para ' + g.tam.label + ' hay que estar a ' + g.distMax.toFixed(1) + ' m o menos';
-                    return;
-                }
                 const r = g.puntoPx / 2, L = g.rombosPx;
                 const c = (L / 2).toFixed(2);
-                const borde = (L / 2 - r).toFixed(2);
                 d.moduloArea.innerHTML =
                     `<svg width="${L}" height="${L}" viewBox="0 0 ${L} ${L}" shape-rendering="geometricPrecision">
                        <circle cx="${c}" cy="${r.toFixed(2)}" r="${r.toFixed(2)}" fill="${ROJO_PURO}"/>
@@ -953,71 +961,70 @@
                        <circle cx="${c}" cy="${(L - r).toFixed(2)}" r="${r.toFixed(2)}" fill="#ffffff"/>
                      </svg>`;
                 d.moduloNombre.textContent = `Worth · punto ${g.puntoMM.toFixed(0)} mm = ${g.grados.toFixed(2)}° a `
-                    + `${distanciaModulo()} m${g.tam.grados == null ? ' (el máximo que cabe)' : ''} · `
-                    + `rombo ${g.rombosMM.toFixed(0)} mm · rojo en ${state.worthOjoRojo}`;
+                    + `${distanciaModulo()} m · rombo ${g.rombosMM.toFixed(0)} mm = ${g.rombosGrados.toFixed(2)}° · `
+                    + `rojo en ${state.worthOjoRojo}`;
             }
 
             /* ── Schober ──
-               Anillos concéntricos de un color y cruz del otro. El paso entre
-               anillos ES una dioptría prismática: 1Δ desplaza 1 cm a 1 m, o sea
-               D/100 mm a D mm. De lejos el paso crece y en la media pantalla
-               caben menos anillos, así que el rango medible se estrecha justo
-               cuando el paso se hace más grande. */
-            /* Los rangos que se ofrecen, y un cuarto que no es un número fijo.
-               El paso entre anillos ES 1Δ, así que el rango que cabe lo dicta la
-               pantalla: a 6 m, 1Δ son 60 mm y solo entran 2 anillos. Con los
-               tres rangos clásicos el módulo ofrecía desde la silla de lejos
-               tres botones que decían los tres «no caben», que dibujaban los
-               tres lo mismo, y ninguno de los cuales era lo que se estaba
-               dibujando: elegías 5 y medías con 2.
-               Es el mismo defecto que tenía Worth y se arregla igual: una cuarta
-               opción que es el rango que de verdad entra, con su cifra escrita. */
-            const SCHOBER_RANGOS = [
-                { id: '3',   label: '3',    anillos: 3 },
-                { id: '5',   label: '5',    anillos: 5 },
-                { id: '7',   label: '7',    anillos: 7 },
-                { id: 'max', label: 'máx',  anillos: null }
+               Anillos concéntricos de un color y cruz del otro. Lo que se lee
+               es dónde cae el centro de la cruz respecto a los anillos, y para
+               que eso sea una cifra hace falta saber cuánta desviación vale un
+               anillo.
+
+               Antes el paso ERA 1Δ —1Δ desplaza 1 cm a 1 m, o sea D/100 mm a
+               D mm— y el tamaño de la figura salía de ahí. La consecuencia: a
+               6 m, 1Δ son 60 mm y solo entraban DOS anillos en la media
+               pantalla, así que elegir 3, 5 o 7 dibujaba siempre los mismos
+               dos. Se medía con dos creyendo haber elegido cinco.
+
+               Ahora es al contrario, y es el reparto que pidió la consulta:
+               · la figura mide la medida estándar, así que el RANGO en Δ lo
+                 fija la pantalla y la distancia, y no se negocia;
+               · los anillos visibles se eligen, y lo que cambian es la
+                 RESOLUCIÓN con la que se lee ese rango.
+               El Δ por anillo deja de ser 1 y pasa a ser una cifra que hay que
+               decir en el mando, porque de ella depende la lectura. */
+            const SCHOBER_ANILLOS = [
+                { id: '3', label: '3', anillos: 3 },
+                { id: '5', label: '5', anillos: 5 },
+                { id: '7', label: '7', anillos: 7 }
             ];
             function schoberGeometria(){
                 const D = distanciaModulo() * 1000;
-                const pasoMM = D / 100;                       // 1Δ
-                const pasoPx = pasoMM * state.cssPxPerMM;
-                const medio = Math.min(window.innerWidth, window.innerHeight) / 2;
-                const caben = pasoPx > 0 ? Math.max(0, Math.floor(medio / pasoPx)) : 0;
-                const esMax = state.schoberAnillos === 'max';
-                const pedidos = esMax ? caben : (parseInt(state.schoberAnillos, 10) || 5);
-                const anillos = Math.min(pedidos, caben);
-                return { pasoMM, pasoPx, pedidos, caben, anillos, esMax };
+                const anillos = (SCHOBER_ANILLOS.find(r => r.id === state.schoberAnillos)
+                                 || SCHOBER_ANILLOS[1]).anillos;
+                /* El 80 % es de la figura dibujada, y la cruz rebasa el anillo
+                   exterior, así que el radio del anillo sale dividiendo. */
+                const radioMM = medidaEstandarMM() / 2 / SCHOBER_REBASE;
+                const pasoMM = radioMM / anillos;
+                const unaDioptriaMM = D / 100;                 // 1Δ a esta distancia
+                return { anillos, radioMM, pasoMM, unaDioptriaMM,
+                         pasoPx: pasoMM * state.cssPxPerMM,
+                         deltaAnillo: unaDioptriaMM > 0 ? pasoMM / unaDioptriaMM : 0,
+                         rango: unaDioptriaMM > 0 ? radioMM / unaDioptriaMM : 0 };
             }
             function renderSchober(){
                 d.moduloArea.style.background = '#000000';
                 if (!state.isCalibrated) return avisoSinCalibrar();
                 const g = schoberGeometria();
-                if (g.anillos < 1) {
-                    d.moduloArea.innerHTML =
-                        '<div style="font-family:\'OpticianSans\',sans-serif;color:#5a2a2a;font-size:15px;'
-                      + 'letter-spacing:2px;text-align:center;">NI UN ANILLO CABE A ' + distanciaModulo() + ' M</div>';
-                    d.moduloNombre.textContent = 'Schober · 1Δ son ' + g.pasoMM.toFixed(0)
-                        + ' mm a ' + distanciaModulo() + ' m y no cabe en la pantalla';
-                    return;
-                }
                 const cAnillo = state.schoberInvertido ? ROJO_PURO : VERDE_PURO;
                 const cCruz   = state.schoberInvertido ? VERDE_PURO : ROJO_PURO;
                 const R = g.anillos * g.pasoPx;          // radio del anillo exterior
                 /* Fino a propósito: lo que se juzga es dónde cae el centro de
                    la cruz respecto a un anillo, y un trazo gordo es ambigüedad
-                   añadida. A 6 m el paso son 181 px, así que 1/30 deja la línea
-                   en 6 px: un 3% del paso, o sea 0,03Δ de incertidumbre. */
-                const trazo = Math.max(2, Math.round(g.pasoPx / 30));
+                   añadida. Se mide contra el PASO, no contra la pantalla, así
+                   que con siete anillos la línea adelgaza en vez de comerse la
+                   separación que tiene que resolver. */
+                const trazo = Math.max(1.5, g.pasoPx / 30);
                 /* La cruz pasa de largo del último anillo: así se ve hacia qué
                    lado cae incluso cuando el desplazamiento se sale del rango
                    que los anillos pueden cuantificar. */
-                const brazo = R * 1.12;
+                const brazo = R * SCHOBER_REBASE;
                 const S = 2 * brazo;                     // lienzo cuadrado, centro en S/2
                 let anillos = '';
                 for (let i = 1; i <= g.anillos; i++) {
                     anillos += `<circle cx="0" cy="0" r="${(i * g.pasoPx).toFixed(2)}" fill="none" `
-                             + `stroke="${cAnillo}" stroke-width="${trazo}"/>`;
+                             + `stroke="${cAnillo}" stroke-width="${trazo.toFixed(2)}"/>`;
                 }
                 d.moduloArea.innerHTML =
                     `<svg width="${S.toFixed(2)}" height="${S.toFixed(2)}" viewBox="0 0 ${S.toFixed(2)} ${S.toFixed(2)}"
@@ -1028,23 +1035,20 @@
                                stroke="${cCruz}" stroke-width="${(trazo * 1.5).toFixed(2)}"/>
                        </g>
                      </svg>`;
-                d.moduloNombre.textContent = `Schober · 1Δ = ${g.pasoMM.toFixed(0)} mm a ${distanciaModulo()} m · `
-                    + `±${g.anillos}Δ de rango`
-                    + (g.esMax ? ' (el máximo que cabe)'
-                               : (g.anillos < g.pedidos ? ` (se pidieron ${g.pedidos} y caben ${g.caben})` : ''))
-                    + ` · cruz ${state.schoberInvertido ? 'verde' : 'roja'} · filtro rojo en ${state.schoberOjoRojo}`;
+                d.moduloNombre.textContent = `Schober · ${g.anillos} anillos · 1 anillo = `
+                    + `${g.deltaAnillo.toFixed(2)}Δ · rango ±${g.rango.toFixed(1)}Δ a ${distanciaModulo()} m · `
+                    + `cruz ${state.schoberInvertido ? 'verde' : 'roja'} · filtro rojo en ${state.schoberOjoRojo}`;
             }
 
             function worthComando(resto){
-                const [que, valor] = resto.split(':');
-                if (que === 'tam' && WORTH_TAMANOS.some(t => t.id === valor)) state.worthTam = valor;
-                else if (que === 'ojo') state.worthOjoRojo = state.worthOjoRojo === 'OD' ? 'OI' : 'OD';
+                const [que] = resto.split(':');
+                if (que === 'ojo') state.worthOjoRojo = state.worthOjoRojo === 'OD' ? 'OI' : 'OD';
                 else return;
                 renderScreen(); saveToStorage();
             }
             function schoberComando(resto){
                 const [que, valor] = resto.split(':');
-                if (que === 'anillos' && SCHOBER_RANGOS.some(r => r.id === valor)) state.schoberAnillos = valor;
+                if (que === 'anillos' && SCHOBER_ANILLOS.some(r => r.id === valor)) state.schoberAnillos = valor;
                 else if (que === 'inv') state.schoberInvertido = !state.schoberInvertido;
                 else if (que === 'ojo') state.schoberOjoRojo = state.schoberOjoRojo === 'OD' ? 'OI' : 'OD';
                 else return;
@@ -1064,7 +1068,19 @@
                 { id: 'difusa', nombre: 'Diana difusa',  sub: 'sin bordes · nada que enfocar' },
                 { id: 'punto',  nombre: 'Punto único',   sub: 'para dirigir la mirada' }
             ];
-            const RELAX_LUCES = ['15', '35', '60'];      // % de blanco
+            /* La luz, continua. Eran tres valores fijos —15, 35 y 60 %— y la
+               luz justa para una retinoscopía depende de la sala: de la lámpara
+               de techo, de la persiana y del propio retinoscopio. Con tres
+               escalones o sobra o falta, y el operador acababa eligiendo el
+               menos malo. En pasos de 5 % hay veinte, que es una rueda y no una
+               lista, y el mando la mueve con un deslizador.
+               El suelo son 5 % y no 0: con 0 la pantalla se queda negra y eso
+               ya tiene su propio control, el corte de estímulo. */
+            const RELAX_LUZ_MIN = 5, RELAX_LUZ_MAX = 100, RELAX_LUZ_PASO = 5;
+            const relaxLuzValida = v => {
+                const n = Math.round(Number(v) / RELAX_LUZ_PASO) * RELAX_LUZ_PASO;
+                return (n >= RELAX_LUZ_MIN && n <= RELAX_LUZ_MAX) ? n : null;
+            };
             const RELAX_GRADOS = 5;                      // el blanco difuso
             const RELAX_GRADOS_PUNTO = 0.5;
 
@@ -1079,20 +1095,35 @@
                 d.moduloArea.style.background = '#000000';
                 if (!state.isCalibrated) return avisoSinCalibrar();
                 const g = relaxGeometria();
-                const luz = (parseInt(state.relaxLuz, 10) || 35) / 100;
+                const luz = (relaxLuzValida(state.relaxLuz) || 35) / 100;
                 if (state.relaxTipo === 'punto') {
                     const c = Math.round(255 * luz);
                     d.moduloArea.innerHTML =
                         `<div style="width:${g.px.toFixed(1)}px; height:${g.px.toFixed(1)}px; border-radius:50%;`
                       + ` background:rgb(${c},${c},${c});"></div>`;
                 } else {
-                    /* Degradado radial que llega a cero: sin borde no hay contorno
-                       que enfocar. Con un círculo de borde duro el ojo acomoda
-                       sobre el propio borde y el relax se pierde. */
+                    /* Difusa de verdad, y esto costó un intento.
+                       La primera versión eran tres paradas — luz al 0 %, 0,55 de
+                       luz al 45 %, cero al 100 % — y se veía un disco con
+                       degradado, no una luz difusa: la caída era tan lenta que
+                       quedaba un contorno claro donde el degradado se apagaba, y
+                       el ojo acomoda sobre ese contorno. Con eso el test pierde
+                       exactamente su función, que es no dar nada que enfocar.
+                       Ahora la caída imita una gaussiana: la mayor parte de la
+                       luz se va en el primer tercio y queda una cola larga que
+                       llega a cero ANTES del borde, así que el último 12 % del
+                       radio es negro puro y no hay contorno en ninguna parte.
+                       Y sin border-radius: cuando el alfa llega a cero antes del
+                       borde, recortar en círculo no pinta nada y solo sugiere que
+                       hay un disco donde no lo hay. */
+                    const paradas = [[0, 1], [12, 0.88], [24, 0.70], [36, 0.50],
+                                     [48, 0.32], [60, 0.18], [72, 0.08],
+                                     [82, 0.03], [88, 0.01], [100, 0]]
+                        .map(([pos, k]) => `rgba(255,255,255,${(luz * k).toFixed(3)}) ${pos}%`)
+                        .join(', ');
                     d.moduloArea.innerHTML =
-                        `<div style="width:${g.px.toFixed(1)}px; height:${g.px.toFixed(1)}px; border-radius:50%;`
-                      + ` background:radial-gradient(circle, rgba(255,255,255,${luz.toFixed(2)}) 0%,`
-                      + ` rgba(255,255,255,${(luz * 0.55).toFixed(2)}) 45%, rgba(255,255,255,0) 100%);"></div>`;
+                        `<div style="width:${g.px.toFixed(1)}px; height:${g.px.toFixed(1)}px;`
+                      + ` background:radial-gradient(circle closest-side, ${paradas});"></div>`;
                 }
                 const t = RELAX_TIPOS.find(x => x.id === state.relaxTipo) || RELAX_TIPOS[0];
                 d.moduloNombre.textContent = `Relax · ${t.nombre} · ${g.grados.toFixed(2)}° = ${g.mm.toFixed(0)} mm a `
@@ -1102,24 +1133,37 @@
             function relaxComando(resto){
                 const [que, valor] = resto.split(':');
                 if (que === 'tipo' && RELAX_TIPOS.some(t => t.id === valor)) state.relaxTipo = valor;
-                else if (que === 'luz' && RELAX_LUCES.includes(valor)) state.relaxLuz = valor;
+                else if (que === 'luz') {
+                    const n = relaxLuzValida(valor);
+                    if (n == null) return;
+                    state.relaxLuz = n;
+                }
                 else return;
                 renderScreen(); saveToStorage();
             }
 
             /* ═══════════ FIJACIÓN INFANTIL ═══════════
-               Cuatro secuencias con velocidad regulable, y un botón de CONGELAR
-               que deja la figura quieta en el centro: un niño sigue el
-               movimiento, pero para medir hace falta que mire a un punto.
+               Nueve figuras y cuatro movimientos, y se eligen POR SEPARADO.
+
+               Antes iban atados: cada movimiento traía su figura pegada
+               —el rebote era siempre la pelota, el giro siempre el molinete—
+               así que no había forma de tener la mariposa rebotando, y
+               «añadir una figura» obligaba a inventarle un movimiento nuevo
+               que nadie había pedido. Con un niño de dos años eso importa:
+               la figura es lo que le interesa y el movimiento es lo que se
+               quiere medir, y son dos cosas distintas.
+
+               El CONGELAR deja la figura quieta en el centro: un niño sigue
+               el movimiento, pero para medir hace falta que mire a un punto.
 
                Sin sonido por decisión, no por omisión: en un consultorio
                pequeño el audio distrae al niño más de lo que lo atrae, y
                molesta en la sala de al lado. */
-            const INF_SECUENCIAS = [
+            const INF_MOVIMIENTOS = [
                 { id: 'rebote',    nombre: 'Rebote',    sub: 'sube y baja' },
-                { id: 'molinete',  nombre: 'Molinete',  sub: 'gira' },
+                { id: 'giro',      nombre: 'Giro',      sub: 'gira sobre sí misma' },
                 { id: 'recorrido', nombre: 'Recorrido', sub: 'cruza la pantalla' },
-                { id: 'destellos', nombre: 'Destellos', sub: 'late en el centro' }
+                { id: 'latido',    nombre: 'Latido',    sub: 'late en el centro' }
             ];
             const INF_VELOCIDADES = [
                 { id: 'lenta', nombre: 'Lenta', seg: 2.6 },
@@ -1127,19 +1171,63 @@
                 { id: 'rapida', nombre: 'Rápida', seg: 0.85 }
             ];
             const INF_GRADOS = 3;
-            const INF_FIGURAS = {
-                rebote: `<circle cx="30" cy="30" r="26" fill="#e8574c"/><circle cx="30" cy="30" r="9" fill="#fff"/>`,
-                molinete: `<g><path d="M30 30L30 2A28 28 0 0 1 54 16Z" fill="#e8574c"/>`
-                         + `<path d="M30 30L54 16A28 28 0 0 1 54 44Z" fill="#f0b26b"/>`
-                         + `<path d="M30 30L54 44A28 28 0 0 1 30 58Z" fill="#7fb069"/>`
-                         + `<path d="M30 30L30 58A28 28 0 0 1 6 44Z" fill="#4f9bd9"/>`
-                         + `<path d="M30 30L6 44A28 28 0 0 1 6 16Z" fill="#9b6bbf"/>`
-                         + `<path d="M30 30L6 16A28 28 0 0 1 30 2Z" fill="#e8c84c"/></g>`,
-                recorrido: `<circle cx="30" cy="30" r="25" fill="#f0b26b"/>`
-                         + `<circle cx="22" cy="24" r="4" fill="#2a2a2a"/><circle cx="38" cy="24" r="4" fill="#2a2a2a"/>`
-                         + `<path d="M20 38 Q30 47 40 38" stroke="#2a2a2a" stroke-width="3.5" fill="none" stroke-linecap="round"/>`,
-                destellos: `<path d="M30 2l7.7 17.1L56 21.3l-13.1 12.2L46 52l-16-9.8L14 52l3.1-18.5L4 21.3l18.3-2.2z" fill="#7fb069"/>`
-            };
+            /* Las figuras viven AQUÍ y solo aquí, en un viewBox de 60×60 con
+               el centro en (30,30) — el movimiento gira y escala sobre ese
+               centro, y una figura descentrada se bambolearía. El mando las
+               recibe en el espejo en vez de guardar su propia copia: tenerlas
+               dos veces significaba que añadir una era editar dos ficheros y
+               acordarse de los dos. */
+            const INF_FIGURAS = [
+                { id: 'pelota', nombre: 'Pelota',
+                  svg: '<circle cx="30" cy="30" r="26" fill="#e8574c"/><circle cx="30" cy="30" r="9" fill="#fff"/>' },
+                { id: 'carita', nombre: 'Carita',
+                  svg: '<circle cx="30" cy="30" r="25" fill="#f0b26b"/>'
+                           + '<circle cx="22" cy="24" r="4" fill="#2a2a2a"/><circle cx="38" cy="24" r="4" fill="#2a2a2a"/>'
+                           + '<path d="M20 38 Q30 47 40 38" stroke="#2a2a2a" stroke-width="3.5" fill="none" stroke-linecap="round"/>' },
+                { id: 'estrella', nombre: 'Estrella',
+                  svg: '<path d="M30 2l7.7 17.1L56 21.3l-13.1 12.2L46 52l-16-9.8L14 52l3.1-18.5L4 21.3l18.3-2.2z" fill="#7fb069"/>' },
+                { id: 'flor', nombre: 'Flor',
+                  svg: '<g fill="#e86ba0"><circle cx="30" cy="13" r="9.5"/><circle cx="44.7" cy="21.5" r="9.5"/>'
+                           + '<circle cx="44.7" cy="38.5" r="9.5"/><circle cx="30" cy="47" r="9.5"/>'
+                           + '<circle cx="15.3" cy="38.5" r="9.5"/><circle cx="15.3" cy="21.5" r="9.5"/></g>'
+                           + '<circle cx="30" cy="30" r="10" fill="#e8c84c"/>' },
+                { id: 'mariposa', nombre: 'Mariposa',
+                  svg: '<path d="M28 20C18 6 4 10 6 22c1.6 9.4 14.4 9.6 22 6.4z" fill="#e8574c"/>'
+                           + '<path d="M32 20C42 6 56 10 54 22c-1.6 9.4-14.4 9.6-22 6.4z" fill="#e8574c"/>'
+                           + '<path d="M28 32c-9 6-18 12-12 20 5 6.4 13-3.6 13-13.6z" fill="#4f9bd9"/>'
+                           + '<path d="M32 32c9 6 18 12 12 20-5 6.4-13-3.6-13-13.6z" fill="#4f9bd9"/>'
+                           + '<ellipse cx="30" cy="31" rx="2.6" ry="14" fill="#f4ead8"/>'
+                           + '<circle cx="30" cy="14" r="3.4" fill="#f4ead8"/>'
+                           + '<path d="M29 11C26 6 22 5 20 6" stroke="#f4ead8" stroke-width="1.6" fill="none" stroke-linecap="round"/>'
+                           + '<path d="M31 11C34 6 38 5 40 6" stroke="#f4ead8" stroke-width="1.6" fill="none" stroke-linecap="round"/>' },
+                { id: 'pez', nombre: 'Pez',
+                  svg: '<path d="M16 30c0-10 12-16 24-12 8 2.7 12 8 14 12-2 4-6 9.3-14 12-12 4-24-2-24-12z" fill="#4f9bd9"/>'
+                           + '<path d="M16 30L4 19l3 11-3 11z" fill="#2f7cb8"/>'
+                           + '<path d="M30 18.2c1-4.2 4-7.2 7-8.2-1 3.6-1 6.6 0 9z" fill="#2f7cb8"/>'
+                           + '<circle cx="44" cy="27" r="3.4" fill="#fff"/>'
+                           + '<circle cx="44.9" cy="27" r="1.6" fill="#1a1a1a"/>' },
+                { id: 'gato', nombre: 'Gato',
+                  svg: '<path d="M13 22L16 5l13 10z" fill="#f0b26b"/><path d="M47 22L44 5 31 15z" fill="#f0b26b"/>'
+                           + '<circle cx="30" cy="34" r="22" fill="#f0b26b"/>'
+                           + '<circle cx="22" cy="31" r="3.2" fill="#2a2a2a"/>'
+                           + '<circle cx="38" cy="31" r="3.2" fill="#2a2a2a"/><path d="M30 37l-3 3.2h6z" fill="#e8574c"/>'
+                           + '<path d="M26.5 43Q30 46.4 33.5 43" stroke="#2a2a2a" stroke-width="2" fill="none" stroke-linecap="round"/>'
+                           + '<g stroke="#2a2a2a" stroke-width="1.6" stroke-linecap="round"><path d="M12 37h8"/>'
+                           + '<path d="M12 42.5h8"/><path d="M48 37h-8"/><path d="M48 42.5h-8"/></g>' },
+                { id: 'cohete', nombre: 'Cohete',
+                  svg: '<path d="M30 3c8 9 11 19 11 29H19c0-10 3-20 11-29z" fill="#e9e9ea"/>'
+                           + '<path d="M19 32L9.5 45l9.5-3.4z" fill="#e8574c"/>'
+                           + '<path d="M41 32l9.5 13L41 41.6z" fill="#e8574c"/><path d="M19 32h22v4H19z" fill="#c9ccd2"/>'
+                           + '<circle cx="30" cy="21" r="5.6" fill="#4f9bd9"/>'
+                           + '<path d="M24.5 40h11L30 57z" fill="#f0b26b"/><path d="M27 41h6l-3 10z" fill="#e8c84c"/>' },
+                { id: 'molinete', nombre: 'Molinete',
+                  svg: '<path d="M30 30L30 2A28 28 0 0 1 54 16Z" fill="#e8574c"/>'
+                           + '<path d="M30 30L54 16A28 28 0 0 1 54 44Z" fill="#f0b26b"/>'
+                           + '<path d="M30 30L54 44A28 28 0 0 1 30 58Z" fill="#7fb069"/>'
+                           + '<path d="M30 30L30 58A28 28 0 0 1 6 44Z" fill="#4f9bd9"/>'
+                           + '<path d="M30 30L6 44A28 28 0 0 1 6 16Z" fill="#9b6bbf"/>'
+                           + '<path d="M30 30L6 16A28 28 0 0 1 30 2Z" fill="#e8c84c"/>' }
+            ];
 
             function infGeometria(){
                 /* Margen más generoso: la figura se MUEVE, así que además de
@@ -1150,29 +1238,34 @@
                 return { grados, pedido: INF_GRADOS, limitado: grados < INF_GRADOS - 0.001,
                          mm, px: mm * state.cssPxPerMM };
             }
+            const infMovimiento = () => INF_MOVIMIENTOS.find(x => x.id === state.infMovimiento) || INF_MOVIMIENTOS[0];
+            const infFigura     = () => INF_FIGURAS.find(f => f.id === state.infFigura)         || INF_FIGURAS[0];
+
             function renderInfantil(){
                 d.moduloArea.style.background = '#0a0a0a';
                 if (!state.isCalibrated) return avisoSinCalibrar();
                 const g = infGeometria();
-                const sec = INF_SECUENCIAS.find(x => x.id === state.infSecuencia) || INF_SECUENCIAS[0];
+                const mov = infMovimiento();
+                const fig = infFigura();
                 const vel = INF_VELOCIDADES.find(v => v.id === state.infVelocidad) || INF_VELOCIDADES[1];
                 const dur = vel.seg + 's';
                 // Congelado: la figura queda quieta y CENTRADA, no parada a medio
                 // recorrido, porque el instante de la medida quiere un punto fijo.
                 const anim = state.infCongelado ? 'none'
-                    : `bv-${sec.id} ${dur} ${sec.id === 'molinete' ? 'linear' : 'ease-in-out'} infinite`
-                      + (sec.id === 'rebote' || sec.id === 'recorrido' ? ' alternate' : '');
+                    : `bv-${mov.id} ${dur} ${mov.id === 'giro' ? 'linear' : 'ease-in-out'} infinite`
+                      + (mov.id === 'rebote' || mov.id === 'recorrido' ? ' alternate' : '');
                 d.moduloArea.innerHTML =
                     `<svg width="${g.px.toFixed(1)}" height="${g.px.toFixed(1)}" viewBox="0 0 60 60"
-                          style="animation:${anim}; transform-origin:50% 50%;">${INF_FIGURAS[sec.id]}</svg>`;
-                d.moduloNombre.textContent = `Fijación infantil · ${sec.nombre} · ${vel.nombre} · `
+                          style="animation:${anim}; transform-origin:50% 50%;">${fig.svg}</svg>`;
+                d.moduloNombre.textContent = `Fijación infantil · ${fig.nombre} · ${mov.nombre} · ${vel.nombre} · `
                     + `${g.grados.toFixed(2)}° = ${g.mm.toFixed(0)} mm a ${distanciaModulo()} m`
                     + (g.limitado ? ` (se pidió ${g.pedido}° y no cabe con recorrido)` : '')
                     + (state.infCongelado ? ' · CONGELADO en el centro' : '');
             }
             function infComando(resto){
                 const [que, valor] = resto.split(':');
-                if (que === 'sec' && INF_SECUENCIAS.some(x => x.id === valor)) state.infSecuencia = valor;
+                if (que === 'mov' && INF_MOVIMIENTOS.some(x => x.id === valor)) state.infMovimiento = valor;
+                else if (que === 'fig' && INF_FIGURAS.some(f => f.id === valor)) state.infFigura = valor;
                 else if (que === 'vel' && INF_VELOCIDADES.some(v => v.id === valor)) state.infVelocidad = valor;
                 else if (que === 'congelar') state.infCongelado = !state.infCongelado;
                 else return;
@@ -1245,6 +1338,89 @@
                 return { x: fondo.x + s * dx, y: fondo.y + s * dy, t: s };
             }
 
+            /* ── Figuras, para quien no lee números ──
+               Un niño de tres años no dice «veintiséis», y sin esto el módulo
+               de color no se le puede pasar. Es el mismo test —la misma línea
+               de confusión, la misma isoluminancia— con otra máscara: en vez
+               de una cifra, una silueta que el niño nombra o señala.
+
+               Siluetas MACIZAS y a propósito: el mosaico tiene 30 puntos de
+               ancho, así que un trazo fino se queda en dos puntos y deja de
+               ser una forma. Nada de contornos ni de lunas: círculo, cuadrado,
+               triángulo, estrella, corazón, cruz y casa, todas rellenas y
+               todas con el brazo más estrecho por encima de tres puntos.
+
+               Se dibujan en una caja de lado 1 centrada en el origen y cada
+               una trae su escala medida, abajo. */
+            /* Cada figura trae su ESCALA, y las siete están calibradas, no
+               puestas a ojo. El procedimiento: buscar la escala que deja el
+               área de la silueta en el 20 % del disco —el doble que una cifra
+               de dos dígitos, que es lo que un niño necesita— y medir después
+               el ancho del brazo más estrecho con una transformada de
+               distancia, en puntos del mosaico. Medido así:
+
+                 figura      escala   área   brazo
+                 círculo     0,448    20 %   4,1 puntos
+                 cuadrado    0,429    20 %   3,5
+                 corazón     0,554    20 %   3,6
+                 casa        0,507    20 %   3,4
+                 estrella    0,535    20 %   3,3
+                 triángulo   0,566    20 %   3,2
+                 cruz        0,496    26 %   3,1
+
+               La estrella y la cruz salieron primero en 2,6 y 2,5 puntos, por
+               debajo del borrón. La estrella se arregló ENGORDÁNDOLA en vez de
+               agrandándola —el radio interior subió de 0,48 a 0,64 del
+               exterior— porque crecer la habría dejado comiéndose el disco, y
+               sin fondo alrededor no hay nada en lo que esconderse.
+
+               La cruz no se deja: es casi toda brazo, así que engordarla la
+               convierte en un octógono —medido: con el brazo en 0,26 deja de
+               leerse como cruz— y adelgazarla la rompe. A esa figura hubo que
+               darle sitio: el 26 % del disco en vez del 20 %, que es lo que
+               pone su brazo en 3,1 puntos con la forma intacta.
+
+               Tres puntos de brazo bastan aquí y en una cifra no: en un 5 lo
+               que lleva la identidad es el TRAZO, y si el trazo se rompe el 5
+               deja de ser un 5. En una silueta maciza la identidad está en el
+               contorno, y el contorno sobrevive. */
+            const COLOR_FIGURAS = {
+                circulo: { nombre: 'círculo', escala: 0.448,
+                    trazar: k => { k.arc(0, 0, 0.5, 0, Math.PI * 2); } },
+                cuadrado: { nombre: 'cuadrado', escala: 0.429,
+                    trazar: k => { k.rect(-0.46, -0.46, 0.92, 0.92); } },
+                triangulo: { nombre: 'triángulo', escala: 0.566, trazar: k => {
+                    k.moveTo(0, -0.52); k.lineTo(0.52, 0.42); k.lineTo(-0.52, 0.42); k.closePath(); } },
+                estrella: { nombre: 'estrella', escala: 0.535, trazar: k => {
+                    const R = 0.54, r = R * 0.64;
+                    for (let i = 0; i < 10; i++) {
+                        const ang = -Math.PI / 2 + i * Math.PI / 5;
+                        const rad = i % 2 ? r : R;
+                        const x = Math.cos(ang) * rad, y = Math.sin(ang) * rad;
+                        i ? k.lineTo(x, y) : k.moveTo(x, y);
+                    }
+                    k.closePath(); } },
+                corazon: { nombre: 'corazón', escala: 0.554, trazar: k => {
+                    k.moveTo(0, 0.52);
+                    k.bezierCurveTo(-0.74, 0.02, -0.40, -0.56, 0, -0.20);
+                    k.bezierCurveTo(0.40, -0.56, 0.74, 0.02, 0, 0.52);
+                    k.closePath(); } },
+                cruz: { nombre: 'cruz', escala: 0.496, trazar: k => {
+                    const b = 0.22, l = 0.58;
+                    k.moveTo(-b, -l); k.lineTo(b, -l); k.lineTo(b, -b); k.lineTo(l, -b);
+                    k.lineTo(l, b); k.lineTo(b, b); k.lineTo(b, l); k.lineTo(-b, l);
+                    k.lineTo(-b, b); k.lineTo(-l, b); k.lineTo(-l, -b); k.lineTo(-b, -b);
+                    k.closePath(); } },
+                casa: { nombre: 'casa', escala: 0.507, trazar: k => {
+                    k.moveTo(-0.50, -0.06); k.lineTo(0, -0.52); k.lineTo(0.50, -0.06);
+                    k.lineTo(0.34, -0.06); k.lineTo(0.34, 0.50); k.lineTo(-0.34, 0.50);
+                    k.lineTo(-0.34, -0.06); k.closePath(); } }
+            };
+            const COLOR_JUEGOS = [
+                { id: 'numeros', nombre: 'Números', sub: 'para quien lee' },
+                { id: 'figuras', nombre: 'Figuras', sub: 'para niños' }
+            ];
+
             /* Las láminas. La cifra y el eje son decisiones propias: no se
                replica la secuencia de ninguna cartilla comercial.
                  demo     -> la ve todo el mundo; confirma que entiende la tarea
@@ -1267,6 +1443,34 @@
                 { id:7, tipo:'oculta',    eje:'tritan', digito:'45', resp:'45',
                   que:'Desaparece para el tritán' }
             ];
+
+            /* El mismo reparto de ejes que el juego de cifras: una de
+               demostración y dos por cada eje. Lo único que cambia es la
+               máscara y que la respuesta es una palabra. */
+            const COLOR_LAMINAS_FIGURAS = [
+                { id:1, tipo:'demo',   eje:'deutan', figura:'circulo',
+                  que:'Demostración · la ve cualquiera' },
+                { id:2, tipo:'oculta', eje:'protan', figura:'cuadrado',
+                  que:'Desaparece para el protán' },
+                { id:3, tipo:'oculta', eje:'protan', figura:'estrella',
+                  que:'Desaparece para el protán' },
+                { id:4, tipo:'oculta', eje:'deutan', figura:'triangulo',
+                  que:'Desaparece para el deután' },
+                { id:5, tipo:'oculta', eje:'deutan', figura:'corazon',
+                  que:'Desaparece para el deután' },
+                { id:6, tipo:'oculta', eje:'tritan', figura:'cruz',
+                  que:'Desaparece para el tritán' },
+                { id:7, tipo:'oculta', eje:'tritan', figura:'casa',
+                  que:'Desaparece para el tritán' }
+            ].map(l => ({ ...l, resp: COLOR_FIGURAS[l.figura].nombre }));
+
+            /* El juego en curso. Cambiar de juego reinicia en la primera lámina
+               y esconde la respuesta: son dos cartillas distintas, no dos vistas
+               de la misma, y seguir en la lámina 5 al cambiar sería enseñarle al
+               paciente una figura donde esperaba una cifra. */
+            function colorLaminas(){
+                return state.colorJuego === 'figuras' ? COLOR_LAMINAS_FIGURAS : COLOR_LAMINAS;
+            }
 
             /* Determinista y por POSICIÓN, no secuencial. Con un generador
                lineal recorrido en orden de rejilla los valores consecutivos
@@ -1316,7 +1520,8 @@
             function renderColor(){
                 d.moduloArea.style.background = '#101010';
                 if (!state.isCalibrated) return avisoSinCalibrar();
-                const lam = COLOR_LAMINAS.find(l => l.id === state.colorLamina) || COLOR_LAMINAS[0];
+                const juego = colorLaminas();
+                const lam = juego.find(l => l.id === state.colorLamina) || juego[0];
                 const g = colorGeometria();
                 const D = Math.round(g.px);
 
@@ -1342,22 +1547,41 @@
                 const figuraDemo = lam.tipo === 'demo'
                     ? { x: fondo.x + vy / n * 0.10, y: fondo.y - vx / n * 0.10 } : null;
 
-                const mascara = (txt, dx) => {
+                /* La máscara: blanco donde va la figura, negro donde va el
+                   fondo. Da igual que sea una cifra o una silueta — el mosaico
+                   solo pregunta «¿este punto cae dentro?». */
+                const lienzoMascara = () => {
                     const c = document.createElement('canvas');
                     c.width = D; c.height = D;
                     const k = c.getContext('2d');
                     k.fillStyle = '#000'; k.fillRect(0, 0, D, D);
                     k.fillStyle = '#fff';
+                    return k;
+                };
+                /* Figura grande a propósito: con 30 puntos a lo ancho, una
+                   cifra del 46% del disco deja el trazo en 2,8 puntos y se
+                   lee como un borrón. Al 60% el trazo son 3,6 y tiene forma. */
+                const LADO = 0.60;
+                const mascaraCifra = (txt, dx) => {
+                    const k = lienzoMascara();
                     k.textAlign = 'center'; k.textBaseline = 'middle';
-                    /* Cifra grande a propósito: con 30 puntos a lo ancho, una
-                       cifra del 46% del disco deja el trazo en 2,8 puntos y se
-                       lee como un borrón. Al 60% el trazo son 3,6 y la cifra
-                       tiene forma. */
-                    k.font = `${Math.round(D * 0.60)}px ${OPTOTYPE_FONT}, Arial Black, sans-serif`;
+                    k.font = `${Math.round(D * LADO)}px ${OPTOTYPE_FONT}, Arial Black, sans-serif`;
                     k.fillText(txt, D / 2 + (dx || 0), D / 2);
                     return k.getImageData(0, 0, D, D).data;
                 };
-                const m1 = mascara(lam.digito, 0);
+                const mascaraFigura = id => {
+                    const f = COLOR_FIGURAS[id];
+                    const k = lienzoMascara();
+                    k.save();
+                    k.translate(D / 2, D / 2);
+                    k.scale(D * f.escala, D * f.escala);
+                    k.beginPath();
+                    f.trazar(k);
+                    k.restore();
+                    k.fill();
+                    return k.getImageData(0, 0, D, D).data;
+                };
+                const m1 = lam.figura ? mascaraFigura(lam.figura) : mascaraCifra(lam.digito, 0);
 
                 const lienzo = document.createElement('canvas');
                 lienzo.width = D; lienzo.height = D;
@@ -1408,7 +1632,8 @@
 
                 d.moduloArea.innerHTML = '';
                 d.moduloArea.appendChild(lienzo);
-                d.moduloNombre.textContent = `Color · lámina ${lam.id}/${COLOR_LAMINAS.length} · ${lam.que} · `
+                d.moduloNombre.textContent = `Color · ${lam.figura ? 'figuras' : 'números'} · `
+                    + `lámina ${lam.id}/${juego.length} · ${lam.que} · `
                     + `${g.grados.toFixed(1)}° = ${g.mm.toFixed(0)} mm a ${distanciaModulo()} m · `
                     + `${puntos} puntos de ${g.minMin.toFixed(0)}′ a ${g.maxMin.toFixed(0)}′`
                     + (state.colorResp ? ` · RESPUESTA ${lam.resp}` : '');
@@ -1419,8 +1644,13 @@
                 if (que === 'lam') {
                     const n = valor === 'sig' ? state.colorLamina + 1
                             : valor === 'ant' ? state.colorLamina - 1 : parseInt(valor, 10);
-                    if (!(n >= 1 && n <= COLOR_LAMINAS.length)) return;
+                    if (!(n >= 1 && n <= colorLaminas().length)) return;
                     state.colorLamina = n; state.colorResp = false;
+                } else if (que === 'juego') {
+                    if (!COLOR_JUEGOS.some(j => j.id === valor)) return;
+                    if (valor === state.colorJuego) return;
+                    state.colorJuego = valor;
+                    state.colorLamina = 1; state.colorResp = false;
                 } else if (que === 'resp') state.colorResp = !state.colorResp;
                 else if (que === 'nueva') state.colorSemilla = (state.colorSemilla + 1) % 1000;
                 else return;
@@ -1466,14 +1696,14 @@
                 singleCharMode: false,
                 lineChars:{},
                 // módulo activo y estado de los que no son optotipos
-                modulo:'optotipos', recordarVolver:false,
+                modulo:'optotipos', corte:false,
                 amslerLamina:'blanco', amslerDiagonales:false, amslerOjo:'OD',
                 pelliFila:1, pelliSemilla:0,
-                worthTam:'2', worthOjoRojo:'OD',
+                worthOjoRojo:'OD',
                 schoberAnillos:'5', schoberInvertido:false, schoberOjoRojo:'OD',
-                relaxTipo:'difusa', relaxLuz:'35',
-                infSecuencia:'rebote', infVelocidad:'media', infCongelado:false,
-                colorLamina:1, colorResp:false, colorSemilla:0,
+                relaxTipo:'difusa', relaxLuz:35,
+                infMovimiento:'rebote', infFigura:'pelota', infVelocidad:'media', infCongelado:false,
+                colorJuego:'numeros', colorLamina:1, colorResp:false, colorSemilla:0,
             };
 
             const $ = id => document.getElementById(id);
@@ -1819,17 +2049,23 @@
                 if (m.distFija != null) return { estado: 'cerca', etiqueta: 'a ' + m.distFija + ' m' };
                 if (!state.isCalibrated) return { estado: 'sincal', etiqueta: 'sin calibrar' };
 
+                /* Worth ya no puede «no caber»: su medida es el 80 % del lado
+                   corto y cabe por construcción. Lo que el menú dice ahora es
+                   el ángulo que va a dibujar a la distancia de la sala, que es
+                   lo que cambia de una sala a otra. */
                 if (m.id === 'worth') {
                     const g = worthGeometria();
-                    if (g.tam.grados == null) return { estado: 'adaptado', etiqueta: g.grados.toFixed(2) + '°' };
-                    return g.cabe ? { estado: 'correcto', etiqueta: g.tam.label }
-                                  : { estado: 'fuera', etiqueta: 'no cabe' };
+                    return { estado: 'correcto', etiqueta: g.grados.toFixed(2) + '°' };
                 }
+                /* Schober tampoco: el rango en Δ es lo que se estrecha con la
+                   distancia, porque 1Δ son D/100 mm y la pantalla no crece.
+                   Por debajo de ±3Δ no se pueden cuantificar las forias que se
+                   ven en consulta, así que eso es «adaptado» y se dice antes
+                   de entrar. */
                 if (m.id === 'schober') {
                     const g = schoberGeometria();
-                    if (g.anillos < 1) return { estado: 'fuera', etiqueta: 'sin rango' };
-                    return g.anillos >= 5 ? { estado: 'correcto', etiqueta: '±' + g.anillos + 'Δ' }
-                                          : { estado: 'adaptado', etiqueta: '±' + g.anillos + 'Δ' };
+                    return g.rango >= 3 ? { estado: 'correcto', etiqueta: '±' + g.rango.toFixed(1) + 'Δ' }
+                                        : { estado: 'adaptado', etiqueta: '±' + g.rango.toFixed(1) + 'Δ' };
                 }
                 if (m.id === 'relax') {
                     const g = relaxGeometria();
@@ -1884,6 +2120,27 @@
                     d.btnToggle.textContent = esOpto ? '▲' : '▼';
                     moduloPintado = m.id;
                 }
+                /* ── El corte de estímulo ──
+                   Taparle la pantalla al paciente un momento —para explicarle
+                   algo, para que descanse, para ocluirle el otro ojo con
+                   calma— es de las cosas que más se hacen en una consulta.
+                   Volver al menú ya dejaba la pantalla sin estímulo, pero
+                   PIERDE el sitio: los anillos elegidos, la lámina en curso,
+                   el ojo en examen. Así que el corte es un estado aparte: el
+                   test sigue puesto y solo deja de dibujarse.
+
+                   Se apagan LAS DOS capas, no una. Esconder el estímulo y
+                   dejar los optotipos detrás es exactamente el defecto que ya
+                   apareció una vez, y en negro no se ve hasta que se reanuda. */
+                if (state.corte) {
+                    d.linesContainer.classList.add('oculto');
+                    d.moduloArea.classList.remove('oculto');
+                    d.moduloArea.style.background = '#000000';
+                    d.moduloArea.innerHTML = '';
+                    d.testArea.classList.remove('bichromatic');
+                    d.moduloNombre.textContent = 'estímulo CORTADO · ' + m.titulo + ' sigue puesto';
+                    return;
+                }
                 if (esOpto) {
                     d.testArea.style.background = '';
                     d.moduloNombre.textContent = '';
@@ -1927,12 +2184,33 @@
                hacia otro que NO la trae fija se levanta el recordatorio. Medir
                agudeza con el paciente todavía a 1 m es el error que esto evita,
                y es silencioso: los optotipos saldrían perfectos y mal medidos. */
+            /* El corte no se guarda en localStorage: es un momento, no una
+               preferencia. Si el navegador se reinicia con la pantalla cortada,
+               el paciente se quedaría mirando un negro que nadie recuerda haber
+               puesto. */
+            function cortarEstimulo(){
+                state.corte = !state.corte;
+                renderScreen();
+                emitirEspejo();
+            }
+
             function entrarModulo(id){
                 const destino = MODULO[id];
                 if (!destino || id === state.modulo) return;
+                /* Entrar en OTRO test levanta el corte: si no, el operador
+                   elige un módulo y la pantalla sigue negra sin decir por qué
+                   —y el corte se pensó para tapar este test un momento, no para
+                   quedarse puesto. Va después del guardia: volver a pulsar el
+                   módulo en el que ya estás no debe reanudar nada. */
+                state.corte = false;
                 const salgo = moduloActual();
-                if (salgo.distFija != null && destino.distFija == null) state.recordarVolver = true;
-                if (destino.distFija != null) state.recordarVolver = false;
+                /* Aquí se encendía un aviso de «el paciente sigue acercado» al salir
+                   de un módulo de 1 m hacia uno de sala. Se quitó por redundante:
+                   la cabecera del mando ya dice a qué distancia se está midiendo
+                   en TODO momento, y el menú marca los tres módulos de cerca con
+                   su «a 1 m». Un aviso que repite lo que ya hay en pantalla se
+                   convierte en un clic más que dar, y se empieza a despachar sin
+                   leerlo. */
                 state.modulo = id;
                 renderScreen();
                 saveToStorage();
@@ -1967,7 +2245,6 @@
                     modulos: MODULOS.map(x => ({ id:x.id, titulo:x.titulo, sub:x.sub, grupo:x.grupo,
                                                  hecho:x.hecho, distFija:x.distFija,
                                                  ver: veredictoModulo(x) })),
-                    recordarVolver: state.recordarVolver,
                     cal: {
                         testDistanceM: state.testDistanceM,
                         distanciaModulo: distanciaModulo(),
@@ -1984,7 +2261,8 @@
                            desconectado del monitor de la consulta— dejaba los ocho
                            módulos midiendo con una estimación que parecía medida. */
                         obsoleta: state.calStale
-                    }
+                    },
+                    corte: state.corte
                 };
                 if (m.id === 'optotipos' && state.isCalibrated) {
                     const screen = getCurrentScreen();
@@ -2003,6 +2281,12 @@
                         }))
                     }));
                     datos.mode = state.mode;
+                    /* La pantalla en curso y cuántas hay: el mando las enseñaba
+                       como un mando de televisión —cuatro flechas y nada más— y
+                       quien lo usa necesita saber en qué nivel está sin mirar la
+                       pantalla del paciente. */
+                    datos.pantalla = state.currentScreenIdx + 1;
+                    datos.pantallas = TOTAL_SCREENS;
                     datos.highlightMode = state.highlightMode;
                     datos.highlightLineIdx = indiceResaltadoLocal();
                     datos.singleCharMode = state.singleCharMode;
@@ -2011,6 +2295,7 @@
                     const g = state.isCalibrated ? pelliGeometria() : null;
                     datos.pelli = {
                         fila: state.pelliFila,
+                        pasoLog: PELLI_PASO_LOG,
                         letraMM: g ? +g.letraMM.toFixed(1) : 0,
                         grados: g ? +g.grados.toFixed(2) : 0,
                         niveles: Array.from({ length: PELLI_FILAS }, (_, k) => {
@@ -2031,22 +2316,11 @@
                     const rojoOD = state.worthOjoRojo === 'OD';
                     const otro = rojoOD ? 'OI' : 'OD';
                     datos.worth = {
-                        tam: state.worthTam,
                         ojoRojo: state.worthOjoRojo,
-                        cabe: g ? g.cabe : false,
                         puntoMM: g ? +g.puntoMM.toFixed(0) : 0,
                         rombosMM: g ? +g.rombosMM.toFixed(0) : 0,
-                        techoG: g ? +g.maxG.toFixed(2) : 0,
-                        distMax: g ? +g.distMax.toFixed(1) : 0,
                         grados: g ? +g.grados.toFixed(2) : 0,
-                        tamanos: WORTH_TAMANOS.map(t => {
-                            const gr = state.isCalibrated ? worthGrados(t) : 0;
-                            const mm = state.isCalibrated ? anguloAMM(gr, distanciaModulo()) : 0;
-                            const entra = state.isCalibrated && WORTH_ROMBO * mm <= Math.min(window.innerWidth, window.innerHeight) / state.cssPxPerMM;
-                            return { id: t.id, label: t.grados == null ? gr.toFixed(2).replace('.', ',') + '°' : t.label,
-                                     sub: t.grados == null ? 'el máximo' : null,
-                                     mm: +mm.toFixed(0), entra: entra };
-                        }),
+                        rombosGrados: g ? +g.rombosGrados.toFixed(2) : 0,
                         /* El filtro rojo transmite el rojo: el ojo que lo lleva
                            ve el punto rojo, el otro los verdes. El blanco lo
                            ven los dos. De ahí sale qué significa cada respuesta,
@@ -2079,22 +2353,23 @@
                     const cruzEsDerecho = ojoCruz === 'OD';
                     datos.schober = {
                         anillosPedidos: state.schoberAnillos,
-                        /* Las opciones viajan con su nota calculada en vez de que
-                           el mando las escriba: así añadir un rango es tocar una
-                           lista y no dos ficheros, y el «máx» puede decir cuánto
-                           es sin que el móvil repita la geometría. */
-                        rangos: SCHOBER_RANGOS.map(r => ({
+                        /* Las opciones viajan con su Δ por anillo ya calculado:
+                           el rango es el mismo con las tres —lo fija la medida
+                           estándar y la distancia— y lo que cambia es con qué
+                           finura se lee. Eso es lo que hay que poder comparar
+                           antes de tocar el botón, y el mando no repite la
+                           geometría para averiguarlo. */
+                        opciones: SCHOBER_ANILLOS.map(r => ({
                             id: r.id,
                             label: r.label,
-                            entra: g ? (r.anillos == null || r.anillos <= g.caben) : true,
-                            nota: !g ? ''
-                                : r.anillos == null ? '±' + g.caben + 'Δ'
-                                : r.anillos <= g.caben ? '±' + r.anillos + 'Δ'
-                                : 'no caben'
+                            nota: g ? (g.radioMM / r.anillos / g.unaDioptriaMM).toFixed(2).replace('.', ',') + 'Δ cada uno'
+                                    : ''
                         })),
                         anillos: g ? g.anillos : 0,
-                        caben: g ? g.caben : 0,
+                        deltaAnillo: g ? +g.deltaAnillo.toFixed(2) : 0,
+                        rango: g ? +g.rango.toFixed(1) : 0,
                         pasoMM: g ? +g.pasoMM.toFixed(0) : 0,
+                        unaDioptriaMM: g ? +g.unaDioptriaMM.toFixed(0) : 0,
                         invertido: state.schoberInvertido,
                         ojoRojo: state.schoberOjoRojo,
                         ojoCruz: ojoCruz,
@@ -2115,12 +2390,19 @@
                     };
                 } else if (m.id === 'color') {
                     const g = state.isCalibrated ? colorGeometria() : null;
-                    const lam = COLOR_LAMINAS.find(l => l.id === state.colorLamina) || COLOR_LAMINAS[0];
+                    const juegoColor = colorLaminas();
+                    const lam = juegoColor.find(l => l.id === state.colorLamina) || juegoColor[0];
                     datos.color = {
+                        juego: state.colorJuego,
+                        juegos: COLOR_JUEGOS,
                         lamina: state.colorLamina,
-                        total: COLOR_LAMINAS.length,
-                        laminas: COLOR_LAMINAS.map(l => ({ id:l.id, tipo:l.tipo, eje:l.eje,
-                                                           nombre: COPUNTUALES[l.eje].nombre, que:l.que })),
+                        total: juegoColor.length,
+                        /* La respuesta de cada lámina viaja en la lista: con
+                           figuras es una palabra y el mando la enseña tal cual,
+                           en vez de repetir aquí el nombre de la silueta. */
+                        laminas: juegoColor.map(l => ({ id:l.id, tipo:l.tipo, eje:l.eje,
+                                                        nombre: COPUNTUALES[l.eje].nombre,
+                                                        que:l.que, resp:l.resp })),
                         tipo: lam.tipo, eje: lam.eje, ejeNombre: COPUNTUALES[lam.eje].nombre,
                         que: lam.que,
                         resp: lam.resp,
@@ -2137,7 +2419,9 @@
                         tipo: state.relaxTipo,
                         tipos: RELAX_TIPOS,
                         luz: state.relaxLuz,
-                        luces: RELAX_LUCES,
+                        luzMin: RELAX_LUZ_MIN,
+                        luzMax: RELAX_LUZ_MAX,
+                        luzPaso: RELAX_LUZ_PASO,
                         grados: g ? +g.grados.toFixed(2) : 0,
                         pedido: g ? g.pedido : 0,
                         limitado: g ? g.limitado : false,
@@ -2147,8 +2431,13 @@
                     const g = state.isCalibrated ? infGeometria() : null;
                     const vel = INF_VELOCIDADES.find(v => v.id === state.infVelocidad) || INF_VELOCIDADES[1];
                     datos.infantil = {
-                        secuencia: state.infSecuencia,
-                        secuencias: INF_SECUENCIAS,
+                        movimiento: state.infMovimiento,
+                        movimientos: INF_MOVIMIENTOS,
+                        figura: state.infFigura,
+                        /* El dibujo viaja en el espejo: el mando pinta la
+                           rejilla de figuras con el MISMO SVG que ve el niño,
+                           y así no hay una segunda copia que se desincronice. */
+                        figuras: INF_FIGURAS,
                         velocidad: state.infVelocidad,
                         velocidades: INF_VELOCIDADES,
                         seg: vel.seg,
@@ -2319,10 +2608,9 @@
                     // preferencias del Amsler; el módulo activo NO se guarda,
                     // igual que el modo de optotipo: cada sesión arranca limpia
                     amslerLamina:state.amslerLamina, amslerDiagonales:state.amslerDiagonales,
-                    worthTam:state.worthTam,
                     schoberAnillos:state.schoberAnillos, schoberInvertido:state.schoberInvertido,
                     relaxTipo:state.relaxTipo, relaxLuz:state.relaxLuz,
-                    infSecuencia:state.infSecuencia, infVelocidad:state.infVelocidad
+                    infMovimiento:state.infMovimiento, infFigura:state.infFigura, infVelocidad:state.infVelocidad
                 })); }catch(e){}
             }
 
@@ -2337,7 +2625,6 @@
                 // localStorage y luego se ignoraba, o sea que era dato muerto.
                 state.mode = 'letters';
                 state.modulo = 'optotipos';
-                state.recordarVolver = false;
                 state.amslerOjo = 'OD';
                 state.worthOjoRojo = 'OD';
                 state.schoberOjoRojo = 'OD';
@@ -2347,7 +2634,7 @@
                    preferencia: se guardaba en localStorage y la sesión siguiente
                    arrancaba en la fila del paciente anterior y la anunciaba como
                    «fila en curso». Los demás valores guardados (tamaño de Worth,
-                   anillos de Schober, secuencia infantil) sí son preferencias del
+                   anillos de Schober, figura infantil) sí son preferencias del
                    gabinete y sobreviven a propósito. */
                 state.pelliFila = 1;
                 if(saved){
@@ -2370,12 +2657,12 @@
                         state.currentScreenIdx=Math.min(SCREENS.length-1, Math.max(0, saved.currentScreenIdx));
                     if(AMSLER_LAMINAS.some(l=>l.id===saved.amslerLamina)) state.amslerLamina=saved.amslerLamina;
                     if(typeof saved.amslerDiagonales==='boolean') state.amslerDiagonales=saved.amslerDiagonales;
-                    if(WORTH_TAMANOS.some(t=>t.id===saved.worthTam)) state.worthTam=saved.worthTam;
-                    if(SCHOBER_RANGOS.some(r => r.id === saved.schoberAnillos)) state.schoberAnillos = saved.schoberAnillos;
+                    if(SCHOBER_ANILLOS.some(r => r.id === saved.schoberAnillos)) state.schoberAnillos = saved.schoberAnillos;
                     if(typeof saved.schoberInvertido==='boolean') state.schoberInvertido=saved.schoberInvertido;
                     if(RELAX_TIPOS.some(t=>t.id===saved.relaxTipo)) state.relaxTipo=saved.relaxTipo;
-                    if(RELAX_LUCES.includes(saved.relaxLuz)) state.relaxLuz=saved.relaxLuz;
-                    if(INF_SECUENCIAS.some(x=>x.id===saved.infSecuencia)) state.infSecuencia=saved.infSecuencia;
+                    if(relaxLuzValida(saved.relaxLuz) != null) state.relaxLuz=relaxLuzValida(saved.relaxLuz);
+                    if(INF_MOVIMIENTOS.some(x=>x.id===saved.infMovimiento)) state.infMovimiento=saved.infMovimiento;
+                    if(INF_FIGURAS.some(f=>f.id===saved.infFigura)) state.infFigura=saved.infFigura;
                     if(INF_VELOCIDADES.some(v=>v.id===saved.infVelocidad)) state.infVelocidad=saved.infVelocidad;
                 } else {
                     state.bichromatic=false;
@@ -2670,6 +2957,10 @@
                 else if(e.key==='u'||e.key==='U'){ if(!e.ctrlKey&&!e.metaKey) toggleSingleCharMode(); }
                 else if(e.key==='c'||e.key==='C'){ if(!e.ctrlKey&&!e.metaKey) openCardCal(); }
                 else if(e.key==='h'||e.key==='H'){ if(!e.ctrlKey&&!e.metaKey) toggleCalPanel(); }
+                /* N de negro. La pantalla tiene que poder cortarse sin el móvil:
+                   es el uso más común de todos —la pantalla sola— y taparla es
+                   justo lo que se hace cuando alguien entra en la sala. */
+                else if(e.key==='n'||e.key==='N'){ if(!e.ctrlKey&&!e.metaKey) cortarEstimulo(); }
                 else if(e.key==='?') toggleShortcuts();
                 else if(e.key==='Escape'){ if(!d.shortcutsPanel.classList.contains('hidden')) toggleShortcuts(); }
             });
@@ -2716,11 +3007,13 @@
                 socket.on('peers', (n) => updateRemoteStatus(n));
                 socket.on('disconnect', () => { state.remoteJoined = false; updateRemoteStatus(0); });
                 socket.on('comando', (cmd) => {
-                    if (cmd.startsWith('Modulo:')) {
+                    if (cmd === 'Corte') {
+                        /* Vale en cualquier módulo, optotipos incluido: la
+                           pantalla del paciente es una sola y taparla no
+                           depende de qué test esté puesto. */
+                        cortarEstimulo();
+                    } else if (cmd.startsWith('Modulo:')) {
                         entrarModulo(cmd.slice(7));
-                    } else if (cmd === 'VolverDicho') {
-                        state.recordarVolver = false;
-                        emitirEspejo();
                     } else if (cmd.startsWith('A:')) {
                         if (state.modulo === 'amsler') amslerComando(cmd.slice(2));
                     } else if (cmd.startsWith('P:')) {

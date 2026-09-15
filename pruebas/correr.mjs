@@ -20,6 +20,7 @@ import pruebaRegresiones from './regresiones.mjs';
 import pruebaSinMando from './sin-mando.mjs';
 import pruebaCalibracion from './calibracion.mjs';
 import pruebaArranque from './arranque.mjs';
+import pruebaCaidas from './caidas.mjs';
 
 const VERDE = '\x1b[32m', ROJO = '\x1b[31m', GRIS = '\x1b[90m', FIN = '\x1b[0m';
 const color = process.stdout.isTTY && !process.env.NO_COLOR;
@@ -49,33 +50,55 @@ try {
   navegador = await chromium.launch();
 
   const sala = await emparejar(navegador, servidor.url);
-  const marcadores = [];
 
-  for (const [nombre, prueba, args] of [
-    ['optotipos',   pruebaOptotipos,   sala],
-    ['módulos',     pruebaModulos,     sala],
-    ['geometría',   pruebaGeometria,   sala],
-    ['regresiones', pruebaRegresiones, sala],
-    ['sin mando',   pruebaSinMando,    { navegador, url: servidor.url }],
-    ['calibración', pruebaCalibracion, { navegador, url: servidor.url }],
-    ['arranque',    pruebaArranque,    { navegador, url: servidor.url }]
-  ]) {
+  /* Una suite que se rompe cuenta como fallo, y se cuenta COMO UNA FILA.
+     La primera versión de este corredor la anotaba en una propiedad `fallos`
+     que el recuento final no leía nunca: al reinyectar un defecto a propósito,
+     la suite de regresiones petó, el total bajó de 66 comprobaciones a 50 y la
+     ejecución dijo «todas pasan». Una suite que encoge en silencio es peor que
+     una que falla. */
+  const correr = async (nombre, prueba, args) => {
     try {
-      marcadores.push(await prueba(args));
+      return await prueba(args);
     } catch (e) {
-      /* Una suite que se rompe cuenta como fallo, y se cuenta COMO UNA FILA.
-         La primera versión de este corredor la anotaba en una propiedad
-         `fallos` que el recuento final no leía nunca: al reinyectar un
-         defecto a propósito, la suite de regresiones petó, el total bajó de
-         66 comprobaciones a 50 y la ejecución dijo «todas pasan». Una suite
-         que encoge en silencio es peor que una que falla. */
-      marcadores.push({
+      return {
         titulo: 'Suite «' + nombre + '»',
         filas: [{ nombre: 'se ejecuta hasta el final', ok: false,
                   detalle: 'se rompió: ' + String(e.message).split('\n')[0] }]
-      });
+      };
     }
-  }
+  };
+
+  /* Cuatro suites COMPARTEN la sesión emparejada — la misma pantalla y el mismo
+     móvil — y se pisarían entre sí: van en fila, y en este orden, porque cada
+     una deja la pantalla como la siguiente la espera. */
+  const enFila = [
+    ['optotipos',   pruebaOptotipos,   sala],
+    ['módulos',     pruebaModulos,     sala],
+    ['geometría',   pruebaGeometria,   sala],
+    ['regresiones', pruebaRegresiones, sala]
+  ];
+
+  /* Las otras cuatro abren su propio navegador y su propia sala, así que no se
+     estorban: van a la vez. El servidor empareja POR CÓDIGO DE SALA, y cada
+     contexto genera el suyo, que es justo lo que hace esto seguro — el mismo
+     mecanismo que evita que dos consultorios se pisen.
+     Medido: en fila la suite tardaba 247 s. */
+  const aLaVez = [
+    ['sin mando',   pruebaSinMando,    { navegador, url: servidor.url }],
+    ['calibración', pruebaCalibracion, { navegador, url: servidor.url }],
+    ['arranque',    pruebaArranque,    { navegador, url: servidor.url }],
+    ['caídas',      pruebaCaidas,      { navegador, url: servidor.url }]
+  ];
+
+  const enParalelo = Promise.all(aLaVez.map(([n, p, a]) => correr(n, p, a)));
+
+  const marcadores = [];
+  for (const [nombre, prueba, args] of enFila) marcadores.push(await correr(nombre, prueba, args));
+  /* Promise.all conserva el orden, así que la salida sigue siendo la misma
+     lista en la misma secuencia: una ejecución paralela que imprime en orden
+     distinto cada vez es imposible de comparar con la anterior. */
+  marcadores.push(...await enParalelo);
 
   /* Los errores de consola de la sesión emparejada se cuentan al final: un
      módulo puede dibujar bien y estar lanzando excepciones cada repintado. */
@@ -87,11 +110,11 @@ try {
   });
 
   let total = 0, fallos = 0;
-  /* Las siete suites más el recuento de errores de consola: ocho marcadores.
+  /* Las ocho suites más el recuento de errores de consola: nueve marcadores.
      Si falta alguno es que el bucle de arriba no llegó a añadirlo, y eso no
      puede terminar en verde. */
-  if (marcadores.length !== 8) {
-    console.error(c('\nfaltan marcadores: ' + marcadores.length + ' de 8', ROJO));
+  if (marcadores.length !== 9) {
+    console.error(c('\nfaltan marcadores: ' + marcadores.length + ' de 9', ROJO));
     fallos++;
   }
   for (const m of marcadores) {

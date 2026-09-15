@@ -26,7 +26,7 @@ export default async function pruebaRegresiones({ pc, tel, abrir }) {
 
   const cartillas = [await leerCartilla()];
   for (let i = 0; i < 5; i++) {
-    await tel.click('#panel-pelli .conmut');        // «Letras nuevas en las ocho filas»
+    await tel.click('#panel-pelli .conmut');        // «Letras nuevas en todas las filas»
     await tel.waitForTimeout(450);
     cartillas.push(await leerCartilla());
   }
@@ -36,8 +36,13 @@ export default async function pruebaRegresiones({ pc, tel, abrir }) {
     return i.every(x => x >= 0) && i[1] === (i[0] + 1) % 10 && i[2] === (i[0] + 2) % 10;
   });
 
-  m.comprobar('24 letras por cartilla', cartillas.every(c => c.length === 24),
-    'longitudes ' + [...new Set(cartillas.map(c => c.length))].join('/'));
+  /* Tres letras por fila, y las filas las dicta la pantalla: el rango se
+     recortó de ocho filas a cinco —por encima de 1,00 log CS estos monitores
+     no enseñan nada— y una cifra copiada aquí habría que recordar cambiarla. */
+  const nFilas = +((await pc.textContent('#modulo-nombre')).match(/fila \d+\/(\d+)/) || [])[1];
+  m.comprobar('tres letras por fila en todas las filas',
+    nFilas >= 3 && cartillas.every(c => c.length === 3 * nFilas),
+    nFilas + ' filas · longitudes ' + [...new Set(cartillas.map(c => c.length))].join('/'));
   m.comprobar('«Letras nuevas» da una cartilla distinta cada vez',
     new Set(cartillas).size === cartillas.length,
     new Set(cartillas).size + ' distintas de ' + cartillas.length);
@@ -57,22 +62,42 @@ export default async function pruebaRegresiones({ pc, tel, abrir }) {
      curso». Es una medida a medio hacer, no una preferencia del gabinete. */
   const filaActual = async () => {
     const t = await pc.textContent('#modulo-nombre');
-    return +((t.match(/fila (\d)\/8/) || [])[1]);
+    return +((t.match(/fila (\d+)\/\d+/) || [])[1]);
   };
-  for (let i = 0; i < 9 && await tel.isEnabled('#pelli-arriba'); i++) {
-    await tel.click('#pelli-arriba'); await tel.waitForTimeout(150);
-  }
+  /* Se recorre la cartilla entera guiándose por la FILA que dibuja la
+     pantalla, no por un número fijo de clics ni por el estado del botón.
+     Las dos versiones anteriores se rompían por lo mismo: con ocho filas eran
+     cuatro clics escritos a mano, y al bajar a cinco el último caía sobre un
+     botón ya deshabilitado; mirar `isEnabled` antes de cada clic tampoco
+     basta, porque el mando pinta lo que le llega por el socket y entre la
+     consulta y el clic puede llegar el espejo que lo deshabilita. Un timeout
+     de 30 s rompía la suite entera en vez de dar un fallo legible.
+     La fila que dibuja la pantalla sí es la autoridad, y un clic perdido no
+     hace daño: la vuelta siguiente lo repite. */
+  const subirBajar = async (boton, hasta) => {
+    let pulsaciones = 0;
+    for (let f = await filaActual(); f !== hasta && pulsaciones <= 12; f = await filaActual()) {
+      await tel.click(boton, { timeout: 4000 }).catch(() => {});
+      await tel.waitForTimeout(220);
+      pulsaciones++;
+    }
+    return pulsaciones;
+  };
+  await subirBajar('#pelli-arriba', 1);
   await tel.waitForTimeout(300);
-  for (let i = 0; i < 4; i++) { await tel.click('#pelli-abajo'); await tel.waitForTimeout(200); }
+  const bajadas = await subirBajar('#pelli-abajo', nFilas);
   const avanzada = await filaActual();
   const guardado = await pc.evaluate(() => JSON.parse(localStorage.getItem('bvc') || '{}'));
-  m.comprobar('la fila de contraste avanza con el mando', avanzada === 5, 'fila ' + avanzada);
+  m.comprobar('la fila de contraste avanza con el mando hasta la última',
+    avanzada === bajadas + 1 && avanzada === nFilas,
+    'fila ' + avanzada + ' de ' + nFilas + ' con ' + bajadas + ' pulsaciones');
   m.comprobar('la fila NO se guarda en localStorage', !('pelliFila' in guardado),
     'claves guardadas: ' + Object.keys(guardado).length);
   /* Las preferencias del gabinete sí sobreviven, a propósito. */
   m.comprobar('las preferencias del gabinete sí se guardan',
-    guardado.worthTam != null && guardado.schoberAnillos != null && guardado.testDistanceM != null,
-    `distancia ${guardado.testDistanceM} m · worth ${guardado.worthTam} · anillos ${guardado.schoberAnillos}`);
+    guardado.schoberAnillos != null && guardado.infFigura != null && guardado.testDistanceM != null,
+    `distancia ${guardado.testDistanceM} m · anillos ${guardado.schoberAnillos}`
+    + ` · figura ${guardado.infFigura} · movimiento ${guardado.infMovimiento}`);
 
   // ═══ 3 · la barra de calibración se desplegaba sola en cada repintado ═══
   /* renderScreen() forzaba la clase collapsed desde !esOptotipos, y corre en
@@ -96,7 +121,12 @@ export default async function pruebaRegresiones({ pc, tel, abrir }) {
   await abrir('Pelli-Robson');
   m.comprobar('al ENTRAR en un módulo se repliega sola', await plegada());
   await pc.keyboard.press('h'); await pc.waitForTimeout(250);           // el operador la abre dentro
-  await tel.click('#pelli-abajo'); await tel.waitForTimeout(350);
+  /* Dos comandos del mando, y ninguno que pueda estar deshabilitado: la
+     sección de arriba deja la cartilla en su última fila y entrar en el módulo
+     no la reinicia, así que «bajar» estaría gris y el clic se quedaría 30 s
+     esperando a un botón que nunca se habilita. Subir siempre se puede desde
+     la última fila. */
+  await tel.click('#pelli-arriba'); await tel.waitForTimeout(350);
   await tel.click('#panel-pelli .conmut'); await tel.waitForTimeout(350);
   const abiertaTrasComandos = !(await plegada());
   m.comprobar('abierta dentro del módulo, aguanta dos comandos del mando',
@@ -156,12 +186,16 @@ export default async function pruebaRegresiones({ pc, tel, abrir }) {
 
   /* Y que el comando viejo, si alguien lo manda a mano, no haga nada: el
      armazón del socket no debe guardar una puerta de atrás. */
-  const paso = async () => +((await pc.textContent('#modulo-nombre')).match(/1Δ = (\d+)/) || [])[1];
-  const antesDelComando = await paso();
+  /* Se mira el RANGO en Δ de Schober, que es lo que la distancia mueve: la
+     figura mide siempre el 80 % del lado corto, así que si alguien cambia la
+     distancia por detrás, lo que se desplaza es cuántas dioptrías prismáticas
+     abarca ese mismo dibujo. */
+  const rango = async () => +((await pc.textContent('#modulo-nombre')).match(/rango ±([\d.]+)Δ/) || [])[1];
+  const antesDelComando = await rango();
   await tel.evaluate(() => { if (typeof enviar === 'function') enviar('D:menos'); });
   await tel.waitForTimeout(600);
-  m.comprobar('el comando D: ya no mueve la geometría', (await paso()) === antesDelComando,
-    `1Δ sigue en ${antesDelComando} mm`);
+  m.comprobar('el comando D: ya no mueve la geometría', (await rango()) === antesDelComando,
+    `el rango sigue en ±${antesDelComando}Δ`);
 
   /* Lo que sí tiene que funcionar: declararla en la configuración inicial. */
   await abrir('Optotipos');

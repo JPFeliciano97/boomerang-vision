@@ -225,7 +225,17 @@ export default async function pruebaGeometria({ pc, tel, abrir }) {
   m.comprobar('el cuadro mide 1° de arco con menos de un 2 % de error',
     isFinite(grado) && Math.abs(grado - 1) < 0.02, `el módulo declara ${grado}°`);
 
-  // ── Pelli-Robson: los ocho códigos de gris y el margen ──────────────────
+  // ── Pelli-Robson: los grises tienen que SALIR del monitor ───────────────
+  /* El rango llega hasta 1,00 log CS y no más. No es una preferencia: los
+     monitores de la consulta no enseñan NADA por encima de eso. Con el paso
+     de 0,30 log y ocho filas, las dos últimas salían en código 253 y 254
+     sobre un blanco de 255 — un contraste de uno y dos códigos, que ningún
+     panel emite. El paciente «fallaba» un contraste que la pantalla nunca
+     dibujó, y el resultado quedaba peor de lo que el ojo es.
+
+     Así que lo que se mide aquí no es que haya N filas, sino que TODAS las
+     que hay se puedan ver: cada gris separado del blanco por un margen que
+     un panel de 8 bits sí distingue. */
   await abrir('Pelli-Robson');
   const pelli = await pc.evaluate(() => {
     const filas = [...document.querySelectorAll('#modulo-area > div > div')];
@@ -240,33 +250,364 @@ export default async function pruebaGeometria({ pc, tel, abrir }) {
       altoLetra: primera ? +primera.getBoundingClientRect().height.toFixed(2) : 0,
       altoTabla: cont ? +cont.getBoundingClientRect().height.toFixed(2) : 0,
       arriba: cont ? +cont.getBoundingClientRect().top.toFixed(2) : 0,
-      alto: window.innerHeight
+      alto: window.innerHeight,
+      nombre: (document.getElementById('modulo-nombre') || {}).textContent || ''
     };
   });
 
+  /* El paso lo declara el módulo en su propio rótulo (fila k/N y log CS de la
+     fila en curso), así que el reparto se deduce en vez de copiarse: si
+     mañana se reparte 0 a 1,00 en cuatro filas o en seis, esta prueba lo
+     sigue. Lo único fijo es el techo: 1,00 log. */
+  const tope = 1.00;
+  const pasoLog = pelli.n > 1 ? tope / (pelli.n - 1) : 0;
+
+  /* El techo no se lee de ningún rótulo: se RECUPERA de la tinta que la
+     pantalla pinta de verdad. Deshaciendo la gamma del gris más tenue sale
+     el log CS de la última fila — 243 devuelve 1,00, y el 254 de la cartilla
+     de ocho devolvía 2,07, que es el contraste que se pedía y que ningún
+     monitor de la consulta emite. */
+  const topeDibujado = (() => {
+    const c = Math.max(...pelli.codigos) / 255;
+    return -Math.log10(1 - Math.pow(c, 2.2));
+  })();
+  m.comprobar('la fila más tenue pide 1,00 log CS y no más',
+    Math.abs(topeDibujado - tope) < 0.02,
+    'la tinta dibujada equivale a ' + topeDibujado.toFixed(2) + ' log CS');
+
   /* Contraste de Weber convertido a código de 8 bits con gamma 2,2:
-     255·(1−c)^(1/2,2), con c = 10^(−0,30·(fila−1)). Se recalcula aquí en vez
-     de copiar los ocho números: si el sistema cambia el paso logarítmico, la
-     prueba lo sigue en vez de discrepar con razón equivocada. */
-  const esperados = Array.from({ length: 8 }, (_, i) => {
-    const c = 1 / Math.pow(10, i * 0.30);
+     255·(1−c)^(1/2,2), con c = 10^(−log). */
+  const esperados = Array.from({ length: pelli.n }, (_, i) => {
+    const c = 1 / Math.pow(10, i * pasoLog);
     return Math.round(255 * Math.pow(1 - c, 1 / 2.2));
   });
-  m.comprobar('ocho filas', pelli.n === 8, pelli.n + ' filas dibujadas');
-  m.comprobar('los ocho grises son los que sale el cálculo',
+  m.comprobar('los grises dibujados son los que sale el cálculo',
     JSON.stringify(pelli.codigos) === JSON.stringify(esperados),
     'dibujados ' + pelli.codigos.join(', ') + ' · calculados ' + esperados.join(', '));
 
-  /* Las ocho filas más siete medias separaciones son 11,5 altos de letra, y
-     el margen es un cuarto de letra arriba y abajo. Sin ese margen la primera
+  /* La comprobación que habría cazado el defecto: ningún gris a menos de
+     ocho códigos del blanco. Ocho es el escalón que un panel de 8 bits con
+     dithering enseña sin discusión; 253 y 254 no lo son. */
+  const MARGEN_BLANCO = 8;
+  const pegados = pelli.codigos.filter(c => 255 - c < MARGEN_BLANCO);
+  m.comprobar('ninguna fila queda pegada al blanco, invisible en el monitor',
+    pegados.length === 0,
+    pegados.length ? pegados.length + ' fila(s) en código ' + pegados.join(', ')
+                     + ' sobre blanco 255: el paciente falla un contraste que nunca se dibujó'
+                   : 'el más tenue es ' + Math.max(...pelli.codigos) + ', a '
+                     + (255 - Math.max(...pelli.codigos)) + ' códigos del blanco');
+
+  /* N filas más N−1 medias separaciones son (3N−1)/2 altos de letra, y el
+     margen es un cuarto de letra arriba y abajo. Sin ese margen la primera
      fila empezaba en el píxel 0, cortada. */
   if (pelli.altoLetra > 0) {
-    m.comprobar('la tabla mide 11,5 altos de letra',
-      Math.abs(pelli.altoTabla / pelli.altoLetra - 11.5) < 0.05,
-      (pelli.altoTabla / pelli.altoLetra).toFixed(3) + ' altos');
+    const altosEsperados = (3 * pelli.n - 1) / 2;
+    m.comprobar('la tabla mide ' + altosEsperados.toString().replace('.', ',') + ' altos de letra',
+      Math.abs(pelli.altoTabla / pelli.altoLetra - altosEsperados) < 0.05,
+      (pelli.altoTabla / pelli.altoLetra).toFixed(3) + ' altos con ' + pelli.n + ' filas');
     m.comprobar('queda un cuarto de letra de margen arriba',
       Math.abs(pelli.arriba / pelli.altoLetra - 0.25) < 0.05 && pelli.arriba > 1,
       pelli.arriba.toFixed(1) + ' px = ' + (pelli.arriba / pelli.altoLetra).toFixed(3) + ' altos');
+  }
+
+  /* ── La medida estándar de Worth y de Schober ───────────────────────────
+     Los dos dibujan una figura de gafa rojo-verde y ninguno es una prueba de
+     agudeza: lo que se juzga es la forma —cuántos puntos se ven, dónde cae la
+     cruz—, no el umbral de un optotipo. Así que su tamaño no tiene por qué
+     salir de un ángulo clásico que a 6 m no cabe.
+
+     Lo que había: Worth ofrecía 1,25°, 2°, 3° y «máx». A 6 m el techo son
+     0,84°, así que los tres clásicos dibujaban un cartel rojo de NO CABE y el
+     «máx» llenaba la pantalla de lado a lado. Schober igual: el paso ERA 1Δ,
+     así que a 6 m solo entraban dos anillos y elegir 3, 5 o 7 dibujaba
+     siempre los mismos dos — se medía con dos creyendo haber elegido cinco.
+
+     Lo que se mide aquí: una medida estándar, el 80 % del lado corto, que
+     deja margen a los cuatro lados SIEMPRE; y en Schober, que se dibujen los
+     anillos que se piden, sea la distancia que sea. */
+  const OCUPA = 0.80, HOLGURA = 0.03;
+  const dibujado = () => pc.evaluate(() => {
+    const svg = document.querySelector('#modulo-area svg');
+    if (!svg) return null;
+    const r = svg.getBoundingClientRect();
+    return { w: +r.width.toFixed(1), h: +r.height.toFixed(1),
+             corto: Math.min(window.innerWidth, window.innerHeight),
+             anillos: svg.querySelectorAll('circle[fill="none"]').length,
+             puntos: svg.querySelectorAll('circle[fill]:not([fill="none"])').length,
+             texto: (document.getElementById('modulo-area').textContent || '').trim().slice(0, 40) };
+  });
+
+  await abrir('Luces de Worth');
+  const w = await dibujado();
+  m.comprobar('Worth dibuja su rombo a 6 m, sin carteles de que no cabe',
+    !!w && w.puntos === 4,
+    w ? (w.puntos === 4 ? 'los cuatro puntos' : 'no hay rombo: «' + w.texto + '»')
+      : 'no hay SVG: «' + ((await pc.textContent('#modulo-area')) || '').trim().slice(0, 40) + '»');
+  if (w) {
+    const ocupa = Math.max(w.w, w.h) / w.corto;
+    m.comprobar('y ocupa la medida estándar, no la pantalla entera',
+      Math.abs(ocupa - OCUPA) < HOLGURA,
+      (100 * ocupa).toFixed(1) + ' % del lado corto (' + w.corto + ' px)');
+  }
+
+  /* Y que no haya nada que elegir: el tamaño es uno. Un grupo de tamaños con
+     tres opciones imposibles era el defecto, no la solución. */
+  const opcionesWorth = await tel.evaluate(() => {
+    const p = document.getElementById('panel-worth');
+    if (!p || p.classList.contains('oculto')) return -1;
+    const g = document.getElementById('worth-tamanos');
+    return g ? g.querySelectorAll('button').length : 0;
+  });
+  m.comprobar('Worth no ofrece tamaños que elegir: la medida es una',
+    opcionesWorth === 0,
+    opcionesWorth < 0 ? 'el panel de Worth no está a la vista'
+                      : opcionesWorth + ' botones de tamaño en el mando');
+
+  await abrir('Schober');
+  const sch = await dibujado();
+  if (sch) {
+    const ocupaS = Math.max(sch.w, sch.h) / sch.corto;
+    m.comprobar('Schober ocupa la misma medida estándar',
+      Math.abs(ocupaS - OCUPA) < HOLGURA,
+      (100 * ocupaS).toFixed(1) + ' % del lado corto con ' + sch.anillos + ' anillos');
+  }
+
+  /* Los anillos que se piden son los que se dibujan. Este es el que acusaba
+     el defecto: a 6 m se elegían 7 y aparecían 2. */
+  /* Por el rótulo EXACTO del botón, no por «contiene un 5»: la nota de cada
+     opción lleva su Δ por anillo, y «0,59Δ cada uno» contiene un 5. La primera
+     versión de esta comprobación caía en eso y acusaba al módulo de dibujar 3
+     anillos cuando se pedían 5 — el defecto estaba en la prueba. */
+  const pedirAnillos = async etiqueta => {
+    await tel.locator('#schober-anillos button .g')
+      .filter({ hasText: new RegExp('^' + etiqueta + '$') }).first().click();
+    await tel.waitForTimeout(500);
+    return dibujado();
+  };
+  const tresYsiete = [];
+  for (const n of ['3', '5', '7']) {
+    const d = await pedirAnillos(n);
+    tresYsiete.push({ pedidos: +n, dibujados: d ? d.anillos : 0, ocupa: d ? Math.max(d.w, d.h) / d.corto : 0 });
+  }
+  m.comprobar('los anillos que se eligen son los que se dibujan, a 6 m',
+    tresYsiete.every(x => x.dibujados === x.pedidos),
+    tresYsiete.map(x => x.pedidos + '→' + x.dibujados).join(' · '));
+  m.comprobar('y la figura mide lo mismo con 3, 5 o 7 anillos',
+    tresYsiete.every(x => Math.abs(x.ocupa - tresYsiete[0].ocupa) < 0.01),
+    tresYsiete.map(x => (100 * x.ocupa).toFixed(1) + ' %').join(' · '));
+  await pedirAnillos('5');
+
+  /* ── El color: que la figura tenga tinta para leerse ───────────────────
+     La lámina es un mosaico de 30 puntos de ancho, así que lo que decide si
+     la cifra se lee no es el DOM —ahí no hay cifra, hay un canvas— sino
+     cuántos puntos caen dentro de ella. Al 46 % del disco el trazo se
+     quedaba en 2,8 puntos y la cifra salía un borrón; al 60 % son 3,6 y
+     tiene forma.
+
+     Y con figuras para un niño que no lee números el riesgo es el mismo
+     pero peor: una estrella tiene brazos finos, y unos brazos de dos puntos
+     no son una estrella. Así que se mide lo dibujado: se agrupan los puntos
+     pintados por CROMATICIDAD en dos racimos —figura y fondo, que están a la
+     misma luminancia a propósito— y se exige que el racimo de la figura sea
+     una parte razonable del disco. Ni demasiado poco (no se ve) ni
+     demasiado (no hay fondo contra el que confundirse). */
+  /* Los márgenes salen de medir las siete láminas de cifras que ya funcionan:
+     una cifra de un dígito ocupa entre el 5,7 % y el 7,3 % del disco y una de
+     dos entre el 11 % y el 12 %. Así que el suelo es el 4 % —por debajo de eso
+     la figura no está o es un punto— y el techo el 45 %, por encima del cual no
+     queda fondo contra el que confundirse. La separación cromática entre los
+     dos racimos va de 0,057 en la de demostración a 0,153 en las de confusión:
+     un suelo de 0,03 caza la lámina que saldría de un solo color, es decir en
+     blanco para todo el mundo. */
+  const RACIMO_MIN = 0.04, RACIMO_MAX = 0.45, SEPARACION_MIN = 0.03;
+  const racimoFigura = () => pc.evaluate(() => {
+    const cv = document.querySelector('#modulo-area canvas');
+    if (!cv) return null;
+    const W = cv.width, H = cv.height;
+    const d = cv.getContext('2d').getImageData(0, 0, W, H).data;
+    const en = (x, y) => (y * W + x) * 4;
+
+    /* Solo el INTERIOR de los puntos. La primera versión de esta sonda metía
+       en el saco el papel de la cartilla (#f2f0ec, el 30 % del disco) y los
+       píxeles del borde de cada punto, que son mezclas de punto y papel. Con
+       eso las dos medias separaban «papel» de «puntos» en vez de figura de
+       fondo, y daban el 47 % en unas láminas y el 3 % en otras: la sonda medía
+       otra cosa y lo decía con mucha seguridad.
+       Un píxel cuenta si sus cuatro vecinos son casi idénticos —eso deja fuera
+       los bordes— y si no es el papel. */
+    const papel = [242, 240, 236];
+    const pts = [];
+    for (let y = 1; y < H - 1; y++) {
+      for (let x = 1; x < W - 1; x++) {
+        const i = en(x, y);
+        if (d[i + 3] < 250) continue;
+        let liso = true;
+        for (const j of [en(x - 1, y), en(x + 1, y), en(x, y - 1), en(x, y + 1)]) {
+          if (d[j + 3] < 250 ||
+              Math.abs(d[j] - d[i]) > 6 || Math.abs(d[j+1] - d[i+1]) > 6 || Math.abs(d[j+2] - d[i+2]) > 6) {
+            liso = false; break;
+          }
+        }
+        if (!liso) continue;
+        if (Math.abs(d[i] - papel[0]) < 10 && Math.abs(d[i+1] - papel[1]) < 10
+            && Math.abs(d[i+2] - papel[2]) < 10) continue;
+        const sum = d[i] + d[i+1] + d[i+2];
+        if (sum < 30) continue;
+        pts.push([d[i] / sum, d[i+1] / sum]);
+      }
+    }
+    if (pts.length < 1000) return { n: pts.length, share: 0, separacion: 0 };
+
+    /* Dos medias sobre la cromaticidad, sembradas en los extremos del eje de
+       mayor varianza. La luminancia se normaliza al dividir por la suma: su
+       jitter es a propósito y no debe separar racimos. */
+    let mr = 0, mg = 0;
+    for (const p of pts) { mr += p[0]; mg += p[1]; }
+    mr /= pts.length; mg /= pts.length;
+    let vr = 0, vg = 0;
+    for (const p of pts) { vr += (p[0] - mr) ** 2; vg += (p[1] - mg) ** 2; }
+    const eje = vr >= vg ? 0 : 1;
+    const orden = pts.map(p => p[eje]).sort((u, v) => u - v);
+    const lo = orden[Math.floor(orden.length * 0.02)];
+    const hi = orden[Math.floor(orden.length * 0.98)];
+    let a = eje === 0 ? [lo, mg] : [mr, lo];
+    let b = eje === 0 ? [hi, mg] : [mr, hi];
+    for (let it = 0; it < 15; it++) {
+      const sa = [0, 0], sb = [0, 0];
+      let na = 0, nb = 0;
+      for (const p of pts) {
+        const da = (p[0] - a[0]) ** 2 + (p[1] - a[1]) ** 2;
+        const db = (p[0] - b[0]) ** 2 + (p[1] - b[1]) ** 2;
+        if (da <= db) { sa[0] += p[0]; sa[1] += p[1]; na++; }
+        else          { sb[0] += p[0]; sb[1] += p[1]; nb++; }
+      }
+      if (na) a = [sa[0] / na, sa[1] / na];
+      if (nb) b = [sb[0] / nb, sb[1] / nb];
+    }
+    let na = 0;
+    for (const p of pts) {
+      const da = (p[0] - a[0]) ** 2 + (p[1] - a[1]) ** 2;
+      const db = (p[0] - b[0]) ** 2 + (p[1] - b[1]) ** 2;
+      if (da <= db) na++;
+    }
+    return { n: pts.length, share: Math.min(na, pts.length - na) / pts.length,
+             separacion: +Math.hypot(a[0] - b[0], a[1] - b[1]).toFixed(4) };
+  });
+
+  await abrir('Pseudoisocromático');
+
+  /* Primero: que haya un juego para quien no lee números. Un niño de tres
+     años no dice «veintiséis», y sin esto el módulo no se le puede pasar. */
+  const juegos = await tel.evaluate(() => {
+    const g = document.getElementById('color-juegos');
+    return g ? [...g.querySelectorAll('button')].map(b => b.textContent.replace(/\s+/g, ' ').trim()) : [];
+  });
+  m.comprobar('el color ofrece un juego de figuras, no solo cifras',
+    juegos.length >= 2 && juegos.some(t => /figura/i.test(t)),
+    juegos.length ? juegos.join(' | ') : 'no hay selector de juego en el mando');
+
+  const medidas = [];
+  const recorrerLaminas = async etiqueta => {
+    const flojas = [];
+    for (let i = 0; i < 12; i++) {
+      const r = await racimoFigura();
+      const nombre = (await pc.textContent('#modulo-nombre') || '');
+      const lam = (nombre.match(/lámina (\d+)\/(\d+)/) || []);
+      if (!r) { flojas.push('sin lienzo'); break; }
+      medidas.push((lam[1] || '?') + ': ' + (100 * r.share).toFixed(1) + ' % · sep ' + r.separacion);
+      if (!(r.share >= RACIMO_MIN && r.share <= RACIMO_MAX)) {
+        flojas.push('lámina ' + (lam[1] || '?') + ' al ' + (100 * r.share).toFixed(1) + ' % del disco');
+      }
+      if (!(r.separacion >= SEPARACION_MIN)) {
+        flojas.push('lámina ' + (lam[1] || '?') + ' con separación ' + r.separacion);
+      }
+      if (!lam[1] || lam[1] === lam[2]) break;
+      await tel.click('#color-sig');
+      await tel.waitForTimeout(700);
+    }
+    return flojas;
+  };
+
+  const flojasNum = await recorrerLaminas('números');
+  m.comprobar('cada cifra tiene puntos suficientes y color distinto del fondo',
+    flojasNum.length === 0, flojasNum.length ? flojasNum.join(' · ') : medidas.join(' | '));
+
+  /* Y lo mismo con las figuras, que es donde el riesgo es mayor. */
+  if (juegos.some(t => /figura/i.test(t))) {
+    await tel.locator('#color-juegos button').filter({ hasText: /figura/i }).first().click();
+    await tel.waitForTimeout(900);
+    const flojasFig = await recorrerLaminas('figuras');
+    m.comprobar('cada figura tiene puntos suficientes y color distinto del fondo',
+      flojasFig.length === 0,
+      flojasFig.length ? flojasFig.join(' · ') : medidas.slice(-7).join(' | '));
+    /* Y que la respuesta sea una PALABRA, leída donde el optometrista la lee:
+       en el botón de «Respuesta correcta» del mando. La primera versión de esta
+       comprobación miraba la lista de láminas —que dice «protán», no la
+       respuesta— y pasaba sin comprobar nada. */
+    await tel.click('#color-resp');
+    await tel.waitForTimeout(600);
+    const respFig = (await tel.textContent('#color-resp-val') || '').trim();
+    m.comprobar('y la respuesta de una figura se dice con una palabra',
+      /^[a-záéíóúñ]{4,}$/i.test(respFig),
+      `el mando dice «${respFig}»`);
+    await tel.click('#color-resp');
+    await tel.waitForTimeout(400);
+    await tel.locator('#color-juegos button').filter({ hasText: /n[úu]mero/i }).first().click();
+    await tel.waitForTimeout(700);
+  }
+
+  /* ── La luz del relax, y que sea de verdad la que se pide ──────────────
+     Eran tres valores fijos —15, 35 y 60 %— y la luz justa para una
+     retinoscopía depende de la sala: de la lámpara de techo, de la persiana y
+     del retinoscopio. Con tres escalones o te sobra o te falta.
+
+     Lo que se mide es lo dibujado: se le pide una luz al mando y se comprueba
+     que el centro de la diana sale con ESE nivel de gris. Un deslizador que
+     mueve un rótulo y no el estímulo es peor que tres botones. */
+  await abrir('Relax acomodativo');
+  const luzCentro = () => pc.evaluate(() => {
+    const cv = document.createElement('canvas');
+    const el = document.querySelector('#modulo-area > div');
+    if (!el) return null;
+    const r = el.getBoundingClientRect();
+    /* El gradiente no se puede leer con getImageData —es CSS, no canvas— así
+       que se lee el rótulo del módulo, que es lo que el sistema declara, y se
+       compara con el alfa del primer tramo del gradiente, que sí está en el
+       estilo calculado. */
+    const bg = getComputedStyle(el).backgroundImage;
+    const m = bg.match(/rgba?\(255,\s*255,\s*255,\s*([\d.]+)\)/);
+    return { alfa: m ? +m[1] : null,
+             nombre: (document.getElementById('modulo-nombre') || {}).textContent || '' };
+  });
+
+  const control = await tel.evaluate(() => {
+    const r = document.querySelector('#relax-luz-rango');
+    return r ? { min: +r.min, max: +r.max, paso: +r.step } : null;
+  });
+  m.comprobar('la luz del relax se regula de forma continua, no en tres saltos',
+    !!control && control.max - control.min >= 80 && control.paso <= 5,
+    control ? `de ${control.min} a ${control.max} en pasos de ${control.paso}`
+            : 'no hay deslizador de luz en el mando');
+
+  if (control) {
+    const pedidas = [10, 45, 80];
+    const medidas = [];
+    for (const v of pedidas) {
+      await tel.evaluate(pct => {
+        const r = document.getElementById('relax-luz-rango');
+        r.value = String(pct);
+        r.dispatchEvent(new Event('input', { bubbles: true }));
+        r.dispatchEvent(new Event('change', { bubbles: true }));
+      }, v);
+      await tel.waitForTimeout(700);
+      const l = await luzCentro();
+      const declarada = +((l && l.nombre.match(/(\d+)% de blanco/)) || [])[1];
+      medidas.push({ pedida: v, declarada, alfa: l && l.alfa });
+    }
+    const bien = medidas.every(x => x.declarada === x.pedida
+      && x.alfa != null && Math.abs(x.alfa - x.pedida / 100) < 0.01);
+    m.comprobar('y lo que se pide es lo que la pantalla dibuja',
+      bien, medidas.map(x => x.pedida + '% → declara ' + x.declarada + '% · alfa ' + x.alfa).join(' | '));
   }
 
   // ── Schober: la invariancia de invertir colores y cambiar de ojo ─────────

@@ -51,8 +51,21 @@ test: poder cambiarla a mitad de una prueba invita a que la geometría y el
 sitio donde está sentado el paciente dejen de coincidir sin que nada lo delate.
 
 **Un módulo no ofrece opciones imposibles.** Si ninguna cabe a la distancia de
-la sala, hay que dar una que sí — como el «máx» de Worth y de Schober. Y la
-pantalla del paciente **nunca** se queda en negro sin explicación.
+la sala, o no hay opción que dar, o hay que dar una que sí. Worth ofrecía
+1,25°, 2° y 3° y a 6 m los tres decían «no cabe»; se arregló primero con un
+«máx» y después quitando la elección entera: ahora Worth y Schober dibujan una
+**medida estándar** —el 80 % del lado corto de la pantalla— que cabe por
+construcción, y lo que se dice es la cifra que sale de ella (el ángulo del
+punto, el rango en Δ). En Schober lo que se elige son los anillos visibles, y
+todos se dibujan: el plato fija el RANGO y los anillos la RESOLUCIÓN.
+
+Y la pantalla del paciente **nunca** se queda en negro sin explicación.
+
+**Lo que la pantalla no puede emitir no se pide.** El Pelli-Robson llegaba a
+2,10 log CS en ocho filas de 0,30 y las dos últimas salían en código 253 y 254
+sobre un blanco de 255 — un contraste que ningún panel dibuja. El paciente
+«fallaba» un contraste que nunca se pintó. Va de 0 a 1,00 log en cinco filas, y
+el gris más tenue queda a doce códigos del blanco.
 
 ## Las cartillas de Ishihara
 
@@ -60,6 +73,24 @@ No se reproducen, ni se trazan, ni se extraen de ninguna fuente. El módulo de
 color implementa el método publicado de las líneas de confusión del CIE 1931,
 con numeración propia, y dice en el propio mando lo que no es: criba, no
 clasifica, y el color depende de lo que emita ese monitor.
+
+Hay dos juegos de láminas: cifras y **figuras**, para el niño que no dice
+«veintiséis». Es la misma prueba con otra máscara. Las siete siluetas están
+**calibradas**, no puestas a ojo: escala que deja el área en el 20 % del disco
+y brazo más estrecho por encima de tres puntos del mosaico, medido con una
+transformada de distancia. La tabla con las cifras está en el comentario de
+`COLOR_FIGURAS`. Una silueta fina no es una silueta: la estrella y la cruz
+salieron en 2,6 y 2,5 puntos y hubo que engordarlas.
+
+## Cortar el estímulo
+
+La pantalla del paciente se puede dejar en negro **sin salir del test**, desde
+el mando o con la tecla `N`. Volver al menú también la deja sin estímulo, pero
+pierde lo que había elegido — los anillos, la lámina, el ojo en examen — y
+taparle la cartilla un momento es de las cosas que más se hacen en una
+consulta. El corte apaga LAS DOS capas: esconder el estímulo y dejar los
+optotipos detrás es un defecto que ya apareció una vez, y en negro no se ve
+hasta que se reanuda. No se guarda: es un momento, no una preferencia.
 
 ## El lienzo de diseño
 

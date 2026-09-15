@@ -407,72 +407,55 @@
         .aviso.limite .txt { color: #a8895f; }
         .aviso.limite strong { color: #c9a870; }
 
-        /* Botones de modo */
-        .mode-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 6px;
-            width: 94%;
-            max-width: 400px;
-            margin-bottom: 16px;
+        /* ═══════════ CONTROLES DE OPTOTIPOS ═══════════
+           Este panel era el de la primera versión y se quedó tal cual cuando
+           llegaron los otros siete: chips azules, una cruz direccional de
+           mando de televisión y tres botones con emoji. Al lado de los demás
+           parecía otra aplicación — y es el primero que se ve al emparejar.
+           Ahora usa el mismo vocabulario que el resto: rótulos de grupo,
+           fichas con el acento amarillo, y las flechas de nivel con el valor
+           en medio, que es lo que el lienzo de diseño decía desde el inicio. */
+        .fichas { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+        .fichas button {
+            padding: 12px 0; border-radius: 8px; min-height: 46px;
+            font-size: 13px; font-weight: 600;
+            background: #1a1a1a; border: 1px solid #2b2b2b; color: #bbb; font-family: inherit;
         }
-        .mode-grid button {
-            font-size: 13px;
-            font-weight: 700;
-            padding: 9px 0;
-            border: none;
-            border-radius: 8px;
-            background: #333;
-            color: #fff;
-        }
-        .mode-grid button.active-mode { background: #2980b9; }
+        .fichas button.sel { background: #f1c40f; border-color: #f1c40f; color: #151515; }
 
-        /* Cruz direccional */
-        .dpad {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            grid-template-rows: repeat(3, 1fr);
-            gap: 6px;
-            width: 60vmin;
-            height: 60vmin;
-            max-width: 220px;
-            max-height: 220px;
-            margin-bottom: 16px;
+        /* El mando del nivel: subir y bajar con el acento, el valor en medio y
+           las dos barajadas de caracteres a los lados. Tres columnas, 52 px de
+           alto: por encima del mínimo de dedo con holgura. */
+        .nivelador { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+        .nivelador > * { min-height: 52px; border-radius: 8px; }
+        .nivelador .hueco { background: transparent; }
+        .nivelador button {
+            display: flex; align-items: center; justify-content: center;
+            border: 1px solid #3a3a3a; background: #2b2b2b; color: #ccc;
+            font-size: 20px; font-family: inherit; padding: 0;
         }
-        .dpad button {
-            font-size: 28px;
-            border: none;
-            border-radius: 8px;
-            background: #2980b9;
-            color: #fff;
+        .nivelador button.acento { background: #f1c40f; border-color: #f1c40f; color: #151515; }
+        .nivelador button:active { filter: brightness(1.15); }
+        .nivelador .valor {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            gap: 2px; background: #1a1a1a; border: 1px solid #2b2b2b;
         }
-        .dpad button:active { background: #3498db; transform: scale(0.92); }
-        .dpad .empty { background: transparent; pointer-events: none; }
+        .nivelador .valor .n { font-family: monospace; font-size: 16px; color: #fff; }
+        .nivelador .valor .r {
+            font-size: 8px; text-transform: uppercase; letter-spacing: 1px; color: #666;
+        }
+        #opto-lineas {
+            font-family: monospace; font-size: 11px; color: #777;
+            text-align: center; padding-top: 8px;
+        }
+        /* El bicromático conserva su rojo y su verde: son los colores del test,
+           no una decoración, y verlos en el botón dice qué va a salir. */
+        .conmut.bicromatico .val { font-weight: 700; letter-spacing: 0.6px; }
+        .conmut.bicromatico .muestra {
+            width: 34px; height: 18px; border-radius: 4px; flex-shrink: 0;
+            background: linear-gradient(to right, #ff0000 50%, #00ff00 50%);
+        }
 
-        /* Botones de función (inferiores) */
-        .function-btns {
-            display: flex;
-            width: 94%;
-            max-width: 400px;
-            gap: 6px;
-            margin-top: 0;
-            margin-bottom: 10px;      /* pequeño margen para no pegar al borde */
-        }
-        .function-btns button {
-            flex: 1;
-            font-size: 12px;
-            font-weight: 700;
-            padding: 11px 0;
-            border: 2px solid transparent;
-            border-radius: 8px;
-            background: #444;
-            color: #fff;
-        }
-        .function-btns button.active-func { border-color: #f1c40f; }
-        .function-btns button.special {
-            background: linear-gradient(to right, #e74c3c 50%, #2ecc71 50%);
-            color: #fff;
-        }
     </style>
 </head>
 <body>
@@ -524,26 +507,45 @@
 
         <div id="remote-screen"></div>
 
-        <!-- Panel de optotipos: los controles que ya existían, intactos -->
-        <div id="panel-optotipos" style="width:100%; display:flex; flex-direction:column; align-items:center;">
-            <div class="mode-grid" id="mode-buttons">
-                <button data-mode="letters" class="active-mode">Letras</button>
+        <!-- Panel de optotipos -->
+        <div id="panel-optotipos" class="bloque">
+            <div class="grupo-tit">Modo</div>
+            <div class="fichas" id="mode-buttons">
+                <button data-mode="letters" class="sel">Letras</button>
                 <button data-mode="numbers">Números</button>
                 <button data-mode="pediatric">LEA</button>
-                <button data-mode="e_directional">E direc.</button>
+                <button data-mode="e_directional">E direccional</button>
             </div>
 
-            <div class="dpad">
-                <div class="empty"></div><button onclick="enviar('ArrowUp')">▲</button><div class="empty"></div>
-                <button onclick="enviar('ArrowLeft')">◀</button><div class="empty"></div><button onclick="enviar('ArrowRight')">▶</button>
-                <div class="empty"></div><button onclick="enviar('ArrowDown')">▼</button><div class="empty"></div>
+            <div class="grupo-tit">Nivel y caracteres</div>
+            <div class="nivelador">
+                <div class="hueco"></div>
+                <button class="acento" onclick="enviar('ArrowUp')" title="Línea más grande">▲</button>
+                <div class="hueco"></div>
+                <button onclick="enviar('ArrowLeft')" title="Otros caracteres">◀</button>
+                <div class="valor">
+                    <span class="n"><span id="opto-pantalla">1</span>/<span id="opto-pantallas">6</span></span>
+                    <span class="r">pantalla</span>
+                </div>
+                <button onclick="enviar('ArrowRight')" title="Otros caracteres">▶</button>
+                <div class="hueco"></div>
+                <button class="acento" onclick="enviar('ArrowDown')" title="Línea más pequeña">▼</button>
+                <div class="hueco"></div>
             </div>
+            <div id="opto-lineas"></div>
 
-            <div class="function-btns" id="func-buttons">
-                <button id="btn-resaltar" onclick="enviar('KeyR')">🔦 Resaltar</button>
-                <button id="btn-individual" onclick="enviar('KeyU')">👤 Individual</button>
-                <button id="btn-bic" class="special" onclick="enviar('KeyB')"></button>
-            </div>
+            <div class="grupo-tit">Presentación</div>
+            <button class="conmut" id="btn-resaltar" onclick="enviar('KeyR')">
+                <span class="et">Resaltar la línea</span><span class="val" id="val-resaltar">—</span>
+            </button>
+            <button class="conmut" id="btn-individual" onclick="enviar('KeyU')">
+                <span class="et">Un solo carácter</span><span class="val" id="val-individual">—</span>
+            </button>
+            <button class="conmut bicromatico" id="btn-bic" onclick="enviar('KeyB')">
+                <span class="et">Fondo bicromático</span>
+                <span class="val" id="val-bic">—</span>
+                <span class="muestra"></span>
+            </button>
         </div>
 
         <!-- Panel del Amsler -->
@@ -778,14 +780,34 @@
 
         socket?.on('modo', (modo) => {
             document.querySelectorAll('#mode-buttons button').forEach(btn => {
-                btn.classList.toggle('active-mode', btn.dataset.mode === modo);
+                btn.classList.toggle('sel', btn.dataset.mode === modo);
             });
         });
 
+        /* Los tres conmutadores dicen su estado con palabras, no solo con un
+           borde encendido: «activo» o «—». Un borde amarillo obliga a recordar
+           qué significaba; la palabra no. */
         function updateFuncButtons(state) {
-            document.getElementById('btn-resaltar')?.classList.toggle('active-func', state.highlightMode);
-            document.getElementById('btn-individual')?.classList.toggle('active-func', state.singleCharMode);
-            document.getElementById('btn-bic')?.classList.toggle('active-func', state.bichromatic);
+            const poner = (id, on) => {
+                const b = $r(id);
+                if (!b) return;
+                b.classList.toggle('on', !!on);
+                const v = $r('val-' + id.replace('btn-', ''));
+                if (v) v.textContent = on ? 'ACTIVO' : '\u2014';
+            };
+            poner('btn-resaltar', state.highlightMode);
+            poner('btn-individual', state.singleCharMode);
+            poner('btn-bic', state.bichromatic);
+        }
+
+        /* La pantalla en curso y las líneas que trae, que es lo que el mando no
+           decía: con cuatro flechas y nada más había que mirar la pantalla del
+           paciente para saber en qué nivel se estaba. */
+        function pintarOptotipos(data) {
+            $r('opto-pantalla').textContent = data.pantalla ?? 1;
+            $r('opto-pantallas').textContent = data.pantallas ?? 6;
+            $r('opto-lineas').textContent = (data.lines || [])
+                .map(l => '20/' + l.snellen).join('  \u00b7  ');
         }
 
         /* El espejo no está a escala: es una vista previa y todas las líneas se
@@ -839,7 +861,7 @@
 
             const espejo = $r('remote-screen');
             espejo.innerHTML = '';
-            if (mod === 'optotipos')   { espejoOptotipos(espejo, data); updateFuncButtons(data); }
+            if (mod === 'optotipos')   { espejoOptotipos(espejo, data); updateFuncButtons(data); pintarOptotipos(data); }
             else if (mod === 'amsler') { espejoAmsler(espejo, data); pintarAmsler(data); }
             else if (mod === 'contraste') { espejoPelli(espejo, data); pintarPelli(data); }
             else if (mod === 'worth')     { espejoWorth(espejo, data); pintarWorth(data); }
@@ -1051,9 +1073,11 @@
            curso. La marca es SOLO del mando: en la pantalla del paciente las
            filas van iguales, o señalarle una sería decirle por dónde va.
 
-           Las tintas del espejo se aplanan a un mínimo legible porque el panel
-           de un móvil no distingue el 253 del 254 sobre blanco; la pantalla del
-           paciente sí emite el código real, y el panel lo dice. */
+           Las tintas del espejo tienen un suelo de 0,10 de opacidad porque el
+           panel de un móvil no distingue el 253 del 254 sobre blanco. Con el
+           rango en 1,00 log CS el más tenue cae justo en ese suelo, así que ya
+           no se aplana ninguna; el suelo se queda como red, y el panel dice a
+           cuántos códigos del blanco sale el gris más tenue. */
         function espejoPelli(espejo, data) {
             const p = data.pelli || {};
             const caja = document.createElement('div');
@@ -1118,11 +1142,20 @@
                 cont.appendChild(b);
             });
 
+            /* La distancia al blanco del gris más tenue, dicha con su cifra. No es
+               un adorno: con ocho filas hasta 2,10 los dos últimos grises salían
+               a uno y dos códigos del blanco y el monitor no los emitía, así que
+               el paciente fallaba un contraste que nunca se dibujó. `alLimite`
+               sigue puesto como guardia: si alguien vuelve a ensanchar el rango,
+               el mando lo dice aquí en vez de dejarlo pasar. */
             const alLimite = (p.niveles || []).filter(n => n.alLimite).map(n => n.n);
+            const codigos = (p.niveles || []).map(n => n.codigo);
+            const masTenue = codigos.length ? Math.max.apply(null, codigos) : 0;
             $r('pelli-geo').textContent =
                 'letra ' + (p.letraMM ?? 0) + ' mm = ' + (p.grados ?? 0) + '\u00b0 a 1 m  \u00b7  '
-              + 'el espejo aplana las tintas por debajo del 10 %; la pantalla emite el c\u00f3digo real'
-              + (alLimite.length ? '  \u00b7  niveles ' + alLimite.join(' y ') + ' salen a '
+              + 'el gris m\u00e1s tenue sale en el c\u00f3digo ' + masTenue + ', a ' + (255 - masTenue)
+              + ' del blanco: la pantalla lo emite de verdad'
+              + (alLimite.length ? '  \u00b7  pero los niveles ' + alLimite.join(' y ') + ' salen a '
                  + alLimite.map(n => 255 - (p.niveles.find(x => x.n === n).codigo)).join(' y ')
                  + ' c\u00f3digos del blanco: ah\u00ed manda el panel, no la prueba' : '');
         }
@@ -1281,15 +1314,27 @@
         }
 
         /* ═══════════ RELAX ═══════════ */
+        /* La caída de la diana, en un sitio y no en tres. Antes el espejo y la
+           miniatura la dibujaban cada uno con tres paradas y un border-radius,
+           y se veía un disco con degradado — que es justo lo que el paciente NO
+           tiene que ver: el borde le da algo donde enfocar y el test existe
+           para que no enfoque. La luz llega a cero en el 88 % del radio, así
+           que no hay circunferencia que delimite nada. */
+        const CAIDA_DIANA = [[0, 1], [12, 0.88], [24, 0.70], [36, 0.50], [48, 0.32],
+                             [60, 0.18], [72, 0.08], [82, 0.03], [88, 0.01], [100, 0]];
+        const dianaDifusa = (px, luz) =>
+            '<div style="width:' + px + 'px; height:' + px + 'px; background:'
+          + 'radial-gradient(circle closest-side, '
+          + CAIDA_DIANA.map(([pos, k]) => 'rgba(255,255,255,' + (luz * k).toFixed(3) + ') ' + pos + '%').join(', ')
+          + ');"></div>';
+
         function espejoRelax(espejo, data) {
             const r = data.relax || {};
             const luz = (parseInt(r.luz, 10) || 35) / 100;
             const L = 120;
             espejo.innerHTML = r.tipo === 'punto'
                 ? '<div style="width:14px;height:14px;border-radius:50%;background:rgba(255,255,255,' + luz.toFixed(2) + ');"></div>'
-                : '<div style="width:' + L + 'px;height:' + L + 'px;border-radius:50%;background:radial-gradient(circle,'
-                  + 'rgba(255,255,255,' + luz.toFixed(2) + ') 0%, rgba(255,255,255,' + (luz*0.55).toFixed(2) + ') 45%,'
-                  + 'rgba(255,255,255,0) 100%);"></div>';
+                : dianaDifusa(L, luz);
         }
         function pintarRelax(data) {
             const r = data.relax || {};
@@ -1303,8 +1348,7 @@
                 b.querySelector('.muestra').style.cssText = 'background:#000; display:flex; align-items:center; justify-content:center;';
                 b.querySelector('.muestra').innerHTML = t.id === 'punto'
                     ? '<div style="width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,' + luz.toFixed(2) + ');"></div>'
-                    : '<div style="width:30px;height:30px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,'
-                      + luz.toFixed(2) + ') 0%,rgba(255,255,255,0) 100%);"></div>';
+                    : dianaDifusa(32, luz);
                 b.querySelector('.tit').textContent = t.nombre;
                 b.querySelector('.sub').textContent = t.sub;
                 b.addEventListener('click', () => enviar('R:tipo:' + t.id));

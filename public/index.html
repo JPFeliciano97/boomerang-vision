@@ -2089,6 +2089,12 @@
                         }))
                     }));
                     datos.mode = state.mode;
+                    /* La pantalla en curso y cuántas hay: el mando las enseñaba
+                       como un mando de televisión —cuatro flechas y nada más— y
+                       quien lo usa necesita saber en qué nivel está sin mirar la
+                       pantalla del paciente. */
+                    datos.pantalla = state.currentScreenIdx + 1;
+                    datos.pantallas = TOTAL_SCREENS;
                     datos.highlightMode = state.highlightMode;
                     datos.highlightLineIdx = indiceResaltadoLocal();
                     datos.singleCharMode = state.singleCharMode;

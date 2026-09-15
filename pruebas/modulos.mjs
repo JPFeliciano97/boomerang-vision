@@ -78,7 +78,7 @@ const TAMANOS = [
 const GRUPOS_VISIBLES = (tel, paneles) => tel.evaluate(ids => {
   const p = ids.map(i => document.getElementById(i)).find(e => e && !e.classList.contains('oculto'));
   if (!p) return [];
-  return [...p.querySelectorAll('.trio, .cuarteto, .mode-grid, .lista-lam, .lista-niv')]
+  return [...p.querySelectorAll('.trio, .cuarteto, .fichas, .figuras, .lista-lam, .lista-niv')]
     .map(g => {
       const o = [...g.querySelectorAll('button')].map(e => e.textContent.replace(/\s+/g, ' ').trim());
       return {

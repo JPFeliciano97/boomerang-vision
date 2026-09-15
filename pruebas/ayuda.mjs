@@ -101,6 +101,19 @@ export async function emparejar(navegador, url, opciones = {}) {
   const errores = [];
 
   const ctxPC = await navegador.newContext({ viewport: { width: ancho, height: alto }, deviceScaleFactor: dpr });
+  /* La distancia de sala ya no se teclea en la barra: se declara UNA VEZ en la
+     configuración inicial. Así que una prueba que quiere otra distancia siembra
+     una sala ya configurada, que es el estado real de un equipo en uso, en vez
+     de escribir en un campo que ya no existe. */
+  if (distancia != null) {
+    await ctxPC.addInitScript(m => {
+      try {
+        const g = JSON.parse(localStorage.getItem('bvc') || '{}');
+        g.testDistanceM = m; g.calAck = true;
+        localStorage.setItem('bvc', JSON.stringify(g));
+      } catch (e) {}
+    }, distancia);
+  }
   const pc = await ctxPC.newPage();
   pc.on('pageerror', e => errores.push('PANTALLA: ' + e.message));
   pc.on('console', m => { if (m.type() === 'error') errores.push('PANTALLA consola: ' + m.text()); });
@@ -114,12 +127,6 @@ export async function emparejar(navegador, url, opciones = {}) {
   await pc.keyboard.press('Escape');
   await pc.waitForTimeout(300);
   if (!/^[A-Z0-9]{4,8}$/.test(codigo)) throw new Error('código de sala ilegible: ' + JSON.stringify(codigo));
-
-  if (distancia != null) {
-    await pc.fill('#test-distance', String(distancia));
-    await pc.dispatchEvent('#test-distance', 'change');
-    await pc.waitForTimeout(400);
-  }
 
   const ctxTel = await navegador.newContext({ viewport: { width: 412, height: 915 }, isMobile: true, hasTouch: true });
   const tel = await ctxTel.newPage();

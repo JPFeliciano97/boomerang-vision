@@ -61,6 +61,33 @@ const TAMANOS = [
   { nombre: 'horizontal 915×412', w: 915, h: 412 }
 ];
 
+/* Los grupos de opciones mutuamente excluyentes del panel VISIBLE.
+   Lo de «visible» no es un detalle: los paneles ocultos guardan sus botones en
+   el DOM, y una sonda que mire todo #vista-modulo cuenta los de los otros siete
+   módulos. La primera versión de esta consulta lo hacía y acusaba a Amsler de
+   tener opciones de Worth.
+
+   Lo que se busca es un grupo donde TODAS las opciones son imposibles a la
+   distancia de la sala. Eso deja al operador eligiendo entre cosas que no van a
+   pasar, y peor: ninguna coincide con lo que la pantalla dibuja de verdad.
+   Worth tenía ese defecto y se arregló con un cuarto tamaño — el mayor que
+   cabe. Esta comprobación existe para que el siguiente módulo con opciones
+   físicas no lo repita. */
+const GRUPOS_VISIBLES = (tel, paneles) => tel.evaluate(ids => {
+  const p = ids.map(i => document.getElementById(i)).find(e => e && !e.classList.contains('oculto'));
+  if (!p) return [];
+  return [...p.querySelectorAll('.trio, .cuarteto, .mode-grid, .lista-lam, .lista-niv')]
+    .map(g => {
+      const o = [...g.querySelectorAll('button')].map(e => e.textContent.replace(/\s+/g, ' ').trim());
+      return {
+        n: o.length,
+        imposibles: o.filter(t => /no cabe|no caben/i.test(t)).length,
+        muestra: o.slice(0, 4).join(' | ')
+      };
+    })
+    .filter(g => g.n > 1);
+}, paneles);
+
 /* Todo lo que se toca en la vista de módulo, con su tamaño dibujado. Se miran
    los <button> y cualquier cosa con onclick, porque en este mando varias filas
    pulsables son <div onclick>. Lo que está oculto mide 0 y no cuenta. */
@@ -82,9 +109,31 @@ export default async function pruebaModulos({ pc, tel, abrir }) {
   for (const mod of MODULOS) {
     const nombre = await abrir(mod.nombre);
 
-    const dibuja = await pc.evaluate(() =>
-      document.getElementById('modulo-area').children.length > 0
-      || document.querySelectorAll('#lines-container > div').length > 0);
+    /* VISIBILIDAD, no número de hijos. La primera versión de esto era
+       `capa.children.length > 0 || lineas.length > 0`, y es débil de dos
+       maneras: los contenedores ocultos guardan su contenido en el DOM, así que
+       ese OR pasa aunque la capa visible sea la EQUIVOCADA — la pantalla del
+       paciente en negro con los optotipos escondidos detrás habría pasado la
+       prueba. Me caí en la misma trampa dos veces sondeando a mano antes de
+       darme cuenta de que la prueba la tenía dentro.
+       Lo correcto es exigir EXACTAMENTE UNA capa visible y con contenido: la de
+       optotipos en su módulo, la de estímulos en los otros siete. */
+    const capas = await pc.evaluate(() => {
+      const ver = e => {
+        if (!e) return false;
+        const r = e.getBoundingClientRect();
+        return r.width > 0 && r.height > 0 && getComputedStyle(e).visibility !== 'hidden';
+      };
+      const capa = document.getElementById('modulo-area');
+      const lineas = document.getElementById('lines-container');
+      return {
+        estimulo: ver(capa) && capa.children.length > 0,
+        optotipos: ver(lineas) && lineas.children.length > 0
+      };
+    });
+    const esOpto = mod.panel === 'panel-optotipos';
+    const dibuja = esOpto ? (capas.optotipos && !capas.estimulo)
+                          : (capas.estimulo && !capas.optotipos);
 
     const abiertos = await tel.evaluate(ids =>
       ids.filter(id => !document.getElementById(id).classList.contains('oculto')), PANELES);
@@ -94,8 +143,10 @@ export default async function pruebaModulos({ pc, tel, abrir }) {
       horizontal: Math.max(0, document.documentElement.scrollWidth - window.innerWidth)
     }));
 
-    m.comprobar(mod.nombre.padEnd(19) + ' dibuja estímulo', dibuja,
-      nombre ? nombre.slice(0, 96) : '(sin nombre)');
+    m.comprobar(mod.nombre.padEnd(19) + ' dibuja en una sola capa, la suya', dibuja,
+      dibuja ? (nombre ? nombre.slice(0, 90) : '(sin nombre)')
+             : `capa de estímulos ${capas.estimulo} · capa de optotipos ${capas.optotipos}`
+               + ` · se esperaba ${esOpto ? 'optotipos' : 'estímulos'}`);
     m.comprobar(mod.nombre.padEnd(19) + ' saca un solo panel',
       abiertos.length === 1 && abiertos[0] === mod.panel,
       abiertos.join(', ') || 'ninguno');
@@ -106,6 +157,15 @@ export default async function pruebaModulos({ pc, tel, abrir }) {
       desborde.horizontal === 0,
       `desplazamiento vertical ${desborde.vertical} px, horizontal ${desborde.horizontal} px`);
 
+    /* Ningún grupo de opciones puede estar imposible por completo. */
+    const grupos = await GRUPOS_VISIBLES(tel, PANELES);
+    const rotos = grupos.filter(g => g.imposibles === g.n);
+    m.comprobar(mod.nombre.padEnd(19) + ' ofrece al menos una opción posible por grupo',
+      rotos.length === 0,
+      rotos.length
+        ? rotos.map(g => `${g.n} de ${g.n} imposibles: ${g.muestra}`).join(' · ')
+        : grupos.map(g => g.n + (g.imposibles ? ` (${g.imposibles} imposibles)` : '')).join(' + ') || 'sin grupos');
+
     /* Cada módulo declara su estímulo en grados; si no lo dice, alguien
        cambió el estímulo sin cambiar lo que anuncia. */
     if (mod.nombre !== 'Optotipos') {
@@ -113,19 +173,140 @@ export default async function pruebaModulos({ pc, tel, abrir }) {
         /[\d,.]+\s*°|mm|Δ|′/.test(nombre), nombre ? '' : 'el nombre del módulo está vacío');
     }
 
-    /* Los tres módulos de cerca traen su distancia fija y no la negocian. */
+    /* La distancia se lee en la cabecera de cualquier módulo y no se toca en
+       ninguno: se declara una vez en la configuración inicial de la pantalla.
+       Los tres de cerca la traen fija a 1 m y lo dicen con otra etiqueta. */
+    const et = (await tel.textContent('#mod-dist-et')).trim();
+    const val = (await tel.textContent('#mod-dist-val')).trim();
     if (mod.distFija != null) {
-      const et = (await tel.textContent('#mod-dist-et')).trim();
-      const val = (await tel.textContent('#mod-dist-val')).trim();
-      const pasos = await tel.evaluate(() => {
-        const f = document.getElementById('fila-distancia');
-        return !!f && !f.classList.contains('oculto');
-      });
       m.comprobar(mod.nombre.padEnd(19) + ` fija la distancia en ${mod.distFija} m`,
-        et.toLowerCase() === 'acercado' && val === mod.distFija + ' m' && !pasos,
-        `«${et}» ${val}` + (pasos ? ' · CON pasos de distancia, no debería' : ' · sin pasos'));
+        et.toLowerCase() === 'acercado' && val === mod.distFija + ' m',
+        `«${et}» ${val}`);
+    } else {
+      m.comprobar(mod.nombre.padEnd(19) + ' lee la distancia de la sala',
+        et.toLowerCase() === 'distancia' && /^[\d.,]+\s*m$/.test(val),
+        `«${et}» ${val}`);
     }
   }
+
+  /* ══ El menú es también un estado de la pantalla ═══════════════════
+     Mientras el optometrista elige el test siguiente, el paciente no debe estar
+     leyendo nada. Así que el menú del mando deja la pantalla en negro, y eso es
+     una decisión de diseño — no un efecto secundario. Si algún día la capa se
+     queda con el estímulo anterior puesto, el paciente sigue leyendo la cartilla
+     que ya vio. */
+  await tel.click('.cabecera .atras').catch(() => {});
+  await tel.waitForTimeout(700);
+  const enMenu = await pc.evaluate(() => {
+    const ver = e => {
+      if (!e) return false;
+      const r = e.getBoundingClientRect();
+      return r.width > 0 && r.height > 0 && getComputedStyle(e).visibility !== 'hidden';
+    };
+    const capa = document.getElementById('modulo-area');
+    return {
+      nombre: (document.getElementById('modulo-nombre') || {}).textContent || '',
+      capa: ver(capa) && capa.children.length > 0,
+      lineas: ver(document.getElementById('lines-container')),
+      tinta: capa.querySelectorAll('svg, .optotype-text, img').length
+    };
+  });
+  m.comprobar('con el mando en el menú la pantalla no enseña nada',
+    !enMenu.capa && !enMenu.lineas && enMenu.tinta === 0,
+    `«${enMenu.nombre.trim()}» · capa ${enMenu.capa} · optotipos ${enMenu.lineas}`
+    + ` · ${enMenu.tinta} elementos de estímulo`);
+
+  /* ══ El ojo en examen no se filtra entre módulos ═══════════════════
+     Amsler, Worth y Schober tienen cada uno su ojo, y significan cosas
+     distintas: en Amsler es el ojo que mira, en los otros dos dónde va el
+     filtro rojo. Compartirlos por descuido cambiaría la lectura de una prueba
+     al tocar otra. */
+  const ojoAmsler = async () => ((await pc.textContent('#modulo-nombre')).match(/ojo (O[DI])/) || [, '?'])[1];
+  await abrir('Rejilla de Amsler');
+  const ojo0 = await ojoAmsler();
+  await tel.click('#amsler-ojo');
+  await tel.waitForTimeout(600);
+  const ojo1 = await ojoAmsler();
+  m.comprobar('el ojo del Amsler cambia cuando se le pide', ojo0 !== ojo1, `${ojo0} → ${ojo1}`);
+
+  const nSchober = await abrir('Schober');
+  const ojoSchober = (nSchober.match(/filtro rojo en (O[DI])/) || [, '?'])[1];
+  m.comprobar('y Schober conserva el suyo, no hereda el del Amsler',
+    ojoSchober === 'OD', `Amsler en ${ojo1}, Schober con el filtro en ${ojoSchober}`);
+
+  await abrir('Rejilla de Amsler');
+  m.comprobar('y el Amsler recuerda el suyo al volver', (await ojoAmsler()) === ojo1,
+    `sigue en ${await ojoAmsler()}`);
+  await tel.click('#amsler-ojo');   // devolverlo a como estaba
+  await tel.waitForTimeout(400);
+
+  /* ══ El menú dice en qué situación queda cada test ════════════════
+     Lo dice ANTES de entrar, para que el optometrista vea que Worth no cabe a
+     6 m sin entrar a leer un cartel rojo. El veredicto lo calcula la pantalla
+     y viaja en el espejo; esta comprobación exige que llegue, que sea de los
+     estados previstos, y que RESPONDA a la distancia — un veredicto que sale
+     igual a 6 m y a 2 m no está midiendo nada. */
+  const ESTADOS = ['correcto', 'adaptado', 'fuera', 'cerca', 'pendiente', 'sincal'];
+  const leerMenu = async () => {
+    await tel.click('.cabecera .atras').catch(() => {});
+    await tel.waitForTimeout(600);
+    return tel.evaluate(() => ({
+      tira: [...document.querySelectorAll('#tira-estado .val')].map(e => e.textContent.trim()),
+      filas: [...document.querySelectorAll('.fila-mod')].map(e => ({
+        titulo: e.querySelector('.tit').textContent.trim(),
+        tag: e.querySelector('.tag').textContent.trim(),
+        estado: e.querySelector('.tag').className.replace(/^tag\s*/, '').trim()
+      }))
+    }));
+  };
+
+  const menu = await leerMenu();
+  m.comprobar('el menú lista los ocho módulos con su veredicto',
+    menu.filas.length === 8 && menu.filas.every(f => f.tag && ESTADOS.includes(f.estado)),
+    menu.filas.map(f => f.tag + ' [' + f.estado + ']').join(' · '));
+
+  m.comprobar('la tira de estado dice pantalla, calibración y distancia',
+    menu.tira.length === 3 && menu.tira.every(t => t && t !== '—'),
+    menu.tira.join(' | '));
+
+  /* A 6 m, Worth no cabe con ningún tamaño clásico — el techo son 0,84° — y
+     Schober pierde rango. El menú tiene que decirlo sin entrar. */
+  const worth6 = menu.filas.find(f => /Worth/.test(f.titulo));
+  m.comprobar('a 6 m el menú avisa de que Worth no cabe',
+    worth6 && worth6.estado === 'fuera', worth6 ? `«${worth6.tag}» [${worth6.estado}]` : 'no encuentro la fila');
+
+  /* Y el veredicto tiene que MOVERSE con la distancia. Se cambia sembrando una
+     sala ya configurada, que es el único sitio donde se declara. */
+  await pc.evaluate(() => {
+    try {
+      const g = JSON.parse(localStorage.getItem('bvc') || '{}');
+      g.testDistanceM = 2; localStorage.setItem('bvc', JSON.stringify(g));
+    } catch (e) {}
+  });
+  await pc.reload();
+  await pc.evaluate(() => document.fonts.ready);
+  await pc.waitForTimeout(1600);
+  await pc.click('#card-cancel').catch(() => {});
+  await pc.waitForTimeout(600);
+  const menu2 = await leerMenu();
+  const worth2 = menu2.filas.find(f => /Worth/.test(f.titulo));
+  m.comprobar('a 2 m el mismo menú dice que Worth ya cabe',
+    worth2 && worth2.estado === 'correcto',
+    worth2 ? `«${worth2.tag}» [${worth2.estado}] · la tira dice ${menu2.tira[2]}`
+           : 'no encuentro la fila');
+
+  /* Y devolver la sala a 6 m, que es lo que esperan las pasadas de abajo. */
+  await pc.evaluate(() => {
+    try {
+      const g = JSON.parse(localStorage.getItem('bvc') || '{}');
+      g.testDistanceM = 6; localStorage.setItem('bvc', JSON.stringify(g));
+    } catch (e) {}
+  });
+  await pc.reload();
+  await pc.evaluate(() => document.fonts.ready);
+  await pc.waitForTimeout(1600);
+  await pc.click('#card-cancel').catch(() => {});
+  await pc.waitForTimeout(600);
 
   /* ══ La pasada por tamaños ═══════════════════════════════════
      Se agrega en una comprobación por tamaño en vez de 24 filas: lo que

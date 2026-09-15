@@ -134,6 +134,57 @@
 
         #dpr-input { width: 70px; }
 
+        /* El cartel del móvil es un botón, pero no tiene que parecer uno del
+           navegador: hereda la tipografía del pie y solo se delata al pasar por
+           encima. */
+        button.remote-status {
+            font: inherit; letter-spacing: inherit; border: 0; background: none;
+            padding: 0; cursor: pointer; color: inherit;
+        }
+        button.remote-status:hover { text-decoration: underline; }
+        button.remote-status.on { cursor: default; }
+        button.remote-status.on:hover { text-decoration: none; }
+
+        /* El emparejamiento dentro de la configuración inicial. */
+        .card-mando {
+            display:flex; align-items:center; gap:16px; text-align:left;
+            margin:18px 0 4px; padding:14px 16px; border-radius:10px;
+            background:#141414; border:1px solid #2a2a2a;
+        }
+        .card-mando .cm-txt { flex-grow:1; min-width:0; }
+        .card-mando .cm-tit { font-size:13px; font-weight:700; color:#ddd; }
+        .card-mando .cm-sub { font-size:11px; color:#8a8a8a; margin-top:4px; line-height:1.5; }
+        .card-mando .cm-cod {
+            font-size:10px; color:#6a6a6a; margin-top:8px; text-transform:uppercase; letter-spacing:1px;
+        }
+        .card-mando .cm-cod strong {
+            font-family:monospace; font-size:15px; color:#2980b9; letter-spacing:3px; margin-left:4px;
+        }
+        .card-mando #qr-config {
+            width:104px; height:104px; flex-shrink:0; background:#fff;
+            border-radius:8px; padding:6px; box-sizing:border-box;
+        }
+        .card-mando #qr-config svg { width:100%; height:100%; display:block; }
+
+        /* La distancia dentro de la configuración inicial. */
+        .card-dist {
+            display:flex; align-items:center; justify-content:center; gap:10px;
+            margin:4px 0 18px; padding:12px 14px; border-radius:10px;
+            background:rgba(41,128,185,0.10); border:1px solid rgba(41,128,185,0.4);
+            font-size:12px; color:#cfe3f0;
+        }
+        .card-dist input {
+            width:76px; min-height:38px; font-size:15px; font-weight:700; text-align:center;
+        }
+        .card-sub { margin-top:0; }
+
+        /* La distancia de sala: un valor, no un campo. */
+        .cal-fijo {
+            font-family:monospace; font-size:11px; color:#fff; font-weight:700;
+            padding:5px 8px; border:1px solid #333; border-radius:6px; background:#151515;
+            min-width:38px; text-align:center;
+        }
+
         /* Los controles del optotipo no significan nada en otro módulo. La
            DISTANCIA sí: Worth, Schober, relajación y fijación infantil calculan
            su estímulo físico contra state.testDistanceM, así que el campo se
@@ -377,13 +428,19 @@
     <div id="calibration-bar">
         <!-- Columna izquierda: lo único que hay que decirle al sistema -->
         <div class="left-group">
+            <!-- La distancia se VE aquí y se declara en la configuración inicial.
+                 Era un campo editable en cualquier momento, y eso invita al error
+                 que este sistema existe para evitar: que la geometría y el sitio
+                 donde está sentado el paciente dejen de coincidir a mitad de una
+                 prueba, sin que nada lo delate. La distancia es una propiedad de
+                 la SALA, no un mando por test. -->
             <div class="cal-group">
                 <label>Distancia</label>
-                <input type="number" id="test-distance" value="6" step="0.1" min="0.5">
+                <span id="dist-sala" class="cal-fijo">6</span>
                 <span class="cal-unit">m</span>
             </div>
             <div class="cal-sep"></div>
-            <button class="btn-sm" id="btn-card-cal" title="Medir la pantalla (C)">📏 CALIBRAR PANTALLA</button>
+            <button class="btn-sm" id="btn-card-cal" title="Configuración inicial: distancia y medida de la pantalla (C)">⚙ CONFIGURACIÓN</button>
         </div>
 
         <!-- Columna central: botón toggle + info -->
@@ -415,18 +472,32 @@
     <div id="footer">
         <div class="brand-text">BOOMERANG VISION</div>
         <div class="footer-right">
-            <span class="remote-status" id="remote-status">○ SIN MANDO</span>
+            <!-- Pulsable: mientras no hay móvil, este cartel es el sitio más
+                 natural para preguntar «y cómo conecto uno». Antes solo informaba,
+                 y el QR estaba detrás de un botón rotulado «Mostrar atajos». -->
+            <button class="remote-status" id="remote-status" title="Conectar el móvil">○ SIN MANDO · CONECTAR</button>
             <span class="cal-status" id="cal-status-footer">…</span>
         </div>
     </div>
 
     <div id="card-cal" class="hidden">
         <div class="card-panel">
-            <h2>MEDIR LA PANTALLA</h2>
-            <p>Una sola vez por equipo. Apoye la referencia sobre la pantalla y arrastre
-               el círculo azul hasta que coincida con ella.<br>
-               Con eso el sistema mide los milímetros reales y ya no necesita que nadie
-               escriba resolución, pulgadas ni DPR: eso lo saca del navegador.</p>
+            <h2>CONFIGURACIÓN INICIAL</h2>
+            <p>Una sola vez por sala. Son las dos cosas que el navegador no puede
+               saber por sí mismo, y de las que sale el tamaño de todos los
+               estímulos: cuánto mide un milímetro en esta pantalla, y a cuántos
+               metros se sienta el paciente.</p>
+
+            <!-- La distancia va aquí y en ningún otro sitio. Fuera de esta
+                 configuración se ve pero no se cambia: una distancia editable a
+                 mitad de un test invita a que la geometría y el paciente dejen de
+                 coincidir sin que nada lo delate. -->
+            <label class="card-dist">Distancia a la que se sienta el paciente
+                <input type="number" id="test-distance" value="6" step="0.1" min="0.5"> m
+            </label>
+
+            <p class="card-sub">Y ahora la pantalla: apoye la referencia sobre ella y
+               arrastre el círculo azul hasta que coincida.</p>
             <div class="card-refs" id="card-refs">
                 <button data-ref="card" class="active">💳 Tarjeta</button>
                 <button data-ref="ruler">📐 Regla 100 mm</button>
@@ -438,8 +509,25 @@
                 <span class="card-hint">o use ← → (con Mayús, de 10 en 10)</span>
             </div>
             <div id="card-readout"></div>
+            <!-- El emparejamiento, aquí y no solo detrás del botón «?».
+                 Los otros siete módulos se alcanzan SOLO desde el móvil, y el QR
+                 vivía dentro de un panel rotulado «Mostrar atajos» que nace
+                 oculto: quien abría la app por primera vez se quedaba con
+                 optotipos y sin saber que existe una suite clínica detrás. -->
+            <div class="card-mando">
+                <div class="cm-txt">
+                    <div class="cm-tit">Y conecte el móvil</div>
+                    <div class="cm-sub">Los otros siete test — contraste, Worth, Schober,
+                       color, Amsler, relajación y fijación infantil — se manejan desde
+                       el móvil, no desde este teclado. Escanee el código o escriba el
+                       código de sala en el navegador del móvil.</div>
+                    <div class="cm-cod">código de sala <strong id="pair-code-config">…</strong></div>
+                </div>
+                <div id="qr-config"></div>
+            </div>
+
             <div class="card-actions">
-                <button id="card-save">✓ Guardar calibración</button>
+                <button id="card-save">✓ Guardar configuración</button>
                 <button id="card-cancel">Cancelar</button>
             </div>
             <details class="card-fallback">
@@ -462,7 +550,7 @@
         <div><kbd>B</kbd> Bicromático</div>
         <div><kbd>R</kbd> Resaltar línea</div>
         <div><kbd>U</kbd> Modo 1 carácter</div>
-        <div><kbd>C</kbd> Calibrar pantalla</div>
+        <div><kbd>C</kbd> Configuración inicial</div>
         <div><kbd>H</kbd> Ocultar panel</div>
         <div><kbd>M</kbd> Volver a optotipos</div>
         <div><kbd>?</kbd> Este menú</div>
@@ -875,15 +963,31 @@
                D/100 mm a D mm. De lejos el paso crece y en la media pantalla
                caben menos anillos, así que el rango medible se estrecha justo
                cuando el paso se hace más grande. */
+            /* Los rangos que se ofrecen, y un cuarto que no es un número fijo.
+               El paso entre anillos ES 1Δ, así que el rango que cabe lo dicta la
+               pantalla: a 6 m, 1Δ son 60 mm y solo entran 2 anillos. Con los
+               tres rangos clásicos el módulo ofrecía desde la silla de lejos
+               tres botones que decían los tres «no caben», que dibujaban los
+               tres lo mismo, y ninguno de los cuales era lo que se estaba
+               dibujando: elegías 5 y medías con 2.
+               Es el mismo defecto que tenía Worth y se arregla igual: una cuarta
+               opción que es el rango que de verdad entra, con su cifra escrita. */
+            const SCHOBER_RANGOS = [
+                { id: '3',   label: '3',    anillos: 3 },
+                { id: '5',   label: '5',    anillos: 5 },
+                { id: '7',   label: '7',    anillos: 7 },
+                { id: 'max', label: 'máx',  anillos: null }
+            ];
             function schoberGeometria(){
                 const D = distanciaModulo() * 1000;
                 const pasoMM = D / 100;                       // 1Δ
                 const pasoPx = pasoMM * state.cssPxPerMM;
-                const pedidos = parseInt(state.schoberAnillos, 10) || 5;
                 const medio = Math.min(window.innerWidth, window.innerHeight) / 2;
                 const caben = pasoPx > 0 ? Math.max(0, Math.floor(medio / pasoPx)) : 0;
+                const esMax = state.schoberAnillos === 'max';
+                const pedidos = esMax ? caben : (parseInt(state.schoberAnillos, 10) || 5);
                 const anillos = Math.min(pedidos, caben);
-                return { pasoMM, pasoPx, pedidos, caben, anillos };
+                return { pasoMM, pasoPx, pedidos, caben, anillos, esMax };
             }
             function renderSchober(){
                 d.moduloArea.style.background = '#000000';
@@ -925,7 +1029,9 @@
                        </g>
                      </svg>`;
                 d.moduloNombre.textContent = `Schober · 1Δ = ${g.pasoMM.toFixed(0)} mm a ${distanciaModulo()} m · `
-                    + `±${g.anillos}Δ de rango` + (g.anillos < g.pedidos ? ` (se pidieron ${g.pedidos} y caben ${g.caben})` : '')
+                    + `±${g.anillos}Δ de rango`
+                    + (g.esMax ? ' (el máximo que cabe)'
+                               : (g.anillos < g.pedidos ? ` (se pidieron ${g.pedidos} y caben ${g.caben})` : ''))
                     + ` · cruz ${state.schoberInvertido ? 'verde' : 'roja'} · filtro rojo en ${state.schoberOjoRojo}`;
             }
 
@@ -938,7 +1044,7 @@
             }
             function schoberComando(resto){
                 const [que, valor] = resto.split(':');
-                if (que === 'anillos' && ['3','5','7'].includes(valor)) state.schoberAnillos = valor;
+                if (que === 'anillos' && SCHOBER_RANGOS.some(r => r.id === valor)) state.schoberAnillos = valor;
                 else if (que === 'inv') state.schoberInvertido = !state.schoberInvertido;
                 else if (que === 'ojo') state.schoberOjoRojo = state.schoberOjoRojo === 'OD' ? 'OI' : 'OD';
                 else return;
@@ -1372,7 +1478,8 @@
 
             const $ = id => document.getElementById(id);
             const d = {
-                testDistance:$('test-distance'), monitorSize:$('monitor-size'),
+                testDistance:$('test-distance'), distSala:$('dist-sala'), monitorSize:$('monitor-size'),
+                qrConfig:$('qr-config'), pairCodeConfig:$('pair-code-config'),
                 btnToggle:$('btn-toggle-cal'),
                 btnCardCal:$('btn-card-cal'), cardCal:$('card-cal'), cardShape:$('card-shape'),
                 cardHandle:$('card-handle'), cardReadout:$('card-readout'),
@@ -1571,12 +1678,14 @@
                     state.calSource = 'monitor';
                 }
                 state.isCalibrated = state.cssPxPerMM > 0;
+                if (d.distSala) d.distSala.textContent = state.testDistanceM;
                 updateCalStatus();
             }
             function updateRemoteStatus(peers){
                 const hay = peers >= 2;
-                d.remoteStatus.textContent = hay ? '🔗 MANDO CONECTADO' : '○ SIN MANDO';
+                d.remoteStatus.textContent = hay ? '🔗 MANDO CONECTADO' : '○ SIN MANDO · CONECTAR';
                 d.remoteStatus.className = 'remote-status' + (hay ? ' on' : '');
+                d.remoteStatus.title = hay ? 'Ver el código de sala' : 'Conectar el móvil';
             }
 
             function updateCalStatus(){
@@ -1692,26 +1801,60 @@
                 d.moduloNombre.textContent = 'sin calibrar · mida la pantalla con una tarjeta (tecla C)';
             }
 
-            /* Distancia de sala desde el mando. El operador está junto al paciente,
-               no junto al teclado: si mueve la silla para que quepa el rombo de
-               Worth, tiene que poder decirlo desde el móvil, o el estímulo se
-               sigue calculando contra la distancia vieja. Paso de 0,5 m, que es
-               como se mueve una silla; el campo del PC admite el decimal fino. */
-            const DIST_MIN = 0.5, DIST_MAX = 10, DIST_PASO = 0.5;
-            function distanciaComando(valor){
-                const actual = state.testDistanceM;
-                let d2 = valor === 'mas'   ? actual + DIST_PASO
-                       : valor === 'menos' ? actual - DIST_PASO
-                       : parseFloat(valor);
-                if (!isFinite(d2)) return;
-                d2 = Math.min(DIST_MAX, Math.max(DIST_MIN, Math.round(d2 * 10) / 10));
-                if (d2 === actual) { emitirEspejo(); return; }
-                state.testDistanceM = d2;
-                d.testDistance.value = d2;
-                resolveCalibration();
-                state.lineChars = {};   // la línea cambia de tamaño: sus letras se resortean
-                renderScreen();
-                saveToStorage();
+            /* ═══════════ EN QUÉ SITUACIÓN QUEDA CADA MÓDULO ═══════════
+               Una sola distancia para todos los test es lo operativamente
+               sensato, pero no es neutra: lejos favorece la agudeza y arruina el
+               campo, cerca al contrario. Cada módulo ya lo dice — en el nombre
+               que escribe al entrar —, pero solo DESPUÉS de entrar.
+
+               Esto lo dice ANTES, en el menú del mando, con la información que
+               el sistema ya calcula. La diferencia práctica: el optometrista ve
+               que Worth no cabe a 6 m sin tener que entrar a leer un cartel
+               rojo, y decide si acerca la silla antes de sentar al paciente.
+
+               Los tres de distancia fija no se juzgan: no negocian con la sala,
+               traen la suya. */
+            function veredictoModulo(m){
+                if (!m.hecho) return { estado: 'pendiente', etiqueta: 'pendiente' };
+                if (m.distFija != null) return { estado: 'cerca', etiqueta: 'a ' + m.distFija + ' m' };
+                if (!state.isCalibrated) return { estado: 'sincal', etiqueta: 'sin calibrar' };
+
+                if (m.id === 'worth') {
+                    const g = worthGeometria();
+                    if (g.tam.grados == null) return { estado: 'adaptado', etiqueta: g.grados.toFixed(2) + '°' };
+                    return g.cabe ? { estado: 'correcto', etiqueta: g.tam.label }
+                                  : { estado: 'fuera', etiqueta: 'no cabe' };
+                }
+                if (m.id === 'schober') {
+                    const g = schoberGeometria();
+                    if (g.anillos < 1) return { estado: 'fuera', etiqueta: 'sin rango' };
+                    return g.anillos >= 5 ? { estado: 'correcto', etiqueta: '±' + g.anillos + 'Δ' }
+                                          : { estado: 'adaptado', etiqueta: '±' + g.anillos + 'Δ' };
+                }
+                if (m.id === 'relax') {
+                    const g = relaxGeometria();
+                    /* Por debajo de 3 m el ojo ya tiene que acomodar 0,33 D, y el
+                       test existe precisamente para que no acomode. */
+                    if (distanciaModulo() < 3) return { estado: 'adaptado', etiqueta: 'hay demanda' };
+                    return g.limitado ? { estado: 'adaptado', etiqueta: g.grados.toFixed(1) + '°' }
+                                      : { estado: 'correcto', etiqueta: g.grados.toFixed(1) + '°' };
+                }
+                if (m.id === 'infantil') {
+                    const g = infGeometria();
+                    return g.limitado ? { estado: 'adaptado', etiqueta: g.grados.toFixed(1) + '°' }
+                                      : { estado: 'correcto', etiqueta: g.grados.toFixed(1) + '°' };
+                }
+                if (m.id === 'optotipos') {
+                    /* La línea más fina de la pantalla en curso: si su trazo baja
+                       de un píxel, la rejilla del monitor no puede dibujarla y la
+                       medida deja de ser fiable por abajo. */
+                    const finas = getCurrentScreen().lines
+                        .map(l => cssHeight(optotypeHeightMM(l.decimal, state.testDistanceM)) / 5 * liveDpr());
+                    const trazo = Math.min(...finas);
+                    return trazo < 1 ? { estado: 'adaptado', etiqueta: 'trazo ' + trazo.toFixed(1) + ' px' }
+                                     : { estado: 'correcto', etiqueta: 'correcto' };
+                }
+                return { estado: 'correcto', etiqueta: 'correcto' };
             }
 
             /* El repartidor: decide qué capa se dibuja. El módulo de optotipos
@@ -1821,7 +1964,9 @@
                 const m = moduloActual();
                 const datos = {
                     modulo: m.id,
-                    modulos: MODULOS.map(x => ({ id:x.id, titulo:x.titulo, sub:x.sub, grupo:x.grupo, hecho:x.hecho, distFija:x.distFija })),
+                    modulos: MODULOS.map(x => ({ id:x.id, titulo:x.titulo, sub:x.sub, grupo:x.grupo,
+                                                 hecho:x.hecho, distFija:x.distFija,
+                                                 ver: veredictoModulo(x) })),
                     recordarVolver: state.recordarVolver,
                     cal: {
                         testDistanceM: state.testDistanceM,
@@ -1829,6 +1974,9 @@
                         cssPxPerMM: state.cssPxPerMM,
                         source: state.calSource,
                         calibrado: state.isCalibrated,
+                        // para la tira de estado del menú del mando
+                        resolucion: state.resH + '×' + state.resV,
+                        pulgadas: +(+state.monitorInches).toFixed(1),
                         /* La barra de la pantalla ya avisaba de esto, pero dentro
                            de un módulo la barra está plegada y el pie escondido, y
                            el optometrista está mirando el móvil. Sin mandarlo, una
@@ -1931,6 +2079,19 @@
                     const cruzEsDerecho = ojoCruz === 'OD';
                     datos.schober = {
                         anillosPedidos: state.schoberAnillos,
+                        /* Las opciones viajan con su nota calculada en vez de que
+                           el mando las escriba: así añadir un rango es tocar una
+                           lista y no dos ficheros, y el «máx» puede decir cuánto
+                           es sin que el móvil repita la geometría. */
+                        rangos: SCHOBER_RANGOS.map(r => ({
+                            id: r.id,
+                            label: r.label,
+                            entra: g ? (r.anillos == null || r.anillos <= g.caben) : true,
+                            nota: !g ? ''
+                                : r.anillos == null ? '±' + g.caben + 'Δ'
+                                : r.anillos <= g.caben ? '±' + r.anillos + 'Δ'
+                                : 'no caben'
+                        })),
                         anillos: g ? g.anillos : 0,
                         caben: g ? g.caben : 0,
                         pasoMM: g ? +g.pasoMM.toFixed(0) : 0,
@@ -2132,8 +2293,14 @@
                 if (window.remoteSocket) window.remoteSocket.emit('modo', state.mode);
             }
 
+            /* Lee los dos campos de la configuración inicial y los aplica. La
+               llaman solo los dos botones que cierran esa configuración con un
+               sí — guardar la medida, o quedarse con las pulgadas —, nunca un
+               evento de teclado. */
             function applyCalibration(){
-                state.testDistanceM=parseFloat(d.testDistance.value)||6;
+                const dm = parseFloat(d.testDistance.value);
+                state.testDistanceM = (isFinite(dm) && dm >= 0.5 && dm <= 20) ? dm : 6;
+                d.testDistance.value = state.testDistanceM;
                 state.monitorInches=parseFloat(d.monitorSize.value)||24;
                 resolveCalibration();
                 state.lineChars={}; renderScreen();
@@ -2188,7 +2355,8 @@
                     // cada arranque. Del almacenamiento solo sale lo que ninguna
                     // API puede saber: la medida física y la distancia de la sala.
                     d.monitorSize.value=saved.monitorInches||24;
-                    d.testDistance.value=saved.testDistanceM||6;
+                    state.testDistanceM = saved.testDistanceM || 6;
+                    d.testDistance.value = state.testDistanceM;
                     state.cardPxPerMM=saved.cardPxPerMM||0;
                     state.cardDpr=saved.cardDpr||0;
                     state.cardDevW=saved.cardDevW||0;
@@ -2203,7 +2371,7 @@
                     if(AMSLER_LAMINAS.some(l=>l.id===saved.amslerLamina)) state.amslerLamina=saved.amslerLamina;
                     if(typeof saved.amslerDiagonales==='boolean') state.amslerDiagonales=saved.amslerDiagonales;
                     if(WORTH_TAMANOS.some(t=>t.id===saved.worthTam)) state.worthTam=saved.worthTam;
-                    if(['3','5','7'].includes(saved.schoberAnillos)) state.schoberAnillos=saved.schoberAnillos;
+                    if(SCHOBER_RANGOS.some(r => r.id === saved.schoberAnillos)) state.schoberAnillos = saved.schoberAnillos;
                     if(typeof saved.schoberInvertido==='boolean') state.schoberInvertido=saved.schoberInvertido;
                     if(RELAX_TIPOS.some(t=>t.id===saved.relaxTipo)) state.relaxTipo=saved.relaxTipo;
                     if(RELAX_LUCES.includes(saved.relaxLuz)) state.relaxLuz=saved.relaxLuz;
@@ -2333,6 +2501,8 @@
             }
             function openCardCal(){
                 cardOpen = true;
+                d.testDistance.value = state.testDistanceM;   // parte de lo vigente
+                pintarEmparejamiento();                       // el QR, aquí y ahora
                 cardWidthPx = clampCardWidth(Math.round((state.cssPxPerMM || 3.8) * activeRef().w));
                 d.cardCal.classList.remove('hidden');
                 renderCardShape();
@@ -2358,16 +2528,12 @@
                     d.monitorSize.value = state.monitorInches;
                 }
                 closeCardCal();
-                resolveCalibration();
-                state.lineChars = {}; renderScreen();
-                saveToStorage();
+                applyCalibration();   // aplica también la distancia declarada arriba
             }
             function clearCardCal(){
                 state.cardPxPerMM = 0; state.cardDpr = 0; state.cardDevW = 0; state.cardDevH = 0;
                 closeCardCal();
-                resolveCalibration();
-                renderScreen();
-                saveToStorage();
+                applyCalibration();   // la distancia declarada arriba también cuenta por esta vía
             }
 
             function toggleCalPanel(){
@@ -2377,29 +2543,42 @@
 
             let qrGenerated = false;
             let shortcutsTimer = null;
+
+            /* El QR y el código de sala, en todos los sitios que los pidan.
+               Estaba dentro de toggleShortcuts() y por tanto solo existía si
+               alguien encontraba el botón «?» — rotulado «Mostrar atajos», que no
+               dice nada de un móvil. Como los otros siete módulos se alcanzan
+               SOLO desde el móvil, eso dejaba la suite clínica entera invisible
+               para quien abre la app por primera vez. */
+            function pintarEmparejamiento(){
+                const cajas = [d.qrContainer, d.qrConfig].filter(Boolean);
+                // location.origin, no una URL fija: si la pantalla corre en la
+                // red local, el móvil tiene que ir ahí y no a la instancia de la
+                // nube (donde manejaría otra pantalla).
+                const url = location.origin + '/remote?c=' + state.pairCode;
+                let svg = null;
+                try {
+                    // QR generado aquí: el código de sala no sale a ningún
+                    // servicio externo, y funciona sin red.
+                    const qr = qrcode(0, 'M');
+                    qr.addData(url);
+                    qr.make();
+                    svg = qr.createSvgTag({ cellSize: 4, margin: 1, scalable: true });
+                } catch (e) { /* sin QR: queda la URL escrita */ }
+                for (const caja of cajas) {
+                    if (svg) caja.innerHTML = svg; else caja.textContent = url;
+                }
+                for (const et of [d.pairCodeLabel, d.pairCodeConfig].filter(Boolean)) {
+                    et.textContent = state.pairCode;
+                }
+                qrGenerated = true;
+            }
             function toggleShortcuts(){
                 const panel = d.shortcutsPanel;
                 const isHidden = panel.classList.contains('hidden');
                 if (isHidden) {
                     panel.classList.remove('hidden');
-                    if (!qrGenerated && d.qrContainer) {
-                        // location.origin, no una URL fija: si la pantalla corre
-                        // en la red local, el móvil tiene que ir ahí y no a la
-                        // instancia de la nube (donde manejaría otra pantalla).
-                        const url = location.origin + '/remote?c=' + state.pairCode;
-                        try {
-                            // QR generado aquí: el código de emparejamiento no
-                            // sale a ningún servicio externo, y funciona sin red.
-                            const qr = qrcode(0, 'M');
-                            qr.addData(url);
-                            qr.make();
-                            d.qrContainer.innerHTML = qr.createSvgTag({ cellSize: 4, margin: 1, scalable: true });
-                        } catch (e) {
-                            d.qrContainer.textContent = url;
-                        }
-                        d.pairCodeLabel.textContent = state.pairCode;
-                        qrGenerated = true;
-                    }
+                    pintarEmparejamiento();
                     if (shortcutsTimer) clearTimeout(shortcutsTimer);
                     shortcutsTimer = setTimeout(() => {
                         if (!d.shortcutsPanel.classList.contains('hidden')) {
@@ -2413,9 +2592,16 @@
             }
 
             d.modeBtns.forEach(btn => btn.addEventListener('click', () => setMode(btn.dataset.mode)));
-            d.testDistance.addEventListener('change',applyCalibration);
+            /* Sin listener de 'change': la distancia se aplica al guardar la
+               configuración inicial, no en cuanto alguien teclea en el campo. */
             d.monitorSize.addEventListener('change',applyCalibration);
             d.btnToggle.addEventListener('click',toggleCalPanel);
+            /* El cartel del móvil abre el panel donde está el QR. Si ya está
+               abierto no lo cierra: pulsarlo buscando el código y que desaparezca
+               sería exactamente lo contrario de lo que se pide. */
+            d.remoteStatus.addEventListener('click', () => {
+                if (d.shortcutsPanel.classList.contains('hidden')) toggleShortcuts();
+            });
             d.btnBic.addEventListener('click',toggleBichromatic);
             d.btnHighlight.addEventListener('click',toggleHighlightMode);
             d.btnSingleChar.addEventListener('click',toggleSingleCharMode);
@@ -2532,8 +2718,6 @@
                 socket.on('comando', (cmd) => {
                     if (cmd.startsWith('Modulo:')) {
                         entrarModulo(cmd.slice(7));
-                    } else if (cmd.startsWith('D:')) {
-                        distanciaComando(cmd.slice(2));
                     } else if (cmd === 'VolverDicho') {
                         state.recordarVolver = false;
                         emitirEspejo();
@@ -2584,7 +2768,11 @@
                     state.highlightLineGlobalIdx = globalIdxOfFirstLine();
                     renderScreen();
                 }
-                setTimeout(()=>{ if(!d.shortcutsPanel.classList.contains('hidden')) d.shortcutsPanel.classList.add('hidden'); },8000);
+                /* Aquí había un setTimeout de 8 s para esconder el panel de
+                   atajos, y era código muerto: el panel nace con la clase
+                   'hidden' puesta, así que ese temporizador escondía algo ya
+                   escondido. Peor que inútil — hacía creer que el panel se
+                   mostraba solo al arrancar, que es justo lo que no pasaba. */
                 // Sin medida física la prueba es una estimación, así que el panel
                 // se abre solo hasta que alguien decida: medir, o renunciar a
                 // medir (cancelar / usar pulgadas). Después, nunca más.

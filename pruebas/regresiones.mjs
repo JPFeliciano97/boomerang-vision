@@ -103,69 +103,96 @@ export default async function pruebaRegresiones({ pc, tel, abrir }) {
     abiertaTrasComandos,
     abiertaTrasComandos ? 'sigue abierta' : 'un comando del mando la volvió a plegar');
 
-  // ═══ 4 · la distancia de sala no se alcanzaba dentro de un módulo ═══════
-  /* El CSS escondía el único campo de distancia al entrar en un módulo, pero
-     Worth, Schober, relax y fijación calculan su estímulo físico contra
-     ella: mover la silla dejaba la geometría calculada contra la distancia
-     vieja, sin forma de corregirla sin salir. */
+  // ═══ 4 · la distancia de sala se declara UNA VEZ ═══════════════════════
+  /* Esta comprobación cambió de signo, y conviene que quede escrito por qué.
+     La revisión había señalado que la distancia no se podía tocar dentro de un
+     módulo, y se añadieron dos pasos de ±0,5 m en el mando. El criterio de
+     quien usa esto es el contrario y es mejor: la distancia es una propiedad
+     de la SALA, no un mando por test. Poder cambiarla a mitad de una prueba
+     invita justo al error que este sistema existe para evitar — que la
+     geometría y el sitio donde está sentado el paciente dejen de coincidir sin
+     que nada lo delate.
+     Así que ahora se declara en la configuración inicial y en ningún otro
+     sitio, y lo que se protege es lo de no poder cambiarla desde un test. */
+
   await abrir('Schober');
-  const campoVisible = () => pc.evaluate(() => {
+
+  /* En la barra de la pantalla la distancia es un VALOR, no un campo: si
+     alguien vuelve a poner un <input> ahí, esto se pone rojo. */
+  const enLaBarra = await pc.evaluate(() => {
     const g = document.querySelector('#calibration-bar .cal-group');
-    return !!g && g.getBoundingClientRect().width > 0;
+    if (!g) return null;
+    return {
+      texto: g.textContent.replace(/\s+/g, ' ').trim(),
+      editables: g.querySelectorAll('input, select, button').length
+    };
   });
-  const pasosVisibles = () => tel.evaluate(() => {
-    const p = document.getElementById('fila-distancia');
-    return !!p && !p.classList.contains('oculto');
-  });
-  const hayCampo = await campoVisible(), hayPasos = await pasosVisibles();
-  m.comprobar('en un módulo de sala el campo de distancia sigue a la vista', hayCampo,
-    hayCampo ? '' : 'escondido: la distancia no se puede corregir sin salir del módulo');
-  m.comprobar('y el mando ofrece los pasos de distancia', hayPasos,
-    hayPasos ? '' : 'sin pasos: la silla se mueve y la geometría no');
+  m.comprobar('la barra muestra la distancia sin dejar editarla',
+    enLaBarra && enLaBarra.editables === 0,
+    enLaBarra ? `«${enLaBarra.texto}» · ${enLaBarra.editables} controles editables`
+              : 'no encuentro el grupo de distancia en la barra');
 
-  /* El resto de la sección mueve la distancia, y sin pasos no hay nada que
-     mover: se marca como no recorrido en vez de colgarse 30 s en un clic. */
-  if (!hayPasos) {
-    m.nota('el recorrido de la distancia', 'no se recorre porque el mando no ofrece los pasos');
-    return m;
-  }
+  /* Y el mando no tiene NADA que la cambie. Se busca por el comando, no por un
+     identificador concreto: así la comprobación sigue valiendo si mañana
+     alguien lo vuelve a añadir con otro nombre. */
+  const enElMando = await tel.evaluate(() => {
+    const v = document.getElementById('vista-modulo');
+    const sospechosos = [...v.querySelectorAll('[onclick]')]
+      .map(e => e.getAttribute('onclick'))
+      .filter(t => /D:/.test(t));
+    return { sospechosos, texto: v.textContent.replace(/\s+/g, ' ') };
+  });
+  m.comprobar('ningún control del mando cambia la distancia',
+    enElMando.sospechosos.length === 0,
+    enElMando.sospechosos.length
+      ? 'manda ' + enElMando.sospechosos.join(', ')
+      : 'ninguno manda D:');
+
+  /* Pero la distancia SIGUE a la vista en el mando: una medida cuyas
+     condiciones no se ven es lo que este proyecto entero combate. */
+  const enCabecera = (await tel.textContent('#mod-dist-val') || '').trim();
+  m.comprobar('el mando sigue mostrando a qué distancia se está midiendo',
+    /^[\d.,]+\s*m$/.test(enCabecera), `«${enCabecera}»`);
+
+  /* Y que el comando viejo, si alguien lo manda a mano, no haga nada: el
+     armazón del socket no debe guardar una puerta de atrás. */
   const paso = async () => +((await pc.textContent('#modulo-nombre')).match(/1Δ = (\d+)/) || [])[1];
-  const dist = async () => +(await pc.inputValue('#test-distance'));
-  const d0 = await dist(), p0 = await paso();
-  await tel.click('#fila-distancia .pasos button:first-child');         // acercar 0,5 m
+  const antesDelComando = await paso();
+  await tel.evaluate(() => { if (typeof enviar === 'function') enviar('D:menos'); });
   await tel.waitForTimeout(600);
-  const d1 = await dist(), p1 = await paso();
-  const espejo = (await tel.textContent('#mod-dist-val')).trim();
-  const espejoFila = (await tel.textContent('#fdist-val')).trim();
-  m.comprobar('el paso «−» del mando acerca medio metro', Math.abs(d1 - (d0 - 0.5)) < 1e-9,
-    d0 + ' → ' + d1 + ' m');
-  m.comprobar('1Δ se recalcula con la distancia nueva', Math.abs(p1 - p0) > 1,
-    p0 + ' → ' + p1 + ' mm');
-  m.comprobar('el mando refleja la distancia nueva en la cabecera y en los pasos',
-    espejo === d1 + ' m' && espejoFila === d1 + ' m',
-    `cabecera «${espejo}» · bloque de distancia «${espejoFila}»`);
+  m.comprobar('el comando D: ya no mueve la geometría', (await paso()) === antesDelComando,
+    `1Δ sigue en ${antesDelComando} mm`);
 
-  /* Los topes: por debajo de 0,5 m no hay sala y por encima de 10 m no hay
-     consultorio; sin tope el operador puede dejar la geometría en absurdo. */
-  for (let i = 0; i < 25; i++) { await tel.click('#fila-distancia .pasos button:first-child'); await tel.waitForTimeout(50); }
-  await tel.waitForTimeout(500);
-  const minimo = await dist();
-  for (let i = 0; i < 45; i++) { await tel.click('#fila-distancia .pasos button:last-child'); await tel.waitForTimeout(50); }
-  await tel.waitForTimeout(500);
-  const maximo = await dist();
-  m.comprobar('la distancia queda entre 0,5 y 10 m', minimo === 0.5 && maximo === 10,
-    minimo + ' … ' + maximo + ' m');
-
-  /* Devolver la sala a 6 m: las pruebas no deben dejar estado raro. Se escribe
-     el valor y se lanza el evento en vez de usar fill(), que espera a que el
-     campo sea visible y editable y se cuelga 30 s si el CSS lo esconde. */
-  await pc.evaluate(() => {
-    const i = document.getElementById('test-distance');
-    if (!i) return;
-    i.value = '6';
-    i.dispatchEvent(new Event('change', { bubbles: true }));
+  /* Lo que sí tiene que funcionar: declararla en la configuración inicial. */
+  await abrir('Optotipos');
+  await pc.keyboard.press('c');
+  await pc.waitForTimeout(500);
+  const dialogoAbierto = await pc.evaluate(() => {
+    const d = document.getElementById('card-cal');
+    return !!d && !d.classList.contains('hidden');
   });
-  await pc.waitForTimeout(400);
+  m.comprobar('la tecla C abre la configuración inicial', dialogoAbierto);
+  if (dialogoAbierto) {
+    const veinte = async () => +((await pc.textContent('#info-span')).match(/20\/20: ([\d.]+)mm/) || [])[1];
+    const antes = await veinte();
+    await pc.fill('#test-distance', '3');
+    await pc.click('#card-cancel');           // cancelar NO aplica
+    await pc.waitForTimeout(500);
+    m.comprobar('cancelar la configuración no cambia la distancia', (await veinte()) === antes,
+      `20/20 sigue en ${antes} mm`);
+
+    await pc.keyboard.press('c');
+    await pc.waitForTimeout(500);
+    await pc.fill('#test-distance', '3');
+    await pc.click('#card-save');             // guardar SÍ aplica
+    await pc.waitForTimeout(700);
+    const despues = await veinte();
+    const barra = await pc.textContent('#dist-sala');
+    /* El 20/20 son 5' de arco: a la mitad de distancia, la mitad de milímetros. */
+    m.comprobar('guardar la configuración aplica la distancia nueva',
+      Math.abs(despues - antes / 2) < 0.05 && barra.trim() === '3',
+      `20/20 de ${antes} a ${despues} mm · la barra dice «${barra.trim()} m»`);
+  }
 
   return m;
 }

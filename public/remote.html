@@ -158,7 +158,34 @@
             font-family: monospace; font-size: 9px; letter-spacing: 0.4px;
             flex-shrink: 0; color: #5e5e5e;
         }
-        .fila-mod .tag.cerca { color: #f0b26b; }
+        /* ═══ TIRA DE ESTADO DEL MENÚ ═══ */
+        #tira-estado {
+            display: flex; gap: 6px; margin-bottom: 10px;
+        }
+        #tira-estado > div {
+            flex: 1; min-width: 0; background: #141414; border: 1px solid #262626;
+            border-radius: 9px; padding: 8px 9px;
+        }
+        #tira-estado .rot {
+            font-size: 8px; text-transform: uppercase; letter-spacing: 1px; color: #5e5e5e;
+        }
+        #tira-estado .val {
+            font-family: monospace; font-size: 11px; color: #ddd; margin-top: 3px;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        #tira-estado .val.medido    { color: #4e9a5e; }
+        #tira-estado .val.estimado  { color: #d9a441; }
+        #tira-estado .val.obsoleta  { color: #d9534f; }
+
+        /* El veredicto: en qué situación queda el test a la distancia de la sala.
+           Lo dice ANTES de entrar, con lo que la pantalla ya calcula — así el
+           optometrista ve que Worth no cabe a 6 m sin entrar a leer un cartel
+           rojo, y decide si acerca la silla antes de sentar al paciente. */
+        .fila-mod .tag.cerca     { color: #f0b26b; }
+        .fila-mod .tag.correcto  { color: #4e9a5e; }
+        .fila-mod .tag.adaptado  { color: #d9a441; }
+        .fila-mod .tag.fuera     { color: #d9534f; }
+        .fila-mod .tag.sincal    { color: #8a7550; }
 
         #aviso-volver {
             display: flex; align-items: center; gap: 10px; margin-bottom: 12px;
@@ -449,6 +476,15 @@
 
     <!-- ═══ VISTA: MENÚ DE MÓDULOS ═══ -->
     <div id="vista-menu" class="bloque oculto">
+        <!-- Las tres cosas de las que depende todo lo de abajo: qué pantalla,
+             con qué confianza está medida, y a qué distancia se mide. Antes el
+             mando no decía ninguna en el menú y el optometrista entraba a un
+             test sin saber con qué está midiendo. -->
+        <div id="tira-estado">
+            <div><div class="rot">Pantalla</div><div class="val" id="te-pantalla">—</div></div>
+            <div><div class="rot">Calibración</div><div class="val" id="te-cal">—</div></div>
+            <div><div class="rot">Distancia</div><div class="val" id="te-dist">—</div></div>
+        </div>
         <div id="lista-modulos"></div>
     </div>
 
@@ -821,6 +857,7 @@
         }
 
         function pintarMenu(data) {
+            pintarTiraEstado(data.cal || {});
             const cont = $r('lista-modulos');
             cont.innerHTML = '';
             let grupo = null;
@@ -834,13 +871,17 @@
                 }
                 const b = document.createElement('button');
                 b.className = 'fila-mod' + (m.hecho ? '' : ' no-hecho');
-                /* El orden importa: un módulo sin construir dice «pendiente»
-                   aunque traiga distancia fija, o el «a 1 m» lo hace parecer
+                /* El veredicto lo calcula la pantalla, que es la que tiene la
+                   geometría; aquí solo se pinta. El orden de prioridades ya viene
+                   resuelto de allí: un módulo sin construir dice «pendiente»
+                   aunque traiga distancia fija, o el «a 1 m» lo haría parecer
                    disponible. */
-                const tag = !m.hecho ? 'pendiente' : (m.distFija != null ? 'a ' + m.distFija + ' m' : '');
+                const ver = m.ver || {};
+                const tag = ver.etiqueta || (!m.hecho ? 'pendiente'
+                          : (m.distFija != null ? 'a ' + m.distFija + ' m' : ''));
                 b.innerHTML =
                     '<div class="txt"><div class="tit"></div><div class="sub"></div></div>'
-                  + '<div class="tag' + (m.hecho && m.distFija != null ? ' cerca' : '') + '"></div>';
+                  + '<div class="tag ' + (ver.estado || '') + '"></div>';
                 b.querySelector('.tit').textContent = m.titulo;
                 b.querySelector('.sub').textContent = m.sub;
                 b.querySelector('.tag').textContent = tag;
@@ -861,6 +902,28 @@
             val.textContent = (data.cal?.distanciaModulo ?? '—') + ' m';
             val.style.color = fija ? '#f0b26b' : '#2980b9';
             pintarCalibracion(data.cal || {});
+        }
+
+        /* Las tres condiciones de la medida, en el menú. La de calibración repite
+           el juicio de pintarCalibracion() a propósito: en el menú no hay
+           espacio para el párrafo, pero sí para el color. */
+        function pintarTiraEstado(cal) {
+            const res = cal.resolucion, pulg = cal.pulgadas;
+            $r('te-pantalla').textContent = (pulg ? pulg + '″' : '—')
+                + (res ? ' · ' + res : '');
+            const v = $r('te-cal');
+            if (cal.obsoleta === true) {
+                v.textContent = 'otra pantalla'; v.className = 'val obsoleta';
+            } else if (cal.calibrado === false) {
+                v.textContent = 'sin calibrar'; v.className = 'val obsoleta';
+            } else {
+                const pxmm = (cal.cssPxPerMM ?? 0).toFixed(3).replace('.', ',');
+                const conTarjeta = cal.source === 'tarjeta';
+                v.textContent = pxmm + ' px/mm';
+                v.className = 'val ' + (conTarjeta ? 'medido' : 'estimado');
+                v.title = conTarjeta ? 'medido con tarjeta' : 'estimado por las pulgadas declaradas';
+            }
+            $r('te-dist').textContent = (cal.testDistanceM ?? '—') + ' m';
         }
 
         /* Tres estados, y solo uno grita. Que el milímetro sea una estimación no

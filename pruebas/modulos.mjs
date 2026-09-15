@@ -165,6 +165,74 @@ export default async function pruebaModulos({ pc, tel, abrir }) {
     }
   }
 
+  /* ══ El menú dice en qué situación queda cada test ════════════════
+     Lo dice ANTES de entrar, para que el optometrista vea que Worth no cabe a
+     6 m sin entrar a leer un cartel rojo. El veredicto lo calcula la pantalla
+     y viaja en el espejo; esta comprobación exige que llegue, que sea de los
+     estados previstos, y que RESPONDA a la distancia — un veredicto que sale
+     igual a 6 m y a 2 m no está midiendo nada. */
+  const ESTADOS = ['correcto', 'adaptado', 'fuera', 'cerca', 'pendiente', 'sincal'];
+  const leerMenu = async () => {
+    await tel.click('.cabecera .atras').catch(() => {});
+    await tel.waitForTimeout(600);
+    return tel.evaluate(() => ({
+      tira: [...document.querySelectorAll('#tira-estado .val')].map(e => e.textContent.trim()),
+      filas: [...document.querySelectorAll('.fila-mod')].map(e => ({
+        titulo: e.querySelector('.tit').textContent.trim(),
+        tag: e.querySelector('.tag').textContent.trim(),
+        estado: e.querySelector('.tag').className.replace(/^tag\s*/, '').trim()
+      }))
+    }));
+  };
+
+  const menu = await leerMenu();
+  m.comprobar('el menú lista los ocho módulos con su veredicto',
+    menu.filas.length === 8 && menu.filas.every(f => f.tag && ESTADOS.includes(f.estado)),
+    menu.filas.map(f => f.tag + ' [' + f.estado + ']').join(' · '));
+
+  m.comprobar('la tira de estado dice pantalla, calibración y distancia',
+    menu.tira.length === 3 && menu.tira.every(t => t && t !== '—'),
+    menu.tira.join(' | '));
+
+  /* A 6 m, Worth no cabe con ningún tamaño clásico — el techo son 0,84° — y
+     Schober pierde rango. El menú tiene que decirlo sin entrar. */
+  const worth6 = menu.filas.find(f => /Worth/.test(f.titulo));
+  m.comprobar('a 6 m el menú avisa de que Worth no cabe',
+    worth6 && worth6.estado === 'fuera', worth6 ? `«${worth6.tag}» [${worth6.estado}]` : 'no encuentro la fila');
+
+  /* Y el veredicto tiene que MOVERSE con la distancia. Se cambia sembrando una
+     sala ya configurada, que es el único sitio donde se declara. */
+  await pc.evaluate(() => {
+    try {
+      const g = JSON.parse(localStorage.getItem('bvc') || '{}');
+      g.testDistanceM = 2; localStorage.setItem('bvc', JSON.stringify(g));
+    } catch (e) {}
+  });
+  await pc.reload();
+  await pc.evaluate(() => document.fonts.ready);
+  await pc.waitForTimeout(1600);
+  await pc.click('#card-cancel').catch(() => {});
+  await pc.waitForTimeout(600);
+  const menu2 = await leerMenu();
+  const worth2 = menu2.filas.find(f => /Worth/.test(f.titulo));
+  m.comprobar('a 2 m el mismo menú dice que Worth ya cabe',
+    worth2 && worth2.estado === 'correcto',
+    worth2 ? `«${worth2.tag}» [${worth2.estado}] · la tira dice ${menu2.tira[2]}`
+           : 'no encuentro la fila');
+
+  /* Y devolver la sala a 6 m, que es lo que esperan las pasadas de abajo. */
+  await pc.evaluate(() => {
+    try {
+      const g = JSON.parse(localStorage.getItem('bvc') || '{}');
+      g.testDistanceM = 6; localStorage.setItem('bvc', JSON.stringify(g));
+    } catch (e) {}
+  });
+  await pc.reload();
+  await pc.evaluate(() => document.fonts.ready);
+  await pc.waitForTimeout(1600);
+  await pc.click('#card-cancel').catch(() => {});
+  await pc.waitForTimeout(600);
+
   /* ══ La pasada por tamaños ═══════════════════════════════════
      Se agrega en una comprobación por tamaño en vez de 24 filas: lo que
      interesa es si ALGÚN módulo se rompe a ese ancho, y cuál. */

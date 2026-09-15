@@ -1747,6 +1747,62 @@
                 d.moduloNombre.textContent = 'sin calibrar · mida la pantalla con una tarjeta (tecla C)';
             }
 
+            /* ═══════════ EN QUÉ SITUACIÓN QUEDA CADA MÓDULO ═══════════
+               Una sola distancia para todos los test es lo operativamente
+               sensato, pero no es neutra: lejos favorece la agudeza y arruina el
+               campo, cerca al contrario. Cada módulo ya lo dice — en el nombre
+               que escribe al entrar —, pero solo DESPUÉS de entrar.
+
+               Esto lo dice ANTES, en el menú del mando, con la información que
+               el sistema ya calcula. La diferencia práctica: el optometrista ve
+               que Worth no cabe a 6 m sin tener que entrar a leer un cartel
+               rojo, y decide si acerca la silla antes de sentar al paciente.
+
+               Los tres de distancia fija no se juzgan: no negocian con la sala,
+               traen la suya. */
+            function veredictoModulo(m){
+                if (!m.hecho) return { estado: 'pendiente', etiqueta: 'pendiente' };
+                if (m.distFija != null) return { estado: 'cerca', etiqueta: 'a ' + m.distFija + ' m' };
+                if (!state.isCalibrated) return { estado: 'sincal', etiqueta: 'sin calibrar' };
+
+                if (m.id === 'worth') {
+                    const g = worthGeometria();
+                    if (g.tam.grados == null) return { estado: 'adaptado', etiqueta: g.grados.toFixed(2) + '°' };
+                    return g.cabe ? { estado: 'correcto', etiqueta: g.tam.label }
+                                  : { estado: 'fuera', etiqueta: 'no cabe' };
+                }
+                if (m.id === 'schober') {
+                    const g = schoberGeometria();
+                    if (g.anillos < 1) return { estado: 'fuera', etiqueta: 'sin rango' };
+                    return g.anillos >= 5 ? { estado: 'correcto', etiqueta: '±' + g.anillos + 'Δ' }
+                                          : { estado: 'adaptado', etiqueta: '±' + g.anillos + 'Δ' };
+                }
+                if (m.id === 'relax') {
+                    const g = relaxGeometria();
+                    /* Por debajo de 3 m el ojo ya tiene que acomodar 0,33 D, y el
+                       test existe precisamente para que no acomode. */
+                    if (distanciaModulo() < 3) return { estado: 'adaptado', etiqueta: 'hay demanda' };
+                    return g.limitado ? { estado: 'adaptado', etiqueta: g.grados.toFixed(1) + '°' }
+                                      : { estado: 'correcto', etiqueta: g.grados.toFixed(1) + '°' };
+                }
+                if (m.id === 'infantil') {
+                    const g = infGeometria();
+                    return g.limitado ? { estado: 'adaptado', etiqueta: g.grados.toFixed(1) + '°' }
+                                      : { estado: 'correcto', etiqueta: g.grados.toFixed(1) + '°' };
+                }
+                if (m.id === 'optotipos') {
+                    /* La línea más fina de la pantalla en curso: si su trazo baja
+                       de un píxel, la rejilla del monitor no puede dibujarla y la
+                       medida deja de ser fiable por abajo. */
+                    const finas = getCurrentScreen().lines
+                        .map(l => cssHeight(optotypeHeightMM(l.decimal, state.testDistanceM)) / 5 * liveDpr());
+                    const trazo = Math.min(...finas);
+                    return trazo < 1 ? { estado: 'adaptado', etiqueta: 'trazo ' + trazo.toFixed(1) + ' px' }
+                                     : { estado: 'correcto', etiqueta: 'correcto' };
+                }
+                return { estado: 'correcto', etiqueta: 'correcto' };
+            }
+
             /* El repartidor: decide qué capa se dibuja. El módulo de optotipos
                conserva su render entero e intacto; los demás dibujan en
                #modulo-area. Todo lo que llamaba a renderScreen() sigue valiendo. */
@@ -1854,7 +1910,9 @@
                 const m = moduloActual();
                 const datos = {
                     modulo: m.id,
-                    modulos: MODULOS.map(x => ({ id:x.id, titulo:x.titulo, sub:x.sub, grupo:x.grupo, hecho:x.hecho, distFija:x.distFija })),
+                    modulos: MODULOS.map(x => ({ id:x.id, titulo:x.titulo, sub:x.sub, grupo:x.grupo,
+                                                 hecho:x.hecho, distFija:x.distFija,
+                                                 ver: veredictoModulo(x) })),
                     recordarVolver: state.recordarVolver,
                     cal: {
                         testDistanceM: state.testDistanceM,
@@ -1862,6 +1920,9 @@
                         cssPxPerMM: state.cssPxPerMM,
                         source: state.calSource,
                         calibrado: state.isCalibrated,
+                        // para la tira de estado del menú del mando
+                        resolucion: state.resH + '×' + state.resV,
+                        pulgadas: +(+state.monitorInches).toFixed(1),
                         /* La barra de la pantalla ya avisaba de esto, pero dentro
                            de un módulo la barra está plegada y el pie escondido, y
                            el optometrista está mirando el móvil. Sin mandarlo, una

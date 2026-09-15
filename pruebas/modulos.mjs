@@ -242,6 +242,58 @@ export default async function pruebaModulos({ pc, tel, abrir }) {
   await tel.click('#amsler-ojo');   // devolverlo a como estaba
   await tel.waitForTimeout(400);
 
+  /* ══ Cortar el estímulo sin salir del test ════════════════════════
+     Hoy la pantalla del paciente se queda sin estímulo al volver al menú, y eso
+     ya funciona — pero volver al menú PIERDE el sitio: los anillos que habías
+     elegido, la lámina en la que estabas, el ojo en examen. Y taparle la
+     cartilla un momento —para explicarle algo, para que descanse, para ocluir
+     el otro ojo con calma— es de las cosas que más se hacen en una consulta.
+
+     Lo que se protege aquí: que el corte deje la pantalla del paciente sin
+     estímulo de verdad —no un estímulo escondido detrás de otra capa, que es el
+     defecto que ya cazamos una vez— que el mando lo diga, y que al reanudar
+     vuelva EL MISMO test con lo que estaba puesto. */
+  const capasConContenido = () => pc.evaluate(() => {
+    const vis = e => !!e && !e.classList.contains('oculto') && getComputedStyle(e).display !== 'none';
+    const area = document.getElementById('modulo-area');
+    const lin = document.getElementById('lines-container');
+    return {
+      estimulo: vis(area) ? area.querySelectorAll('svg, canvas, div').length : 0,
+      optotipos: vis(lin) ? lin.querySelectorAll('.optotype-text, img').length : 0,
+      nombre: (document.getElementById('modulo-nombre') || {}).textContent || ''
+    };
+  });
+
+  const nSch = await abrir('Schober');
+  await tel.locator('#schober-anillos button .g').filter({ hasText: /^7$/ }).first().click();
+  await tel.waitForTimeout(600);
+  const antesDeCortar = await capasConContenido();
+
+  const hayCorte = await tel.evaluate(() =>
+    !!document.querySelector('#corte-estimulo, [onclick*="Negro"]'));
+  m.comprobar('el mando puede cortar el estímulo sin salir del test', hayCorte,
+    hayCorte ? '' : 'no hay ningún control que corte el estímulo');
+
+  if (hayCorte) {
+    await tel.click('#corte-estimulo');
+    await tel.waitForTimeout(700);
+    const cortado = await capasConContenido();
+    m.comprobar('con el estímulo cortado la pantalla del paciente no dibuja nada',
+      cortado.estimulo === 0 && cortado.optotipos === 0,
+      `capa de estímulo ${cortado.estimulo} · optotipos ${cortado.optotipos}`);
+    m.comprobar('y la pantalla dice por qué está en negro',
+      /cortad|negro|pausa/i.test(cortado.nombre), `«${cortado.nombre.slice(0, 60)}»`);
+
+    await tel.click('#corte-estimulo');
+    await tel.waitForTimeout(700);
+    const tras = await capasConContenido();
+    m.comprobar('al reanudar vuelve el MISMO test con lo que estaba puesto',
+      tras.estimulo === antesDeCortar.estimulo && /7 anillos/.test(tras.nombre),
+      `antes «${antesDeCortar.nombre.slice(0, 40)}» · después «${tras.nombre.slice(0, 40)}»`);
+  }
+  await tel.locator('#schober-anillos button .g').filter({ hasText: /^5$/ }).first().click();
+  await tel.waitForTimeout(500);
+
   /* ══ El menú dice en qué situación queda cada test ════════════════
      Lo dice ANTES de entrar, para que el optometrista vea que Worth no cabe a
      6 m sin entrar a leer un cartel rojo. El veredicto lo calcula la pantalla

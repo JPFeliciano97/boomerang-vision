@@ -74,6 +74,24 @@ color implementa el método publicado de las líneas de confusión del CIE 1931,
 con numeración propia, y dice en el propio mando lo que no es: criba, no
 clasifica, y el color depende de lo que emita ese monitor.
 
+Hay dos juegos de láminas: cifras y **figuras**, para el niño que no dice
+«veintiséis». Es la misma prueba con otra máscara. Las siete siluetas están
+**calibradas**, no puestas a ojo: escala que deja el área en el 20 % del disco
+y brazo más estrecho por encima de tres puntos del mosaico, medido con una
+transformada de distancia. La tabla con las cifras está en el comentario de
+`COLOR_FIGURAS`. Una silueta fina no es una silueta: la estrella y la cruz
+salieron en 2,6 y 2,5 puntos y hubo que engordarlas.
+
+## Cortar el estímulo
+
+La pantalla del paciente se puede dejar en negro **sin salir del test**, desde
+el mando o con la tecla `N`. Volver al menú también la deja sin estímulo, pero
+pierde lo que había elegido — los anillos, la lámina, el ojo en examen — y
+taparle la cartilla un momento es de las cosas que más se hacen en una
+consulta. El corte apaga LAS DOS capas: esconder el estímulo y dejar los
+optotipos detrás es un defecto que ya apareció una vez, y en negro no se ve
+hasta que se reanuda. No se guarda: es un momento, no una preferencia.
+
 ## El lienzo de diseño
 
 Hay un lienzo publicado que describe la suite, con sus ficheros de trabajo

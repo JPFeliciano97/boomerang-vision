@@ -393,7 +393,51 @@
         .cuarteto .n { font-size: 13px; font-weight: 600; color: #e8e8e8; }
         .cuarteto .s { font-size: 10.5px; color: #777; }
 
+        /* El deslizador. 34 px de alto para el dedo, y la pista gruesa: se
+           mueve con el pulgar mientras el otro ojo mira al paciente, no con un
+           ratón. La luz era de tres botones y la justa para una retinoscopía
+           depende de la sala. */
+        .deslizador {
+            width: 100%; height: 34px; margin: 2px 0 4px; padding: 0;
+            accent-color: #f1c40f; background: transparent;
+        }
+        .cifra-grupo {
+            font-family: monospace; font-size: 11px; color: #f1c40f;
+            letter-spacing: 0; text-transform: none; float: right;
+        }
+
         .conmut.grande { min-height: 58px; margin-top: 10px; }
+
+        /* El corte de estímulo. Rojo solo cuando está CORTADO: en reposo es un
+           control más y no un aviso, y encendido tiene que verse desde el otro
+           lado de la sala — mientras está puesto, el paciente está mirando una
+           pantalla negra y eso no se puede olvidar. */
+        .corte {
+            display: flex; align-items: center; justify-content: space-between;
+            margin: 18px 0 6px; padding: 15px 14px; border-radius: 10px;
+            background: #1a1a1a; border: 1px solid #2f2f2f; color: inherit; font: inherit;
+            min-height: 56px; text-align: left;
+        }
+        .corte .et { font-size: 13px; font-weight: 700; letter-spacing: 0.6px; color: #bbb; }
+        .corte .val { font-family: monospace; font-size: 10px; color: #6a6a6a; }
+        .corte.on { background: #8e2b22; border-color: #c0392b; }
+        .corte.on .et { color: #fff; }
+        .corte.on .val { color: rgba(255,255,255,0.8); }
+
+        /* Con el estímulo cortado el espejo sigue enseñando lo que hay puesto
+           —el operador necesita saber qué va a reaparecer— pero LO DICE. Un
+           espejo que muestra una diana mientras el paciente mira una pantalla
+           negra estaría mintiendo, y este espejo existe precisamente para no
+           tener que fiarse de la memoria. */
+        #remote-screen.cortado { position: relative; }
+        #remote-screen.cortado::after {
+            content: 'PANTALLA EN NEGRO';
+            position: absolute; inset: 0;
+            display: flex; align-items: center; justify-content: center;
+            background: rgba(10,10,10,0.82);
+            font-family: monospace; font-size: 11px; letter-spacing: 2px;
+            color: #e7796b; border-radius: inherit;
+        }
         .conmut.grande .et { font-size: 14px; font-weight: 700; letter-spacing: 0.6px; }
 
         .aviso {
@@ -624,8 +668,10 @@
         <div id="panel-relax" class="bloque oculto">
             <div class="grupo-tit">Estímulo</div>
             <div class="lista-lam" id="relax-tipos"></div>
-            <div class="grupo-tit">Luz</div>
-            <div class="trio" id="relax-luces"></div>
+            <div class="grupo-tit">Luz <span id="relax-luz-val" class="cifra-grupo">35 %</span></div>
+            <input type="range" id="relax-luz-rango" class="deslizador"
+                   min="5" max="100" step="5" value="35"
+                   oninput="luzRelax(this.value)" onchange="luzRelax(this.value)">
             <div class="nota-geo" id="relax-geo"></div>
             <div class="aviso">
                 <div class="tit">Es lo contrario de un optotipo</div>
@@ -654,7 +700,9 @@
 
         <!-- Panel de las láminas de color -->
         <div id="panel-color" class="bloque oculto">
-            <div class="lectura">
+            <div class="grupo-tit">Juego de láminas</div>
+            <div class="trio" id="color-juegos"></div>
+            <div class="lectura" style="margin-top:6px;">
                 <div>
                     <div class="et">Lámina</div>
                     <div class="grande"><span id="color-n">1</span><span style="color:#555;font-size:20px;">/<span id="color-total">7</span></span></div>
@@ -692,6 +740,15 @@
                 <div style="font-size:11px; color:#777; margin-top:5px; line-height:1.5;" id="pendiente-txt"></div>
             </div>
         </div>
+
+        <!-- Cortar el estímulo. Fuera de los ocho paneles a propósito: es de la
+             pantalla, no de un test, y tiene que estar siempre a mano sin
+             importar en qué módulo se esté. Volver al menú también deja la
+             pantalla sin estímulo, pero pierde lo que había elegido. -->
+        <button class="bloque corte" id="corte-estimulo" onclick="enviar('Corte')">
+            <span class="et">PANTALLA EN NEGRO</span>
+            <span class="val" id="corte-val">el test sigue puesto</span>
+        </button>
     </div>
 
     <div id="pair-ask" class="hidden">
@@ -849,6 +906,7 @@
             const info = (data.modulos || []).find(m => m.id === mod)
                       || { id: mod, titulo: mod, sub: '', hecho: true, distFija: null };
             pintarCabecera(info, data);
+            pintarCorte(data);
             ver($r('panel-optotipos'), mod === 'optotipos');
             ver($r('panel-amsler'),    mod === 'amsler');
             ver($r('panel-pelli'),     mod === 'contraste');
@@ -932,6 +990,16 @@
                 else b.disabled = true;
                 cont.appendChild(b);
             });
+        }
+
+        function pintarCorte(data) {
+            const on = !!data.corte;
+            const b = $r('corte-estimulo');
+            b.classList.toggle('on', on);
+            $r('remote-screen').classList.toggle('cortado', on);
+            $r('corte-val').textContent = on ? 'CORTADO \u00b7 pulse para reanudar' : 'el test sigue puesto';
+            $r('corte-estimulo').querySelector('.et').textContent =
+                on ? 'REANUDAR EL EST\u00cdMULO' : 'PANTALLA EN NEGRO';
         }
 
         function pintarCabecera(info, data) {
@@ -1293,6 +1361,21 @@
             $r('color-resp').classList.toggle('on', !!c.mostrarResp);
             $r('color-resp-val').textContent = c.mostrarResp ? c.resp : 'oculta';
 
+            /* Dos juegos: cifras para quien lee y figuras para quien no. Es la
+               misma prueba —la misma línea de confusión y la misma
+               isoluminancia— con otra máscara, así que cambiar de juego
+               reinicia en la primera lámina: son dos cartillas, no dos vistas
+               de la misma. */
+            const juegos = $r('color-juegos');
+            juegos.innerHTML = '';
+            (c.juegos || []).forEach(j => {
+                const b = document.createElement('button');
+                b.className = j.id === c.juego ? 'sel' : '';
+                b.innerHTML = '<span class="g">' + j.nombre + '</span><span class="mm">' + j.sub + '</span>';
+                b.addEventListener('click', () => enviar('C:juego:' + j.id));
+                juegos.appendChild(b);
+            });
+
             const cont = $r('color-lista');
             cont.innerHTML = '';
             (c.laminas || []).forEach(l => {
@@ -1303,6 +1386,7 @@
                 b.querySelector('.n').textContent = l.id;
                 b.querySelector('.tri').textContent = l.que;
                 b.querySelector('.pct').textContent = l.tipo === 'demo' ? 'demo' : l.nombre;
+                b.title = l.resp || '';
                 b.addEventListener('click', () => enviar('C:lam:' + l.id));
                 cont.appendChild(b);
             });
@@ -1354,18 +1438,24 @@
                 b.addEventListener('click', () => enviar('R:tipo:' + t.id));
                 tipos.appendChild(b);
             });
-            const luces = $r('relax-luces');
-            luces.innerHTML = '';
-            (r.luces || []).forEach(l => {
-                const b = document.createElement('button');
-                b.className = l === r.luz ? 'sel' : '';
-                b.innerHTML = '<span class="g">' + l + '%</span>';
-                b.addEventListener('click', () => enviar('R:luz:' + l));
-                luces.appendChild(b);
-            });
+            /* El deslizador solo se reposiciona si el valor que llega es otro:
+               escribir el value en cada espejo mientras el dedo lo arrastra le
+               daría tirones, porque el eco del servidor llega con retraso. */
+            const rango = $r('relax-luz-rango');
+            if (r.luzMin != null) { rango.min = r.luzMin; rango.max = r.luzMax; rango.step = r.luzPaso; }
+            if (String(r.luz) !== rango.value) rango.value = String(r.luz ?? 35);
+            $r('relax-luz-val').textContent = (r.luz ?? 35) + ' %';
             $r('relax-geo').textContent = (r.grados ?? 0) + '\u00b0 = ' + (r.mm ?? 0) + ' mm a '
                 + (data.cal?.distanciaModulo ?? '—') + ' m  \u00b7  ' + (r.luz ?? 0) + '% de blanco'
                 + (r.limitado ? '  \u00b7  se pidieron ' + r.pedido + '\u00b0 y no caben a esta distancia' : '');
+        }
+
+        /* El rótulo se actualiza en el acto y el comando sale detrás: el
+           espejo tarda un ida y vuelta por el socket, y un número que va por
+           detrás del dedo se siente roto. */
+        function luzRelax(v) {
+            $r('relax-luz-val').textContent = v + ' %';
+            enviar('R:luz:' + v);
         }
 
         /* ═══════════ FIJACIÓN INFANTIL ═══════════ */

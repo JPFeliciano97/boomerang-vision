@@ -553,6 +553,7 @@
         <div><kbd>C</kbd> Configuración inicial</div>
         <div><kbd>H</kbd> Ocultar panel</div>
         <div><kbd>M</kbd> Volver a optotipos</div>
+        <div><kbd>N</kbd> Cortar el estímulo</div>
         <div><kbd>?</kbd> Este menú</div>
         <div style="margin-top:10px; font-size:9px; color:#aaa;">Escanea para control remoto:</div>
         <div id="qr-container"></div>
@@ -1067,7 +1068,19 @@
                 { id: 'difusa', nombre: 'Diana difusa',  sub: 'sin bordes · nada que enfocar' },
                 { id: 'punto',  nombre: 'Punto único',   sub: 'para dirigir la mirada' }
             ];
-            const RELAX_LUCES = ['15', '35', '60'];      // % de blanco
+            /* La luz, continua. Eran tres valores fijos —15, 35 y 60 %— y la
+               luz justa para una retinoscopía depende de la sala: de la lámpara
+               de techo, de la persiana y del propio retinoscopio. Con tres
+               escalones o sobra o falta, y el operador acababa eligiendo el
+               menos malo. En pasos de 5 % hay veinte, que es una rueda y no una
+               lista, y el mando la mueve con un deslizador.
+               El suelo son 5 % y no 0: con 0 la pantalla se queda negra y eso
+               ya tiene su propio control, el corte de estímulo. */
+            const RELAX_LUZ_MIN = 5, RELAX_LUZ_MAX = 100, RELAX_LUZ_PASO = 5;
+            const relaxLuzValida = v => {
+                const n = Math.round(Number(v) / RELAX_LUZ_PASO) * RELAX_LUZ_PASO;
+                return (n >= RELAX_LUZ_MIN && n <= RELAX_LUZ_MAX) ? n : null;
+            };
             const RELAX_GRADOS = 5;                      // el blanco difuso
             const RELAX_GRADOS_PUNTO = 0.5;
 
@@ -1082,7 +1095,7 @@
                 d.moduloArea.style.background = '#000000';
                 if (!state.isCalibrated) return avisoSinCalibrar();
                 const g = relaxGeometria();
-                const luz = (parseInt(state.relaxLuz, 10) || 35) / 100;
+                const luz = (relaxLuzValida(state.relaxLuz) || 35) / 100;
                 if (state.relaxTipo === 'punto') {
                     const c = Math.round(255 * luz);
                     d.moduloArea.innerHTML =
@@ -1120,7 +1133,11 @@
             function relaxComando(resto){
                 const [que, valor] = resto.split(':');
                 if (que === 'tipo' && RELAX_TIPOS.some(t => t.id === valor)) state.relaxTipo = valor;
-                else if (que === 'luz' && RELAX_LUCES.includes(valor)) state.relaxLuz = valor;
+                else if (que === 'luz') {
+                    const n = relaxLuzValida(valor);
+                    if (n == null) return;
+                    state.relaxLuz = n;
+                }
                 else return;
                 renderScreen(); saveToStorage();
             }
@@ -1321,6 +1338,89 @@
                 return { x: fondo.x + s * dx, y: fondo.y + s * dy, t: s };
             }
 
+            /* ── Figuras, para quien no lee números ──
+               Un niño de tres años no dice «veintiséis», y sin esto el módulo
+               de color no se le puede pasar. Es el mismo test —la misma línea
+               de confusión, la misma isoluminancia— con otra máscara: en vez
+               de una cifra, una silueta que el niño nombra o señala.
+
+               Siluetas MACIZAS y a propósito: el mosaico tiene 30 puntos de
+               ancho, así que un trazo fino se queda en dos puntos y deja de
+               ser una forma. Nada de contornos ni de lunas: círculo, cuadrado,
+               triángulo, estrella, corazón, cruz y casa, todas rellenas y
+               todas con el brazo más estrecho por encima de tres puntos.
+
+               Se dibujan en una caja de lado 1 centrada en el origen y cada
+               una trae su escala medida, abajo. */
+            /* Cada figura trae su ESCALA, y las siete están calibradas, no
+               puestas a ojo. El procedimiento: buscar la escala que deja el
+               área de la silueta en el 20 % del disco —el doble que una cifra
+               de dos dígitos, que es lo que un niño necesita— y medir después
+               el ancho del brazo más estrecho con una transformada de
+               distancia, en puntos del mosaico. Medido así:
+
+                 figura      escala   área   brazo
+                 círculo     0,448    20 %   4,1 puntos
+                 cuadrado    0,429    20 %   3,5
+                 corazón     0,554    20 %   3,6
+                 casa        0,507    20 %   3,4
+                 estrella    0,535    20 %   3,3
+                 triángulo   0,566    20 %   3,2
+                 cruz        0,496    26 %   3,1
+
+               La estrella y la cruz salieron primero en 2,6 y 2,5 puntos, por
+               debajo del borrón. La estrella se arregló ENGORDÁNDOLA en vez de
+               agrandándola —el radio interior subió de 0,48 a 0,64 del
+               exterior— porque crecer la habría dejado comiéndose el disco, y
+               sin fondo alrededor no hay nada en lo que esconderse.
+
+               La cruz no se deja: es casi toda brazo, así que engordarla la
+               convierte en un octógono —medido: con el brazo en 0,26 deja de
+               leerse como cruz— y adelgazarla la rompe. A esa figura hubo que
+               darle sitio: el 26 % del disco en vez del 20 %, que es lo que
+               pone su brazo en 3,1 puntos con la forma intacta.
+
+               Tres puntos de brazo bastan aquí y en una cifra no: en un 5 lo
+               que lleva la identidad es el TRAZO, y si el trazo se rompe el 5
+               deja de ser un 5. En una silueta maciza la identidad está en el
+               contorno, y el contorno sobrevive. */
+            const COLOR_FIGURAS = {
+                circulo: { nombre: 'círculo', escala: 0.448,
+                    trazar: k => { k.arc(0, 0, 0.5, 0, Math.PI * 2); } },
+                cuadrado: { nombre: 'cuadrado', escala: 0.429,
+                    trazar: k => { k.rect(-0.46, -0.46, 0.92, 0.92); } },
+                triangulo: { nombre: 'triángulo', escala: 0.566, trazar: k => {
+                    k.moveTo(0, -0.52); k.lineTo(0.52, 0.42); k.lineTo(-0.52, 0.42); k.closePath(); } },
+                estrella: { nombre: 'estrella', escala: 0.535, trazar: k => {
+                    const R = 0.54, r = R * 0.64;
+                    for (let i = 0; i < 10; i++) {
+                        const ang = -Math.PI / 2 + i * Math.PI / 5;
+                        const rad = i % 2 ? r : R;
+                        const x = Math.cos(ang) * rad, y = Math.sin(ang) * rad;
+                        i ? k.lineTo(x, y) : k.moveTo(x, y);
+                    }
+                    k.closePath(); } },
+                corazon: { nombre: 'corazón', escala: 0.554, trazar: k => {
+                    k.moveTo(0, 0.52);
+                    k.bezierCurveTo(-0.74, 0.02, -0.40, -0.56, 0, -0.20);
+                    k.bezierCurveTo(0.40, -0.56, 0.74, 0.02, 0, 0.52);
+                    k.closePath(); } },
+                cruz: { nombre: 'cruz', escala: 0.496, trazar: k => {
+                    const b = 0.22, l = 0.58;
+                    k.moveTo(-b, -l); k.lineTo(b, -l); k.lineTo(b, -b); k.lineTo(l, -b);
+                    k.lineTo(l, b); k.lineTo(b, b); k.lineTo(b, l); k.lineTo(-b, l);
+                    k.lineTo(-b, b); k.lineTo(-l, b); k.lineTo(-l, -b); k.lineTo(-b, -b);
+                    k.closePath(); } },
+                casa: { nombre: 'casa', escala: 0.507, trazar: k => {
+                    k.moveTo(-0.50, -0.06); k.lineTo(0, -0.52); k.lineTo(0.50, -0.06);
+                    k.lineTo(0.34, -0.06); k.lineTo(0.34, 0.50); k.lineTo(-0.34, 0.50);
+                    k.lineTo(-0.34, -0.06); k.closePath(); } }
+            };
+            const COLOR_JUEGOS = [
+                { id: 'numeros', nombre: 'Números', sub: 'para quien lee' },
+                { id: 'figuras', nombre: 'Figuras', sub: 'para niños' }
+            ];
+
             /* Las láminas. La cifra y el eje son decisiones propias: no se
                replica la secuencia de ninguna cartilla comercial.
                  demo     -> la ve todo el mundo; confirma que entiende la tarea
@@ -1343,6 +1443,34 @@
                 { id:7, tipo:'oculta',    eje:'tritan', digito:'45', resp:'45',
                   que:'Desaparece para el tritán' }
             ];
+
+            /* El mismo reparto de ejes que el juego de cifras: una de
+               demostración y dos por cada eje. Lo único que cambia es la
+               máscara y que la respuesta es una palabra. */
+            const COLOR_LAMINAS_FIGURAS = [
+                { id:1, tipo:'demo',   eje:'deutan', figura:'circulo',
+                  que:'Demostración · la ve cualquiera' },
+                { id:2, tipo:'oculta', eje:'protan', figura:'cuadrado',
+                  que:'Desaparece para el protán' },
+                { id:3, tipo:'oculta', eje:'protan', figura:'estrella',
+                  que:'Desaparece para el protán' },
+                { id:4, tipo:'oculta', eje:'deutan', figura:'triangulo',
+                  que:'Desaparece para el deután' },
+                { id:5, tipo:'oculta', eje:'deutan', figura:'corazon',
+                  que:'Desaparece para el deután' },
+                { id:6, tipo:'oculta', eje:'tritan', figura:'cruz',
+                  que:'Desaparece para el tritán' },
+                { id:7, tipo:'oculta', eje:'tritan', figura:'casa',
+                  que:'Desaparece para el tritán' }
+            ].map(l => ({ ...l, resp: COLOR_FIGURAS[l.figura].nombre }));
+
+            /* El juego en curso. Cambiar de juego reinicia en la primera lámina
+               y esconde la respuesta: son dos cartillas distintas, no dos vistas
+               de la misma, y seguir en la lámina 5 al cambiar sería enseñarle al
+               paciente una figura donde esperaba una cifra. */
+            function colorLaminas(){
+                return state.colorJuego === 'figuras' ? COLOR_LAMINAS_FIGURAS : COLOR_LAMINAS;
+            }
 
             /* Determinista y por POSICIÓN, no secuencial. Con un generador
                lineal recorrido en orden de rejilla los valores consecutivos
@@ -1392,7 +1520,8 @@
             function renderColor(){
                 d.moduloArea.style.background = '#101010';
                 if (!state.isCalibrated) return avisoSinCalibrar();
-                const lam = COLOR_LAMINAS.find(l => l.id === state.colorLamina) || COLOR_LAMINAS[0];
+                const juego = colorLaminas();
+                const lam = juego.find(l => l.id === state.colorLamina) || juego[0];
                 const g = colorGeometria();
                 const D = Math.round(g.px);
 
@@ -1418,22 +1547,41 @@
                 const figuraDemo = lam.tipo === 'demo'
                     ? { x: fondo.x + vy / n * 0.10, y: fondo.y - vx / n * 0.10 } : null;
 
-                const mascara = (txt, dx) => {
+                /* La máscara: blanco donde va la figura, negro donde va el
+                   fondo. Da igual que sea una cifra o una silueta — el mosaico
+                   solo pregunta «¿este punto cae dentro?». */
+                const lienzoMascara = () => {
                     const c = document.createElement('canvas');
                     c.width = D; c.height = D;
                     const k = c.getContext('2d');
                     k.fillStyle = '#000'; k.fillRect(0, 0, D, D);
                     k.fillStyle = '#fff';
+                    return k;
+                };
+                /* Figura grande a propósito: con 30 puntos a lo ancho, una
+                   cifra del 46% del disco deja el trazo en 2,8 puntos y se
+                   lee como un borrón. Al 60% el trazo son 3,6 y tiene forma. */
+                const LADO = 0.60;
+                const mascaraCifra = (txt, dx) => {
+                    const k = lienzoMascara();
                     k.textAlign = 'center'; k.textBaseline = 'middle';
-                    /* Cifra grande a propósito: con 30 puntos a lo ancho, una
-                       cifra del 46% del disco deja el trazo en 2,8 puntos y se
-                       lee como un borrón. Al 60% el trazo son 3,6 y la cifra
-                       tiene forma. */
-                    k.font = `${Math.round(D * 0.60)}px ${OPTOTYPE_FONT}, Arial Black, sans-serif`;
+                    k.font = `${Math.round(D * LADO)}px ${OPTOTYPE_FONT}, Arial Black, sans-serif`;
                     k.fillText(txt, D / 2 + (dx || 0), D / 2);
                     return k.getImageData(0, 0, D, D).data;
                 };
-                const m1 = mascara(lam.digito, 0);
+                const mascaraFigura = id => {
+                    const f = COLOR_FIGURAS[id];
+                    const k = lienzoMascara();
+                    k.save();
+                    k.translate(D / 2, D / 2);
+                    k.scale(D * f.escala, D * f.escala);
+                    k.beginPath();
+                    f.trazar(k);
+                    k.restore();
+                    k.fill();
+                    return k.getImageData(0, 0, D, D).data;
+                };
+                const m1 = lam.figura ? mascaraFigura(lam.figura) : mascaraCifra(lam.digito, 0);
 
                 const lienzo = document.createElement('canvas');
                 lienzo.width = D; lienzo.height = D;
@@ -1484,7 +1632,8 @@
 
                 d.moduloArea.innerHTML = '';
                 d.moduloArea.appendChild(lienzo);
-                d.moduloNombre.textContent = `Color · lámina ${lam.id}/${COLOR_LAMINAS.length} · ${lam.que} · `
+                d.moduloNombre.textContent = `Color · ${lam.figura ? 'figuras' : 'números'} · `
+                    + `lámina ${lam.id}/${juego.length} · ${lam.que} · `
                     + `${g.grados.toFixed(1)}° = ${g.mm.toFixed(0)} mm a ${distanciaModulo()} m · `
                     + `${puntos} puntos de ${g.minMin.toFixed(0)}′ a ${g.maxMin.toFixed(0)}′`
                     + (state.colorResp ? ` · RESPUESTA ${lam.resp}` : '');
@@ -1495,8 +1644,13 @@
                 if (que === 'lam') {
                     const n = valor === 'sig' ? state.colorLamina + 1
                             : valor === 'ant' ? state.colorLamina - 1 : parseInt(valor, 10);
-                    if (!(n >= 1 && n <= COLOR_LAMINAS.length)) return;
+                    if (!(n >= 1 && n <= colorLaminas().length)) return;
                     state.colorLamina = n; state.colorResp = false;
+                } else if (que === 'juego') {
+                    if (!COLOR_JUEGOS.some(j => j.id === valor)) return;
+                    if (valor === state.colorJuego) return;
+                    state.colorJuego = valor;
+                    state.colorLamina = 1; state.colorResp = false;
                 } else if (que === 'resp') state.colorResp = !state.colorResp;
                 else if (que === 'nueva') state.colorSemilla = (state.colorSemilla + 1) % 1000;
                 else return;
@@ -1542,14 +1696,14 @@
                 singleCharMode: false,
                 lineChars:{},
                 // módulo activo y estado de los que no son optotipos
-                modulo:'optotipos',
+                modulo:'optotipos', corte:false,
                 amslerLamina:'blanco', amslerDiagonales:false, amslerOjo:'OD',
                 pelliFila:1, pelliSemilla:0,
                 worthOjoRojo:'OD',
                 schoberAnillos:'5', schoberInvertido:false, schoberOjoRojo:'OD',
-                relaxTipo:'difusa', relaxLuz:'35',
+                relaxTipo:'difusa', relaxLuz:35,
                 infMovimiento:'rebote', infFigura:'pelota', infVelocidad:'media', infCongelado:false,
-                colorLamina:1, colorResp:false, colorSemilla:0,
+                colorJuego:'numeros', colorLamina:1, colorResp:false, colorSemilla:0,
             };
 
             const $ = id => document.getElementById(id);
@@ -1966,6 +2120,27 @@
                     d.btnToggle.textContent = esOpto ? '▲' : '▼';
                     moduloPintado = m.id;
                 }
+                /* ── El corte de estímulo ──
+                   Taparle la pantalla al paciente un momento —para explicarle
+                   algo, para que descanse, para ocluirle el otro ojo con
+                   calma— es de las cosas que más se hacen en una consulta.
+                   Volver al menú ya dejaba la pantalla sin estímulo, pero
+                   PIERDE el sitio: los anillos elegidos, la lámina en curso,
+                   el ojo en examen. Así que el corte es un estado aparte: el
+                   test sigue puesto y solo deja de dibujarse.
+
+                   Se apagan LAS DOS capas, no una. Esconder el estímulo y
+                   dejar los optotipos detrás es exactamente el defecto que ya
+                   apareció una vez, y en negro no se ve hasta que se reanuda. */
+                if (state.corte) {
+                    d.linesContainer.classList.add('oculto');
+                    d.moduloArea.classList.remove('oculto');
+                    d.moduloArea.style.background = '#000000';
+                    d.moduloArea.innerHTML = '';
+                    d.testArea.classList.remove('bichromatic');
+                    d.moduloNombre.textContent = 'estímulo CORTADO · ' + m.titulo + ' sigue puesto';
+                    return;
+                }
                 if (esOpto) {
                     d.testArea.style.background = '';
                     d.moduloNombre.textContent = '';
@@ -2009,9 +2184,25 @@
                hacia otro que NO la trae fija se levanta el recordatorio. Medir
                agudeza con el paciente todavía a 1 m es el error que esto evita,
                y es silencioso: los optotipos saldrían perfectos y mal medidos. */
+            /* El corte no se guarda en localStorage: es un momento, no una
+               preferencia. Si el navegador se reinicia con la pantalla cortada,
+               el paciente se quedaría mirando un negro que nadie recuerda haber
+               puesto. */
+            function cortarEstimulo(){
+                state.corte = !state.corte;
+                renderScreen();
+                emitirEspejo();
+            }
+
             function entrarModulo(id){
                 const destino = MODULO[id];
                 if (!destino || id === state.modulo) return;
+                /* Entrar en OTRO test levanta el corte: si no, el operador
+                   elige un módulo y la pantalla sigue negra sin decir por qué
+                   —y el corte se pensó para tapar este test un momento, no para
+                   quedarse puesto. Va después del guardia: volver a pulsar el
+                   módulo en el que ya estás no debe reanudar nada. */
+                state.corte = false;
                 const salgo = moduloActual();
                 /* Aquí se encendía un aviso de «el paciente sigue acercado» al salir
                    de un módulo de 1 m hacia uno de sala. Se quitó por redundante:
@@ -2070,7 +2261,8 @@
                            desconectado del monitor de la consulta— dejaba los ocho
                            módulos midiendo con una estimación que parecía medida. */
                         obsoleta: state.calStale
-                    }
+                    },
+                    corte: state.corte
                 };
                 if (m.id === 'optotipos' && state.isCalibrated) {
                     const screen = getCurrentScreen();
@@ -2198,12 +2390,19 @@
                     };
                 } else if (m.id === 'color') {
                     const g = state.isCalibrated ? colorGeometria() : null;
-                    const lam = COLOR_LAMINAS.find(l => l.id === state.colorLamina) || COLOR_LAMINAS[0];
+                    const juegoColor = colorLaminas();
+                    const lam = juegoColor.find(l => l.id === state.colorLamina) || juegoColor[0];
                     datos.color = {
+                        juego: state.colorJuego,
+                        juegos: COLOR_JUEGOS,
                         lamina: state.colorLamina,
-                        total: COLOR_LAMINAS.length,
-                        laminas: COLOR_LAMINAS.map(l => ({ id:l.id, tipo:l.tipo, eje:l.eje,
-                                                           nombre: COPUNTUALES[l.eje].nombre, que:l.que })),
+                        total: juegoColor.length,
+                        /* La respuesta de cada lámina viaja en la lista: con
+                           figuras es una palabra y el mando la enseña tal cual,
+                           en vez de repetir aquí el nombre de la silueta. */
+                        laminas: juegoColor.map(l => ({ id:l.id, tipo:l.tipo, eje:l.eje,
+                                                        nombre: COPUNTUALES[l.eje].nombre,
+                                                        que:l.que, resp:l.resp })),
                         tipo: lam.tipo, eje: lam.eje, ejeNombre: COPUNTUALES[lam.eje].nombre,
                         que: lam.que,
                         resp: lam.resp,
@@ -2220,7 +2419,9 @@
                         tipo: state.relaxTipo,
                         tipos: RELAX_TIPOS,
                         luz: state.relaxLuz,
-                        luces: RELAX_LUCES,
+                        luzMin: RELAX_LUZ_MIN,
+                        luzMax: RELAX_LUZ_MAX,
+                        luzPaso: RELAX_LUZ_PASO,
                         grados: g ? +g.grados.toFixed(2) : 0,
                         pedido: g ? g.pedido : 0,
                         limitado: g ? g.limitado : false,
@@ -2459,7 +2660,7 @@
                     if(SCHOBER_ANILLOS.some(r => r.id === saved.schoberAnillos)) state.schoberAnillos = saved.schoberAnillos;
                     if(typeof saved.schoberInvertido==='boolean') state.schoberInvertido=saved.schoberInvertido;
                     if(RELAX_TIPOS.some(t=>t.id===saved.relaxTipo)) state.relaxTipo=saved.relaxTipo;
-                    if(RELAX_LUCES.includes(saved.relaxLuz)) state.relaxLuz=saved.relaxLuz;
+                    if(relaxLuzValida(saved.relaxLuz) != null) state.relaxLuz=relaxLuzValida(saved.relaxLuz);
                     if(INF_MOVIMIENTOS.some(x=>x.id===saved.infMovimiento)) state.infMovimiento=saved.infMovimiento;
                     if(INF_FIGURAS.some(f=>f.id===saved.infFigura)) state.infFigura=saved.infFigura;
                     if(INF_VELOCIDADES.some(v=>v.id===saved.infVelocidad)) state.infVelocidad=saved.infVelocidad;
@@ -2756,6 +2957,10 @@
                 else if(e.key==='u'||e.key==='U'){ if(!e.ctrlKey&&!e.metaKey) toggleSingleCharMode(); }
                 else if(e.key==='c'||e.key==='C'){ if(!e.ctrlKey&&!e.metaKey) openCardCal(); }
                 else if(e.key==='h'||e.key==='H'){ if(!e.ctrlKey&&!e.metaKey) toggleCalPanel(); }
+                /* N de negro. La pantalla tiene que poder cortarse sin el móvil:
+                   es el uso más común de todos —la pantalla sola— y taparla es
+                   justo lo que se hace cuando alguien entra en la sala. */
+                else if(e.key==='n'||e.key==='N'){ if(!e.ctrlKey&&!e.metaKey) cortarEstimulo(); }
                 else if(e.key==='?') toggleShortcuts();
                 else if(e.key==='Escape'){ if(!d.shortcutsPanel.classList.contains('hidden')) toggleShortcuts(); }
             });
@@ -2802,7 +3007,12 @@
                 socket.on('peers', (n) => updateRemoteStatus(n));
                 socket.on('disconnect', () => { state.remoteJoined = false; updateRemoteStatus(0); });
                 socket.on('comando', (cmd) => {
-                    if (cmd.startsWith('Modulo:')) {
+                    if (cmd === 'Corte') {
+                        /* Vale en cualquier módulo, optotipos incluido: la
+                           pantalla del paciente es una sola y taparla no
+                           depende de qué test esté puesto. */
+                        cortarEstimulo();
+                    } else if (cmd.startsWith('Modulo:')) {
                         entrarModulo(cmd.slice(7));
                     } else if (cmd.startsWith('A:')) {
                         if (state.modulo === 'amsler') amslerComando(cmd.slice(2));

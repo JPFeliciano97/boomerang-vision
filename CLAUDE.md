@@ -117,6 +117,21 @@ entera de entrada— con `user-scalable=no` y `touch-action: pan-y`: solo se
 desplaza arriba y abajo. Aquí no hay nada que ampliar, y un pellizco con prisa
 deja la interfaz desplazada y al operador buscando el botón.
 
+**`touch-action` y `overscroll-behavior` van SOLO en el `<html>`, que es el que
+desplaza.** Ponerlos también en el `body` se llevó por delante el
+desplazamiento entero: con un `overflow` distinto de `visible` el `body` se
+convierte en scroll container, y uno sin nada que desplazar se queda el gesto
+del dedo; con `overscroll-behavior: none` ni lo encadena hacia arriba. Las
+opciones de abajo quedaron inalcanzables en el móvil. Para recortar a lo ancho
+sin crear un scroll container, `overflow-x: clip` en el `body`.
+
+El dedo **no es medible** en las pruebas: el gesto sintético de CDP no respeta
+`touch-action` —desliza incluso con `none`— y el que sí lo respeta no mueve
+nada en headless. Y la rueda del ratón no delata el defecto, porque Chromium la
+encadena con otras reglas. Así que lo que se comprueba es el invariante:
+**entre los controles y el que desplaza no puede haber un scroll container sin
+nada que desplazar.**
+
 **Los avisos largos van plegados.** Tres paneles llevan un párrafo que hay que
 poder leer pero que se lee una vez; el del color medía 208 px de los 1.447 del
 panel. El **título sigue delante** —la advertencia no se esconde— y el

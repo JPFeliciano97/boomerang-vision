@@ -1,0 +1,49 @@
+# Las 72+ comprobaciones sobre navegador, en cada push y en cada pull request.
+#
+# Sin esto la suite solo corre cuando alguien se acuerda, y lo que protege
+# —geometría en píxeles: que el 20/20 mida 8,727 mm, que la rejilla de Amsler
+# tenga sus cuatro contornos— es justo lo que se rompe sin que nadie lo note.
+name: pruebas
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  navegador:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # Solo lo que el servidor necesita de verdad.
+      - name: Dependencias del servidor
+        run: npm ci
+
+      # Playwright NO entra en package.json a propósito. El servidor no la
+      # necesita, arrastra un navegador de cientos de megas, y este proyecto se
+      # despliega en Render: meterla como devDependency significa que un
+      # `npm ci` en producción se baje Chromium para nada. Con --no-save no se
+      # toca ni el manifiesto ni el lock.
+      #
+      # La versión va fijada: con un rango, una actualización de Playwright
+      # rompería el CI un martes cualquiera sin que nadie haya tocado el código.
+      - name: Playwright, solo para esta ejecución
+        run: npm install --no-save playwright@1.56.1
+
+      - name: Chromium
+        run: npx playwright install --with-deps chromium
+
+      # El corredor sale con 0 si todo pasa, 1 si algo falla y 2 si NO PUDO
+      # EJECUTARSE. Los tres códigos son distintos a propósito: una suite que
+      # sale en verde sin haberse ejecutado es peor que no tenerla.
+      - name: npm test
+        run: npm test
+        env:
+          NO_COLOR: '1'

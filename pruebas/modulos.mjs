@@ -294,6 +294,85 @@ export default async function pruebaModulos({ pc, tel, abrir }) {
   await tel.locator('#schober-anillos button .g').filter({ hasText: /^5$/ }).first().click();
   await tel.waitForTimeout(500);
 
+  /* La tecla N, DENTRO de un módulo. En la pantalla sola siempre se está en
+     optotipos, así que allí la N nunca topa con la lista blanca de teclas que
+     sobreviven fuera de optotipos — y es justo dentro de un módulo donde hace
+     falta: el optometrista está de pie junto al PC, entra alguien en la sala y
+     el panel de atajos anuncia la tecla sin condiciones. */
+  await abrir('Rejilla de Amsler');
+  await pc.keyboard.press('n');
+  await pc.waitForTimeout(500);
+  const conN = await capasConContenido();
+  m.comprobar('la tecla N del PC corta el estímulo también dentro de un módulo',
+    conN.estimulo === 0 && conN.optotipos === 0 && /CORTAD/i.test(conN.nombre),
+    `estímulo ${conN.estimulo} · «${conN.nombre.slice(0, 46)}»`);
+  await pc.keyboard.press('n');
+  await pc.waitForTimeout(500);
+
+  /* ══ Un mando que se recarga tiene que reconstruirse del espejo ══════
+     El mando no guarda estado de navegación a propósito: lo pinta todo de lo
+     que le llega por el socket. Eso vale mientras la pantalla SIGA emitiendo,
+     y hay dos sitios donde dejó de hacerlo.
+
+     Con el estímulo cortado: si la pantalla no emite mientras está en negro,
+     un móvil que se recarga —o uno nuevo que entra a la sala— se queda para
+     siempre en «esperando la pantalla…», con las dos vistas ocultas y sin
+     botón con el que reanudar. La pantalla del paciente en negro y el mando
+     sin forma de sacarla es el peor estado de todo este sistema.
+
+     Y el modo de optotipo: el espejo lleva `mode`, pero si el mando solo
+     atiende al evento de cambio, tras recargarse marca «Letras» mientras el
+     paciente está viendo LEA. Un mando que dice otra cosa que la pantalla es
+     lo que esta suite entera existe para evitar. */
+  const mandoVivo = () => tel.evaluate(() => ({
+    enModulo: !document.getElementById('vista-modulo').classList.contains('oculto'),
+    enMenu: !document.getElementById('vista-menu').classList.contains('oculto'),
+    corteOn: !!document.querySelector('#corte-estimulo.on'),
+    modo: (document.querySelector('#mode-buttons button.sel') || {}).textContent || '—',
+    titulo: (document.getElementById('mod-titulo') || {}).textContent || ''
+  }));
+
+  await abrir('Schober');
+  await tel.click('#corte-estimulo');
+  await tel.waitForTimeout(700);
+  await tel.reload();
+  await tel.evaluate(() => document.fonts.ready);
+  await tel.waitForTimeout(3000);
+  const trasRecarga = await mandoVivo();
+  m.comprobar('con el estímulo cortado, un mando que se recarga se reconstruye',
+    trasRecarga.enModulo && /Schober/.test(trasRecarga.titulo),
+    trasRecarga.enModulo ? `vuelve a «${trasRecarga.titulo}»`
+                         : 'las dos vistas ocultas: el mando se quedó esperando la pantalla');
+  m.comprobar('y encuentra el botón con el que reanudar, encendido',
+    trasRecarga.corteOn,
+    trasRecarga.corteOn ? '' : 'el botón de corte no está marcado: no se sabe que la pantalla está en negro');
+  /* Se reanuda recargando la PANTALLA, no pulsando el botón del mando: si el
+     mando está roto —que es justo lo que esta comprobación mide— pulsarlo se
+     queda esperando treinta segundos y rompe la suite entera en vez de dar un
+     fallo legible. El corte no se guarda, así que un F5 lo levanta siempre. */
+  await pc.reload();
+  await pc.evaluate(() => document.fonts.ready);
+  await pc.waitForTimeout(1800);
+  await pc.click('#card-cancel').catch(() => {});
+  await pc.waitForTimeout(2600);
+
+  /* El modo de optotipo, por el mismo camino. */
+  await tel.locator('#mode-buttons button').filter({ hasText: 'LEA' }).first().click()
+    .catch(() => {});
+  await tel.waitForTimeout(700);
+  const enPantalla = await pc.evaluate(() =>
+    document.querySelectorAll('#lines-container img').length > 0 ? 'LEA' : 'texto');
+  await tel.reload();
+  await tel.evaluate(() => document.fonts.ready);
+  await tel.waitForTimeout(3000);
+  const modoTras = await mandoVivo();
+  m.comprobar('y el modo de optotipo que marca el mando es el que dibuja la pantalla',
+    /LEA/.test(modoTras.modo) && enPantalla === 'LEA',
+    `la pantalla dibuja ${enPantalla} y el mando marca «${modoTras.modo.trim()}»`);
+  await tel.locator('#mode-buttons button').filter({ hasText: 'Letras' }).first().click()
+    .catch(() => {});
+  await tel.waitForTimeout(600);
+
   /* ══ El menú dice en qué situación queda cada test ════════════════
      Lo dice ANTES de entrar, para que el optometrista vea que Worth no cabe a
      6 m sin entrar a leer un cartel rojo. El veredicto lo calcula la pantalla

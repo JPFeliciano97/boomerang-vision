@@ -767,19 +767,16 @@
             }
 
             /* ═══════════ PELLI-ROBSON ═══════════
-               Ocho niveles a la vez con pasos de 0,30 log, de log CS 0,00 a
-               2,10. Con 16 pasos de 0,15 se gana resolución pero no caben en
-               pantalla, y el número de filas es justo lo que fija el tamaño de
-               letra: ocho letras más siete separaciones de media letra son 11,5
-               alturas, así que el alto de la pantalla dividido por 11,5 ES la
-               letra. De ahí sale el 1 m fijo: a 6 m esa letra daría 0,25° y el
-               paciente fallaría por agudeza y no por contraste.
+               Los niveles a la vez, y el número de filas es justo lo que fija el
+               tamaño de letra: cinco letras más cuatro separaciones de media
+               letra son 7 alturas, y con un cuarto de margen arriba y abajo, 7,5
+               — así que el alto de la pantalla dividido por 7,5 ES la letra. De
+               ahí sale el 1 m fijo: a 6 m esa letra daría 0,38° y el paciente
+               fallaría por agudeza y no por contraste.
 
                La tinta no es una opacidad: es el código que hay que pedirle al
                panel para que la letra tenga el contraste de Weber del nivel. Con
-               gamma 2,2, código = 255·(1−c)^(1/2,2). Los dos niveles más tenues
-               salen en el 253 y el 254 de 255, o sea a uno y dos pasos del
-               blanco: ahí manda el panel y no la prueba, y el módulo lo dice. */
+               gamma 2,2, código = 255·(1−c)^(1/2,2). */
             /* Cinco filas de 0 a 1,00 log CS, en pasos de 0,25.
                Eran ocho de 0 a 2,10 en pasos de 0,30, y eso no se podía usar:
                por encima de 1,00 log estos monitores no enseñan NADA — los dos
@@ -2139,6 +2136,15 @@
                     d.moduloArea.innerHTML = '';
                     d.testArea.classList.remove('bichromatic');
                     d.moduloNombre.textContent = 'estímulo CORTADO · ' + m.titulo + ' sigue puesto';
+                    /* Y SE SIGUE EMITIENDO EL ESPEJO. Este return salía antes del
+                       emitirEspejo() del final y dejaba a la pantalla muda
+                       mientras estaba en negro: un móvil que se recargaba —o uno
+                       nuevo que entraba en la sala— se quedaba para siempre en
+                       «esperando la pantalla», con las dos vistas ocultas y sin
+                       botón con el que reanudar. La pantalla del paciente en
+                       negro y el mando sin forma de sacarla es el peor estado de
+                       todo este sistema. */
+                    emitirEspejo();
                     return;
                 }
                 if (esOpto) {
@@ -2939,9 +2945,17 @@
                 }
                 if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) e.preventDefault();
                 /* Fuera del módulo de optotipos solo siguen vivos los atajos que
-                   valen en cualquiera: calibrar, la barra, los atajos, salir. El
-                   resto navegaría una pantalla que nadie está viendo. */
-                if (state.modulo !== 'optotipos' && !['c','C','h','H','?','Escape','m','M'].includes(e.key)) return;
+                   valen en cualquiera: calibrar, la barra, los atajos, salir y
+                   cortar el estímulo. El resto navegaría una pantalla que nadie
+                   está viendo.
+                   La N estaba fuera de esta lista y ahí no cortaba nada, que es
+                   justo donde hace falta: en la pantalla sola siempre se está en
+                   optotipos, así que la tecla parecía funcionar. Dentro de un
+                   módulo —el optometrista de pie junto al PC, alguien entra en la
+                   sala— no hacía nada, y el panel de atajos la anuncia sin
+                   condiciones. */
+                if (state.modulo !== 'optotipos'
+                    && !['c','C','h','H','?','Escape','m','M','n','N'].includes(e.key)) return;
                 if(e.key==='m'||e.key==='M'){ if(!e.ctrlKey&&!e.metaKey) entrarModulo('optotipos'); }
                 else if(e.key==='ArrowUp'){
                     if (state.highlightMode) moveHighlight(-1);

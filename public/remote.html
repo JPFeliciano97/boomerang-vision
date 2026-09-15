@@ -861,6 +861,16 @@
            decía: con cuatro flechas y nada más había que mirar la pantalla del
            paciente para saber en qué nivel se estaba. */
         function pintarOptotipos(data) {
+            /* El modo también se pinta del espejo, no solo del evento 'modo'.
+               Con el evento a secas, un mando que se recargaba marcaba «Letras»
+               mientras el paciente estaba viendo LEA: el mando no guarda estado
+               de navegación a propósito —lo reconstruye todo de lo que llega— y
+               esta era la única ficha que se quedaba fuera de esa regla. */
+            if (data.mode) {
+                document.querySelectorAll('#mode-buttons button').forEach(b => {
+                    b.classList.toggle('sel', b.dataset.mode === data.mode);
+                });
+            }
             $r('opto-pantalla').textContent = data.pantalla ?? 1;
             $r('opto-pantallas').textContent = data.pantallas ?? 6;
             $r('opto-lineas').textContent = (data.lines || [])
@@ -1438,12 +1448,18 @@
                 b.addEventListener('click', () => enviar('R:tipo:' + t.id));
                 tipos.appendChild(b);
             });
-            /* El deslizador solo se reposiciona si el valor que llega es otro:
-               escribir el value en cada espejo mientras el dedo lo arrastra le
-               daría tirones, porque el eco del servidor llega con retraso. */
+            /* El deslizador no se recoloca MIENTRAS EL DEDO LO ARRASTRA, y la
+               condición de antes —«solo si el valor que llega es otro»— hacía
+               exactamente lo contrario de lo que decía: el eco del servidor
+               llega con retraso, así que el valor que llega es viejo y por tanto
+               distinto del que el dedo acaba de poner, y ESE es el momento en
+               que el tirón se produce. Hace falta saber si se está arrastrando,
+               no comparar valores. */
             const rango = $r('relax-luz-rango');
             if (r.luzMin != null) { rango.min = r.luzMin; rango.max = r.luzMax; rango.step = r.luzPaso; }
-            if (String(r.luz) !== rango.value) rango.value = String(r.luz ?? 35);
+            if (!rango.dataset.arrastrando && String(r.luz) !== rango.value) {
+                rango.value = String(r.luz ?? 35);
+            }
             $r('relax-luz-val').textContent = (r.luz ?? 35) + ' %';
             $r('relax-geo').textContent = (r.grados ?? 0) + '\u00b0 = ' + (r.mm ?? 0) + ' mm a '
                 + (data.cal?.distanciaModulo ?? '—') + ' m  \u00b7  ' + (r.luz ?? 0) + '% de blanco'
@@ -1457,6 +1473,17 @@
             $r('relax-luz-val').textContent = v + ' %';
             enviar('R:luz:' + v);
         }
+        /* La bandera se levanta al tocar y se baja medio segundo después de
+           soltar, no en el acto: el último eco llega con retraso y bajarla antes
+           deja que ese eco recoloque el deslizador justo al levantar el dedo. */
+        (() => {
+            const r = document.getElementById('relax-luz-rango');
+            if (!r) return;
+            const marcar = () => { r.dataset.arrastrando = '1'; };
+            const soltar = () => { setTimeout(() => { delete r.dataset.arrastrando; }, 500); };
+            ['pointerdown', 'touchstart', 'mousedown'].forEach(e => r.addEventListener(e, marcar));
+            ['pointerup', 'touchend', 'mouseup', 'blur'].forEach(e => r.addEventListener(e, soltar));
+        })();
 
         /* ═══════════ FIJACIÓN INFANTIL ═══════════ */
         function espejoInfantil(espejo, data) {

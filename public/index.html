@@ -134,6 +134,38 @@
 
         #dpr-input { width: 70px; }
 
+        /* El cartel del móvil es un botón, pero no tiene que parecer uno del
+           navegador: hereda la tipografía del pie y solo se delata al pasar por
+           encima. */
+        button.remote-status {
+            font: inherit; letter-spacing: inherit; border: 0; background: none;
+            padding: 0; cursor: pointer; color: inherit;
+        }
+        button.remote-status:hover { text-decoration: underline; }
+        button.remote-status.on { cursor: default; }
+        button.remote-status.on:hover { text-decoration: none; }
+
+        /* El emparejamiento dentro de la configuración inicial. */
+        .card-mando {
+            display:flex; align-items:center; gap:16px; text-align:left;
+            margin:18px 0 4px; padding:14px 16px; border-radius:10px;
+            background:#141414; border:1px solid #2a2a2a;
+        }
+        .card-mando .cm-txt { flex-grow:1; min-width:0; }
+        .card-mando .cm-tit { font-size:13px; font-weight:700; color:#ddd; }
+        .card-mando .cm-sub { font-size:11px; color:#8a8a8a; margin-top:4px; line-height:1.5; }
+        .card-mando .cm-cod {
+            font-size:10px; color:#6a6a6a; margin-top:8px; text-transform:uppercase; letter-spacing:1px;
+        }
+        .card-mando .cm-cod strong {
+            font-family:monospace; font-size:15px; color:#2980b9; letter-spacing:3px; margin-left:4px;
+        }
+        .card-mando #qr-config {
+            width:104px; height:104px; flex-shrink:0; background:#fff;
+            border-radius:8px; padding:6px; box-sizing:border-box;
+        }
+        .card-mando #qr-config svg { width:100%; height:100%; display:block; }
+
         /* La distancia dentro de la configuración inicial. */
         .card-dist {
             display:flex; align-items:center; justify-content:center; gap:10px;
@@ -440,7 +472,10 @@
     <div id="footer">
         <div class="brand-text">BOOMERANG VISION</div>
         <div class="footer-right">
-            <span class="remote-status" id="remote-status">○ SIN MANDO</span>
+            <!-- Pulsable: mientras no hay móvil, este cartel es el sitio más
+                 natural para preguntar «y cómo conecto uno». Antes solo informaba,
+                 y el QR estaba detrás de un botón rotulado «Mostrar atajos». -->
+            <button class="remote-status" id="remote-status" title="Conectar el móvil">○ SIN MANDO · CONECTAR</button>
             <span class="cal-status" id="cal-status-footer">…</span>
         </div>
     </div>
@@ -474,6 +509,23 @@
                 <span class="card-hint">o use ← → (con Mayús, de 10 en 10)</span>
             </div>
             <div id="card-readout"></div>
+            <!-- El emparejamiento, aquí y no solo detrás del botón «?».
+                 Los otros siete módulos se alcanzan SOLO desde el móvil, y el QR
+                 vivía dentro de un panel rotulado «Mostrar atajos» que nace
+                 oculto: quien abría la app por primera vez se quedaba con
+                 optotipos y sin saber que existe una suite clínica detrás. -->
+            <div class="card-mando">
+                <div class="cm-txt">
+                    <div class="cm-tit">Y conecte el móvil</div>
+                    <div class="cm-sub">Los otros siete test — contraste, Worth, Schober,
+                       color, Amsler, relajación y fijación infantil — se manejan desde
+                       el móvil, no desde este teclado. Escanee el código o escriba el
+                       código de sala en el navegador del móvil.</div>
+                    <div class="cm-cod">código de sala <strong id="pair-code-config">…</strong></div>
+                </div>
+                <div id="qr-config"></div>
+            </div>
+
             <div class="card-actions">
                 <button id="card-save">✓ Guardar configuración</button>
                 <button id="card-cancel">Cancelar</button>
@@ -1427,6 +1479,7 @@
             const $ = id => document.getElementById(id);
             const d = {
                 testDistance:$('test-distance'), distSala:$('dist-sala'), monitorSize:$('monitor-size'),
+                qrConfig:$('qr-config'), pairCodeConfig:$('pair-code-config'),
                 btnToggle:$('btn-toggle-cal'),
                 btnCardCal:$('btn-card-cal'), cardCal:$('card-cal'), cardShape:$('card-shape'),
                 cardHandle:$('card-handle'), cardReadout:$('card-readout'),
@@ -1630,8 +1683,9 @@
             }
             function updateRemoteStatus(peers){
                 const hay = peers >= 2;
-                d.remoteStatus.textContent = hay ? '🔗 MANDO CONECTADO' : '○ SIN MANDO';
+                d.remoteStatus.textContent = hay ? '🔗 MANDO CONECTADO' : '○ SIN MANDO · CONECTAR';
                 d.remoteStatus.className = 'remote-status' + (hay ? ' on' : '');
+                d.remoteStatus.title = hay ? 'Ver el código de sala' : 'Conectar el móvil';
             }
 
             function updateCalStatus(){
@@ -2448,6 +2502,7 @@
             function openCardCal(){
                 cardOpen = true;
                 d.testDistance.value = state.testDistanceM;   // parte de lo vigente
+                pintarEmparejamiento();                       // el QR, aquí y ahora
                 cardWidthPx = clampCardWidth(Math.round((state.cssPxPerMM || 3.8) * activeRef().w));
                 d.cardCal.classList.remove('hidden');
                 renderCardShape();
@@ -2488,29 +2543,42 @@
 
             let qrGenerated = false;
             let shortcutsTimer = null;
+
+            /* El QR y el código de sala, en todos los sitios que los pidan.
+               Estaba dentro de toggleShortcuts() y por tanto solo existía si
+               alguien encontraba el botón «?» — rotulado «Mostrar atajos», que no
+               dice nada de un móvil. Como los otros siete módulos se alcanzan
+               SOLO desde el móvil, eso dejaba la suite clínica entera invisible
+               para quien abre la app por primera vez. */
+            function pintarEmparejamiento(){
+                const cajas = [d.qrContainer, d.qrConfig].filter(Boolean);
+                // location.origin, no una URL fija: si la pantalla corre en la
+                // red local, el móvil tiene que ir ahí y no a la instancia de la
+                // nube (donde manejaría otra pantalla).
+                const url = location.origin + '/remote?c=' + state.pairCode;
+                let svg = null;
+                try {
+                    // QR generado aquí: el código de sala no sale a ningún
+                    // servicio externo, y funciona sin red.
+                    const qr = qrcode(0, 'M');
+                    qr.addData(url);
+                    qr.make();
+                    svg = qr.createSvgTag({ cellSize: 4, margin: 1, scalable: true });
+                } catch (e) { /* sin QR: queda la URL escrita */ }
+                for (const caja of cajas) {
+                    if (svg) caja.innerHTML = svg; else caja.textContent = url;
+                }
+                for (const et of [d.pairCodeLabel, d.pairCodeConfig].filter(Boolean)) {
+                    et.textContent = state.pairCode;
+                }
+                qrGenerated = true;
+            }
             function toggleShortcuts(){
                 const panel = d.shortcutsPanel;
                 const isHidden = panel.classList.contains('hidden');
                 if (isHidden) {
                     panel.classList.remove('hidden');
-                    if (!qrGenerated && d.qrContainer) {
-                        // location.origin, no una URL fija: si la pantalla corre
-                        // en la red local, el móvil tiene que ir ahí y no a la
-                        // instancia de la nube (donde manejaría otra pantalla).
-                        const url = location.origin + '/remote?c=' + state.pairCode;
-                        try {
-                            // QR generado aquí: el código de emparejamiento no
-                            // sale a ningún servicio externo, y funciona sin red.
-                            const qr = qrcode(0, 'M');
-                            qr.addData(url);
-                            qr.make();
-                            d.qrContainer.innerHTML = qr.createSvgTag({ cellSize: 4, margin: 1, scalable: true });
-                        } catch (e) {
-                            d.qrContainer.textContent = url;
-                        }
-                        d.pairCodeLabel.textContent = state.pairCode;
-                        qrGenerated = true;
-                    }
+                    pintarEmparejamiento();
                     if (shortcutsTimer) clearTimeout(shortcutsTimer);
                     shortcutsTimer = setTimeout(() => {
                         if (!d.shortcutsPanel.classList.contains('hidden')) {
@@ -2528,6 +2596,12 @@
                configuración inicial, no en cuanto alguien teclea en el campo. */
             d.monitorSize.addEventListener('change',applyCalibration);
             d.btnToggle.addEventListener('click',toggleCalPanel);
+            /* El cartel del móvil abre el panel donde está el QR. Si ya está
+               abierto no lo cierra: pulsarlo buscando el código y que desaparezca
+               sería exactamente lo contrario de lo que se pide. */
+            d.remoteStatus.addEventListener('click', () => {
+                if (d.shortcutsPanel.classList.contains('hidden')) toggleShortcuts();
+            });
             d.btnBic.addEventListener('click',toggleBichromatic);
             d.btnHighlight.addEventListener('click',toggleHighlightMode);
             d.btnSingleChar.addEventListener('click',toggleSingleCharMode);
@@ -2694,7 +2768,11 @@
                     state.highlightLineGlobalIdx = globalIdxOfFirstLine();
                     renderScreen();
                 }
-                setTimeout(()=>{ if(!d.shortcutsPanel.classList.contains('hidden')) d.shortcutsPanel.classList.add('hidden'); },8000);
+                /* Aquí había un setTimeout de 8 s para esconder el panel de
+                   atajos, y era código muerto: el panel nace con la clase
+                   'hidden' puesta, así que ese temporizador escondía algo ya
+                   escondido. Peor que inútil — hacía creer que el panel se
+                   mostraba solo al arrancar, que es justo lo que no pasaba. */
                 // Sin medida física la prueba es una estimación, así que el panel
                 // se abre solo hasta que alguien decida: medir, o renunciar a
                 // medir (cancelar / usar pulgadas). Después, nunca más.

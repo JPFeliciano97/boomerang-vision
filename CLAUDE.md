@@ -1,0 +1,69 @@
+# Notas para trabajar en este repo
+
+## Pull requests
+
+**Antes de empujar a una rama que tiene una PR abierta, comprobar si esa PR ya
+se fusionó.** Una PR fusionada no se puede volver a fusionar, así que los
+commits que llegan después quedan colgados en la rama sin que nadie los vea —
+ha pasado dos veces (#4 y #5, las dos fusionadas a los pocos minutos de
+abrirse, mientras el trabajo seguía).
+
+Cuando ya está fusionada: `main` contiene el último commit de esa PR, así que
+la base común con la rama es ese commit y **una PR nueva desde la misma rama
+muestra solo lo posterior**, sin duplicados. No hace falta rebase ni
+force-push.
+
+No abrir PRs sin que se pidan.
+
+## Pruebas
+
+```
+npm test
+```
+
+Levanta el servidor en un puerto libre, abre Chromium y empareja una pantalla
+con un mando de verdad por el código de sala. Sale con `0` si todo pasa, `1` si
+algo falla y `2` si **no pudo ejecutarse**. Detalle en `pruebas/LEEME.md`.
+
+**Playwright no es dependencia del proyecto y no debe añadirse.** El servidor
+no la necesita, arrastra un navegador de cientos de megas, y esto se despliega
+en Render: un `npm ci` allí se bajaría Chromium para nada. El CI la instala con
+`--no-save` y con la versión fijada.
+
+**Una comprobación nueva se escribe antes del arreglo y se ve fallar** contra
+el código de antes. Una prueba que pasa no vale nada si no falla cuando debe;
+ese ejercicio ya encontró tres fallos en las propias pruebas.
+
+## Lo que este proyecto es
+
+Una herramienta para **tomar** los test, no para registrarlos. No hay historial
+ni exportación, y no se van a añadir.
+
+Casi todo lo que tiene que hacer bien es **geometría en píxeles**: cada módulo
+declara su estímulo en grados de arco y comprueba si cabe de verdad en la
+pantalla, a la distancia de la sala. Los defectos más caros han sido invisibles
+en el DOM — la rejilla de Amsler tenía sus cuatro `<line>` con las coordenadas
+correctas y en pantalla le faltaban dos lados. Por eso se mide lo dibujado.
+
+**La distancia de la sala se declara UNA VEZ**, en la configuración inicial, y
+en ningún otro sitio se cambia. Es una propiedad de la sala, no un mando por
+test: poder cambiarla a mitad de una prueba invita a que la geometría y el
+sitio donde está sentado el paciente dejen de coincidir sin que nada lo delate.
+
+**Un módulo no ofrece opciones imposibles.** Si ninguna cabe a la distancia de
+la sala, hay que dar una que sí — como el «máx» de Worth y de Schober. Y la
+pantalla del paciente **nunca** se queda en negro sin explicación.
+
+## Las cartillas de Ishihara
+
+No se reproducen, ni se trazan, ni se extraen de ninguna fuente. El módulo de
+color implementa el método publicado de las líneas de confusión del CIE 1931,
+con numeración propia, y dice en el propio mando lo que no es: criba, no
+clasifica, y el color depende de lo que emita ese monitor.
+
+## El lienzo de diseño
+
+Hay un lienzo publicado que describe la suite, con sus ficheros de trabajo
+fuera del repo. Cuando un cambio deja obsoleta una cifra o una decisión suya,
+**hay que sincronizarlo**: los dos artefactos se separaron una vez y costó una
+sesión volver a juntarlos.

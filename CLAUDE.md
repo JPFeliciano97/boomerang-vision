@@ -75,12 +75,52 @@ con numeración propia, y dice en el propio mando lo que no es: criba, no
 clasifica, y el color depende de lo que emita ese monitor.
 
 Hay dos juegos de láminas: cifras y **figuras**, para el niño que no dice
-«veintiséis». Es la misma prueba con otra máscara. Las siete siluetas están
+«veintiséis». Es la misma prueba con otra máscara. Las seis siluetas están
 **calibradas**, no puestas a ojo: escala que deja el área en el 20 % del disco
 y brazo más estrecho por encima de tres puntos del mosaico, medido con una
 transformada de distancia. La tabla con las cifras está en el comentario de
 `COLOR_FIGURAS`. Una silueta fina no es una silueta: la estrella y la cruz
 salieron en 2,6 y 2,5 puntos y hubo que engordarlas.
+
+**La figura tiene que poder NOMBRARLA un niño de cuatro años.** Es lo que se
+mide aquí: no si la ve, sino si la dice. El rombo y la casa se cayeron por eso
+—en consulta el niño no tiene la palabra, y el que calla cuenta como fallo
+cromático sin serlo—; quedan círculo, cuadrado, triángulo, estrella, corazón y
+**luna**. Una figura nueva se calibra igual que las otras y se elige por el
+nombre, no por el dibujo.
+
+## La fuente
+
+Optician Sans tiene **111 glifos**: las letras, las cifras y poco más. No tiene
+ni una vocal acentuada, ni la ñ, ni «·», ni «±», ni «Δ» — leído del `cmap` del
+WOFF, no supuesto. Así que se usa **solo donde es el optotipo**: las letras y
+las cifras de la cartilla, y el rótulo BOOMERANG VISION. Todo lo demás —los
+nombres de módulo, las notas de geometría, las cifras de los rótulos— va en la
+fuente de la interfaz (`--ui`) o en la monoespaciada (`--num`). Escribir
+«Fijación» con ella sale con seis letras de una fuente y una de otra, y eso pasó.
+
+Se comprueba **midiendo**: el ancho de cada carácter pedido con la fuente frente
+al ancho pedido con una familia que no existe. Si miden lo mismo, el glifo lo
+puso la fuente de reserva.
+
+**El «0» no se dibuja.** Optician Sans lo trae con una barra diagonal y a la
+distancia de la sala un cero barrado y un ocho son el mismo borrón; un fallo así
+no se distingue de una agudeza baja. Las cifras van de 1 a 9 (`NUMBERS` en
+`public/index.html`), y hay una comprobación que barre las pantallas y los
+turnos de mezcla para que ninguna saque un cero.
+
+## El mando
+
+**No se pellizca y no se va de lado.** El viewport declara `device-width` —no un
+ancho fijo, que en un móvil de 360 px obliga al navegador a encoger la página
+entera de entrada— con `user-scalable=no` y `touch-action: pan-y`: solo se
+desplaza arriba y abajo. Aquí no hay nada que ampliar, y un pellizco con prisa
+deja la interfaz desplazada y al operador buscando el botón.
+
+**Los avisos largos van plegados.** Tres paneles llevan un párrafo que hay que
+poder leer pero que se lee una vez; el del color medía 208 px de los 1.447 del
+panel. El **título sigue delante** —la advertencia no se esconde— y el
+desarrollo se abre al tocarlo.
 
 ## Cortar el estímulo
 

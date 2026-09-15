@@ -3,11 +3,48 @@
 <head>
     <meta charset="UTF-8">
     <!-- ✅ VIEWPORT CORREGIDO: ancho fijo 412, escalado natural -->
-    <meta name="viewport" content="width=412, initial-scale=1.0, user-scalable=yes">
+    <!-- device-width y no 412 fijo: con un ancho fijo, un móvil de 360 encoge la
+         página entera para que quepan los 412 y el texto queda pequeño de
+         entrada — eso ES el zoom out, solo que lo hace el navegador. Y sin
+         pellizco: aquí no hay nada que ampliar, y uno accidental deja la
+         interfaz desplazada con el operador buscando el botón. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
     <title>Control Remoto Boomerang</title>
     <script src="/socket.io/socket.io.js"></script>
     <style>
         /* ═══════════ FUENTE OPTICIAN SANS (título) ═══════════ */
+        /* ═══════════ DÓNDE VA OPTICIAN SANS Y DÓNDE NO ═══════════
+           Optician Sans tiene 111 caracteres: las letras, las cifras y poco
+           más. NO tiene ninguna vocal acentuada, ni la ñ, ni la ü, ni «·», ni
+           «±», ni «Δ», ni el punto decimal. Medido leyendo el cmap del .woff.
+
+           Así que solo se usa en dos sitios, y en ninguno más:
+             · los OPTOTIPOS — letras, números y las filas del Pelli-Robson,
+               donde además ss01 fija los 0,500 em de alto de los que sale toda
+               la geometría;
+             · el rótulo BOOMERANG VISION.
+
+           Todo lo demás va en --ui o en monoespaciada. El rótulo del módulo
+           estaba en Optician Sans y decía cosas como «Fijación infantil · 1,20°
+           = 126 mm · ±8,1°»: seis caracteres de esa línea caían a otra fuente
+           en mitad de la palabra. Las cifras de agudeza también, por el punto
+           decimal del «0.05». Hay una comprobación que lo mide en los ocho
+           módulos, en pantalla y en mando. */
+        /* Solo se navega arriba y abajo. touch-action mata el pellizco y el
+           arrastre lateral —lo que el meta no puede garantizar por sí solo— y
+           overscroll-behavior evita que un tirón al final de la lista arrastre
+           la página de detrás o dispare el «volver» del navegador a media
+           prueba. */
+        html, body {
+            touch-action: pan-y;
+            overflow-x: hidden;
+            overscroll-behavior: none;
+        }
+
+        :root {
+            --ui: 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
+            --num: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+        }
         @font-face {
             font-family: 'OpticianSans';
             src: url('/OpticianSans.woff') format('woff');
@@ -125,7 +162,8 @@
         .remote-line.dimmed img { opacity: 0.10; }
 
         .remote-ann-left, .remote-ann-right {
-            font-family: 'OpticianSans', 'Segoe UI', 'Helvetica Neue', sans-serif;
+            /* Monoespaciada: cifras con punto decimal, que esta fuente no tiene. */
+            font-family: var(--num);
             font-weight: normal;
             letter-spacing: 0.5px;
             width: 45px;
@@ -440,13 +478,35 @@
         }
         .conmut.grande .et { font-size: 14px; font-weight: 700; letter-spacing: 0.6px; }
 
-        .aviso {
-            margin-top: 12px; padding: 11px 12px; border-radius: 9px;
+        /* El aviso se plega: el TÍTULO queda siempre a la vista —que es lo que
+           hay que leer de un vistazo— y el desarrollo se abre al tocarlo. El
+           panel del color medía 1.447 px, una pantalla y media de móvil, y 208
+           de ellos eran un párrafo que se lee una vez y ya se sabe. Lo que no
+           se hace es esconder el título: la advertencia sigue delante. */
+        .aviso { margin-top: 12px; }
+        .aviso > summary {
+            list-style: none; cursor: pointer;
+            padding: 11px 12px; border-radius: 9px;
             background: #141414; border: 1px solid #262626;
+            display: flex; align-items: center; gap: 8px; min-height: 44px;
+        }
+        .aviso > summary::-webkit-details-marker { display: none; }
+        .aviso > summary::after {
+            content: '+'; margin-left: auto; color: #5e5e5e;
+            font-family: monospace; font-size: 15px; flex-shrink: 0;
+        }
+        .aviso[open] > summary::after { content: '\2212'; }
+        .aviso[open] > summary { border-radius: 9px 9px 0 0; border-bottom: none; }
+        .aviso .cuerpo {
+            padding: 2px 12px 11px; border-radius: 0 0 9px 9px;
+            background: #141414; border: 1px solid #262626; border-top: none;
         }
         .aviso .tit { font-size: 12px; color: #ddd; font-weight: 600; }
         .aviso .txt { font-size: 11px; color: #7a7a7a; margin-top: 5px; line-height: 1.5; }
-        .aviso.limite { background: rgba(243,156,18,0.07); border-color: rgba(243,156,18,0.3); }
+        .aviso.limite > summary, .aviso.limite .cuerpo {
+            background: rgba(243,156,18,0.07); border-color: rgba(243,156,18,0.3);
+        }
+        .aviso.limite > summary::after { color: #a8895f; }
         .aviso.limite .tit { color: #f0b26b; }
         .aviso.limite .txt { color: #a8895f; }
         .aviso.limite strong { color: #c9a870; }
@@ -673,10 +733,10 @@
                    min="5" max="100" step="5" value="35"
                    oninput="luzRelax(this.value)" onchange="luzRelax(this.value)">
             <div class="nota-geo" id="relax-geo"></div>
-            <div class="aviso">
-                <div class="tit">Es lo contrario de un optotipo</div>
-                <div class="txt">Grande, sin bordes nítidos y con poca luz: no hay ningún detalle que el ojo pueda intentar enfocar, así que el paciente no acomoda mientras usted trabaja.</div>
-            </div>
+            <details class="aviso">
+                <summary><span class="tit">Es lo contrario de un optotipo</span></summary>
+                <div class="cuerpo"><div class="txt">Grande, sin bordes nítidos y con poca luz: no hay ningún detalle que el ojo pueda intentar enfocar, así que el paciente no acomoda mientras usted trabaja.</div></div>
+            </details>
         </div>
 
         <!-- Panel de la fijación infantil -->
@@ -692,10 +752,10 @@
                 <span class="val" id="inf-congelar-val">en movimiento</span>
             </button>
             <div class="nota-geo" id="inf-geo"></div>
-            <div class="aviso">
-                <div class="tit">Sin sonido, por decisión</div>
-                <div class="txt">En un consultorio pequeño el audio distrae al niño más de lo que lo atrae, y molesta en la sala de al lado. Congelar deja la figura quieta en el centro para el instante de la medida.</div>
-            </div>
+            <details class="aviso">
+                <summary><span class="tit">Sin sonido, por decisión</span></summary>
+                <div class="cuerpo"><div class="txt">En un consultorio pequeño el audio distrae al niño más de lo que lo atrae, y molesta en la sala de al lado. Congelar deja la figura quieta en el centro para el instante de la medida.</div></div>
+            </details>
         </div>
 
         <!-- Panel de las láminas de color -->
@@ -727,10 +787,10 @@
             <div class="grupo-tit">Las láminas</div>
             <div class="lista-niv" id="color-lista"></div>
             <div class="nota-geo" id="color-geo"></div>
-            <div class="aviso limite">
-                <div class="tit">Esto es cribado, y hay que decirlo</div>
-                <div class="txt">No son las cartillas de Ishihara: son láminas generadas con las líneas de confusión del CIE, con numeración propia y sin validar contra ninguna población. Y sobre todo, el color depende de lo que emita <strong>este</strong> monitor — sin colorímetro las cromaticidades son las nominales de sRGB, que es una suposición. Sirve para <strong>detectar</strong>, no para clasificar. Medido: en el gamut sRGB alcanzable las líneas de confusión protán y deután quedan a Δxy 0,023 una de otra, o sea el mismo color — con esta pantalla no hay forma de distinguir un tipo del otro. Un resultado dudoso se confirma con láminas impresas.</div>
-            </div>
+            <details class="aviso limite">
+                <summary><span class="tit">Esto es cribado, y hay que decirlo</span></summary>
+                <div class="cuerpo"><div class="txt">No son las cartillas de Ishihara: son láminas generadas con las líneas de confusión del CIE, con numeración propia y sin validar contra ninguna población. Y sobre todo, el color depende de lo que emita <strong>este</strong> monitor — sin colorímetro las cromaticidades son las nominales de sRGB, que es una suposición. Sirve para <strong>detectar</strong>, no para clasificar. Medido: en el gamut sRGB alcanzable las líneas de confusión protán y deután quedan a Δxy 0,023 una de otra, o sea el mismo color — con esta pantalla no hay forma de distinguir un tipo del otro. Un resultado dudoso se confirma con láminas impresas.</div></div>
+            </details>
         </div>
 
         <!-- Panel de un módulo declarado pero sin construir -->

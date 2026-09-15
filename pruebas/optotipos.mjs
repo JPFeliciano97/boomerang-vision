@@ -101,6 +101,40 @@ export default async function pruebaOptotipos({ pc }) {
       ? 'no se encontró la línea 20/20 en ninguna de las seis pantallas'
       : `${h20} px dibujados frente a ${esperado} px calculados (pantalla ${pantalla20})`);
 
+  /* ── El 0 no entra en el juego de números ──────────────────────────────
+     Optician Sans dibuja el cero del conjunto ss01 como un rectángulo
+     redondeado con una BARRA DIAGONAL maciza dentro, y a tamaño de optotipo
+     eso se lee como un 8: dos lóbulos separados por un trazo. Medido
+     rasterizando los glifos en la propia página, que es el único sitio donde
+     ss01 se aplica —una SVG cargada como <img> no alcanza las fuentes del
+     documento y da el glifo de reserva, que no lleva barra.
+
+     El cero sin ss01 sí es un óvalo limpio, pero mide 0,520 em de alto en vez
+     de 0,500: un 4 % de más, media línea de la escala. Y ss01 existe
+     precisamente para eso. Así que no se arregla el glifo, se quita el
+     carácter — que es lo que hace cualquier juego de optotipos: Sloan
+     descartó las letras confundibles en vez de redibujarlas. */
+  await pc.click('.mode-btn[data-mode="numbers"]');
+  await pc.waitForTimeout(400);
+  const digitos = new Set();
+  for (let pant = 0; pant < 6; pant++) {
+    for (let mezcla = 0; mezcla < 4; mezcla++) {
+      for (const ch of await pc.evaluate(() =>
+        [...document.querySelectorAll('#lines-container .optotype-text')]
+          .map(e => e.textContent).join(''))) digitos.add(ch);
+      await pc.keyboard.press('ArrowRight');
+      await pc.waitForTimeout(120);
+    }
+    await pc.keyboard.press('ArrowDown');
+    await pc.waitForTimeout(200);
+  }
+  const conjunto = [...digitos].sort().join('');
+  m.comprobar('el juego de números no usa el 0, que con ss01 lleva barra y se lee como un 8',
+    !digitos.has('0') && digitos.size >= 8 && /^[1-9]+$/.test(conjunto),
+    `dibujados: ${conjunto || '(ninguno)'}`);
+  await pc.click('.mode-btn[data-mode="letters"]');
+  await pc.waitForTimeout(300);
+
   /* Volver arriba: las pruebas siguientes esperan el estado de arranque. */
   for (let i = 0; i < 8; i++) { await pc.keyboard.press('ArrowUp'); await pc.waitForTimeout(30); }
   return m;

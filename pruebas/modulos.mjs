@@ -324,6 +324,83 @@ export default async function pruebaModulos({ pc, tel, abrir }) {
       && /pan-y/.test(gestos.touchAction),
     `user-scalable y maximum-scale en el meta · touch-action «${gestos.touchAction}»`);
 
+  /* ══ Y con el pellizco muerto, el dedo SIGUE deslizando ════════════
+     Esto se rompió: quitar el zoom se llevó por delante el desplazamiento, y
+     en un panel que mide 1.283 px en una pantalla de 915 eso deja escondidas
+     las opciones de abajo sin forma de llegar a ellas.
+
+     El dedo NO es medible aquí, igual que el grosor a DPR fraccionario: el
+     gesto sintético de CDP no respeta touch-action (desliza incluso con
+     `none`) y el que sí lo respeta no llega a mover nada en headless. Medido
+     las dos formas antes de escribir esto. Así que se comprueba el INVARIANTE
+     que lo arregla, que sí se lee del DOM.
+
+     El invariante: entre el contenido y el elemento que desplaza no puede
+     haber un scroll container que no tenga nada que desplazar. Uno así se
+     queda el gesto —y con overscroll-behavior en `none` ni lo encadena hacia
+     arriba— así que el dedo empuja contra algo que no se mueve. El `body` era
+     exactamente eso: `overflow-y: auto` de cuando el mando cabía en una
+     pantalla, más el `overflow-x: hidden` que llegó con el antipellizco.
+
+     La rueda del ratón NO lo delata: Chromium la encadena con otras reglas y
+     desplaza igual. Por eso hay que mirar la estructura, no el gesto. */
+  const cadena = await tel.evaluate(() => {
+    const desplaza = document.scrollingElement;
+    const contenedor = e => {
+      const c = getComputedStyle(e);
+      const bloquea = v => v !== 'visible' && v !== 'clip';
+      return bloquea(c.overflowX) || bloquea(c.overflowY);
+    };
+    /* Desde el control más profundo del panel a la vista hasta el que desplaza. */
+    const panel = [...document.querySelectorAll('#vista-modulo [id^="panel-"]')]
+      .find(e => e.offsetParent);
+    const hondo = panel ? (panel.querySelector('button, input, .lista-niv > *') || panel) : document.body;
+    const presos = [];
+    for (let e = hondo; e && e !== desplaza; e = e.parentElement) {
+      if (!contenedor(e)) continue;
+      const sobra = e.scrollHeight - e.clientHeight;
+      if (sobra <= 1) presos.push({
+        quien: e.id ? '#' + e.id : (e.tagName.toLowerCase() + '.' + (e.className || '').split(' ')[0]),
+        overflow: getComputedStyle(e).overflowX + '/' + getComputedStyle(e).overflowY,
+        rebote: getComputedStyle(e).overscrollBehaviorY });
+    }
+    return { desplaza: desplaza.tagName.toLowerCase(), presos,
+             sobra: desplaza.scrollHeight - desplaza.clientHeight };
+  });
+  m.comprobar('nada entre los controles y el que desplaza se queda el gesto del dedo',
+    cadena.presos.length === 0 && cadena.sobra > 0,
+    cadena.presos.length
+      ? cadena.presos.map(p => `${p.quien} es scroll container sin nada que desplazar`
+          + ` (overflow ${p.overflow}, overscroll-behavior ${p.rebote})`).join(' · ')
+      : `desplaza <${cadena.desplaza}>, con ${cadena.sobra} px de sobra y la cadena limpia`);
+
+  /* Y la consecuencia visible, en el panel que de verdad no cabe: el del
+     color mide 1.283 px en una pantalla de 915, así que su último control
+     empieza por debajo del borde y solo se alcanza desplazándose. */
+  const fondo = await (async () => {
+    await abrir('Pseudoisocromático');
+    await tel.evaluate(() => { document.scrollingElement.scrollTop = 0; });
+    const ultimo = () => tel.evaluate(() => {
+      const panel = [...document.querySelectorAll('#vista-modulo [id^="panel-"]')]
+        .find(e => e.offsetParent);
+      const c = panel && [...panel.querySelectorAll('button, summary, input')]
+        .filter(e => e.offsetParent).pop();
+      if (!c) return { dentro: false, abajo: 0, ventana: window.innerHeight, sinControl: true };
+      return { dentro: c.getBoundingClientRect().bottom <= window.innerHeight + 1,
+               abajo: Math.round(c.getBoundingClientRect().bottom), ventana: window.innerHeight };
+    });
+    const arriba = await ultimo();
+    await tel.mouse.move(206, 600);
+    await tel.mouse.wheel(0, 2000);
+    await tel.waitForTimeout(400);
+    return { arriba, abajo: await ultimo() };
+  })();
+  m.comprobar('y desplazándose se llega al último control del panel del color',
+    fondo.abajo.dentro && !fondo.arriba.dentro,
+    `sin desplazar quedaba en ${fondo.arriba.abajo} px de ${fondo.arriba.ventana}`
+    + ` · desplazado, en ${fondo.abajo.abajo}`
+    + (fondo.arriba.dentro ? ' — pero ya cabía sin desplazar: la prueba no prueba nada' : ''));
+
   /* ══ Y los avisos no le roban la pantalla ═══════════════════════════
      Tres paneles llevan un aviso largo: por qué el relax es lo contrario de un
      optotipo, por qué la fijación no suena, y el párrafo del color que dice que

@@ -5,7 +5,7 @@ npm test
 ```
 
 Levanta el servidor en un puerto libre, abre Chromium, empareja una pantalla
-con un mando **de verdad** por el código de sala, y pasa 156 comprobaciones en
+con un mando **de verdad** por el código de sala, y pasa 158 comprobaciones en
 unos tres minutos.
 
 - `0` — todo pasa
@@ -114,6 +114,24 @@ Lo que sí se comprueba es **el invariante que lo arregló** — que el paso sea
 número entero de píxeles del dispositivo — leyendo las coordenadas. Eso sí
 falla con el defecto puesto, y la coordenada no miente.
 
+**El dedo.** El desplazamiento con el dedo no se puede provocar aquí, y se
+intentó por las dos rutas antes de darlo por imposible. El gesto sintético de
+CDP (`Input.synthesizeScrollGesture` con `gestureSourceType: touch`) no mueve
+nada en headless: una página de 3.000 px con el `body` pelado da `scrollTop 0`.
+Y los eventos táctiles crudos (`Input.dispatchTouchEvent`) sí desplazan, pero
+**no respetan `touch-action`**: la misma página desliza con `touch-action: none`
+puesto. Una sonda que pasa con el defecto puesto no vale nada.
+
+Tampoco vale la rueda del ratón: con el `body` convertido en scroll container
+vacío —el defecto que dejó el mando sin desplazamiento— la rueda seguía
+desplazando 368 px, así que lo habría dado por bueno.
+
+Lo que sí se comprueba es **el invariante que lo arregla**, leído del DOM: que
+entre los controles del panel y el elemento que desplaza no haya ningún scroll
+container sin nada que desplazar. Eso sí se pone rojo con el defecto puesto, y
+nombra al culpable: «body es scroll container sin nada que desplazar (overflow
+hidden/auto, overscroll-behavior none)».
+
 **El ancho del brazo de cada figura de color.** Lo que decide si una silueta se
 lee en un mosaico de 30 puntos no es su área sino su parte más estrecha, y eso
 solo se puede medir sobre la MÁSCARA — en la lámina dibujada los puntos son
@@ -173,6 +191,7 @@ en `public/index.html` y comprobando que la ejecución se pone roja:
 | Optician Sans en los rótulos de la pantalla y del mando | `ninguna letra se pinta con una fuente que no la tiene` — «Fijación», «±», «Δ» y «·» caían a la fuente de reserva |
 | el viewport fijo de 412 px del mando | dos comprobaciones: `se adapta al ancho real del móvil` y `no se puede pellizcar para ampliar` |
 | los avisos del mando sin plegar | dos comprobaciones: `salen plegados, sin tapar los controles` — 93, 93 y 208 px con el texto desplegado — y `tocar el título despliega el texto entero` |
+| `touch-action` y `overscroll-behavior` también en el `body` | `nada entre los controles y el que desplaza se queda el gesto del dedo` — el `body` salía como scroll container sin nada que desplazar, con `overscroll-behavior: none` |
 
 La sonda del color se estrenó con uno de esos fallos y conviene que quede
 escrito: agrupaba por cromaticidad TODOS los píxeles pintados, papel de la

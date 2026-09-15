@@ -30,16 +30,29 @@
            en mitad de la palabra. Las cifras de agudeza también, por el punto
            decimal del «0.05». Hay una comprobación que lo mide en los ocho
            módulos, en pantalla y en mando. */
-        /* Solo se navega arriba y abajo. touch-action mata el pellizco y el
+        /* Solo se navega arriba y abajo: touch-action mata el pellizco y el
            arrastre lateral —lo que el meta no puede garantizar por sí solo— y
-           overscroll-behavior evita que un tirón al final de la lista arrastre
-           la página de detrás o dispare el «volver» del navegador a media
-           prueba. */
-        html, body {
+           overscroll-behavior evita que un tirón al final de la lista dispare
+           el «volver» del navegador a media prueba.
+
+           Las dos cosas van SOLO en el que desplaza, que es el <html>. La
+           primera versión las puso en `html, body` y se llevó por delante el
+           desplazamiento entero: con overflow distinto de visible el <body> se
+           convierte en scroll container, y uno sin nada que desplazar se queda
+           el gesto del dedo; con overscroll-behavior en `none` ni lo encadena
+           hacia arriba, así que el dedo empujaba contra algo que no se mueve y
+           las opciones de abajo quedaban inalcanzables. La rueda del ratón no
+           lo delata —Chromium la encadena con otras reglas— así que hay una
+           comprobación que mira la ESTRUCTURA: que entre los controles y el
+           que desplaza no haya un scroll container vacío. */
+        html {
             touch-action: pan-y;
             overflow-x: hidden;
-            overscroll-behavior: none;
+            overscroll-behavior-y: none;
         }
+        /* `clip` recorta el desbordamiento lateral SIN crear scroll container,
+           que es justo la diferencia que importa aquí. */
+        body { touch-action: pan-y; overflow-x: clip; }
 
         :root {
             --ui: 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
@@ -60,11 +73,10 @@
             min-height: 100%;
             margin: 0;
             padding: 0 0 18px;
-            /* Antes era overflow:hidden con centrado vertical, que valía para
-               una sola pantalla de controles. Con el menú de ocho módulos hay
-               contenido que no cabe, así que se desplaza. */
-            overflow-y: auto;
-            -webkit-overflow-scrolling: touch;
+            /* Aquí no va NINGÚN overflow: el que desplaza es el <html> y el
+               body solo crece. Tuvo `overflow-y: auto` de cuando el mando
+               cabía en una pantalla, y eso lo dejaba como scroll container sin
+               nada que desplazar — ver el bloque de gestos de arriba. */
             font-family: system-ui, -apple-system, sans-serif;
             background: #111;
             color: #fff;

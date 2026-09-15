@@ -464,6 +464,7 @@
         <div><kbd>U</kbd> Modo 1 carácter</div>
         <div><kbd>C</kbd> Calibrar pantalla</div>
         <div><kbd>H</kbd> Ocultar panel</div>
+        <div><kbd>M</kbd> Volver a optotipos</div>
         <div><kbd>?</kbd> Este menú</div>
         <div style="margin-top:10px; font-size:9px; color:#aaa;">Escanea para control remoto:</div>
         <div id="qr-container"></div>
@@ -610,7 +611,7 @@
             function renderAmsler(){
                 const lam = AMSLER_LAMINAS.find(l => l.id === state.amslerLamina) || AMSLER_LAMINAS[0];
                 d.moduloArea.style.background = lam.fondo;
-                if (!state.isCalibrated) { d.moduloArea.innerHTML = ''; return; }
+                if (!state.isCalibrated) return avisoSinCalibrar();
                 const g = amslerGeometria();
                 const dprAhora = liveDpr();
                 const w = g.cx * 2 * g.ladoPx, h = g.cy * 2 * g.ladoPx;
@@ -730,7 +731,7 @@
 
             function renderPelli(){
                 d.moduloArea.style.background = '#ffffff';
-                if (!state.isCalibrated) { d.moduloArea.innerHTML = ''; return; }
+                if (!state.isCalibrated) return avisoSinCalibrar();
                 const g = pelliGeometria();
                 const h = g.letraPx;
                 const cont = document.createElement('div');
@@ -841,7 +842,7 @@
             }
             function renderWorth(){
                 d.moduloArea.style.background = '#000000';
-                if (!state.isCalibrated) { d.moduloArea.innerHTML = ''; return; }
+                if (!state.isCalibrated) return avisoSinCalibrar();
                 const g = worthGeometria();
                 if (!g.cabe) {
                     d.moduloArea.innerHTML =
@@ -886,7 +887,7 @@
             }
             function renderSchober(){
                 d.moduloArea.style.background = '#000000';
-                if (!state.isCalibrated) { d.moduloArea.innerHTML = ''; return; }
+                if (!state.isCalibrated) return avisoSinCalibrar();
                 const g = schoberGeometria();
                 if (g.anillos < 1) {
                     d.moduloArea.innerHTML =
@@ -970,7 +971,7 @@
             }
             function renderRelax(){
                 d.moduloArea.style.background = '#000000';
-                if (!state.isCalibrated) { d.moduloArea.innerHTML = ''; return; }
+                if (!state.isCalibrated) return avisoSinCalibrar();
                 const g = relaxGeometria();
                 const luz = (parseInt(state.relaxLuz, 10) || 35) / 100;
                 if (state.relaxTipo === 'punto') {
@@ -1045,7 +1046,7 @@
             }
             function renderInfantil(){
                 d.moduloArea.style.background = '#0a0a0a';
-                if (!state.isCalibrated) { d.moduloArea.innerHTML = ''; return; }
+                if (!state.isCalibrated) return avisoSinCalibrar();
                 const g = infGeometria();
                 const sec = INF_SECUENCIAS.find(x => x.id === state.infSecuencia) || INF_SECUENCIAS[0];
                 const vel = INF_VELOCIDADES.find(v => v.id === state.infVelocidad) || INF_VELOCIDADES[1];
@@ -1208,7 +1209,7 @@
 
             function renderColor(){
                 d.moduloArea.style.background = '#101010';
-                if (!state.isCalibrated) { d.moduloArea.innerHTML = ''; return; }
+                if (!state.isCalibrated) return avisoSinCalibrar();
                 const lam = COLOR_LAMINAS.find(l => l.id === state.colorLamina) || COLOR_LAMINAS[0];
                 const g = colorGeometria();
                 const D = Math.round(g.px);
@@ -1666,6 +1667,31 @@
                 return span;
             }
 
+            /* Sin el milímetro no hay estímulo posible, pero la pantalla del
+               paciente tampoco puede quedarse en negro sin una palabra: eso deja
+               al paciente mirando nada mientras el optometrista ve un mando
+               lleno de controles y cree que está midiendo. Los siete módulos
+               hacían `innerHTML = ''; return;` cada uno por su cuenta.
+               Hoy es una rama casi inalcanzable — resolveCalibration() cae a la
+               estimación por monitor, que usa `monitorInches || 24`, así que
+               cssPxPerMM sale > 0 siempre. Se escribe igual: el día que alguien
+               exija la tarjeta, esta rama se vuelve alcanzable, y una pantalla en
+               negro no debe ser nunca la forma en que este sistema falla. */
+            function avisoSinCalibrar(){
+                d.moduloArea.style.background = '#101010';
+                d.moduloArea.innerHTML =
+                    '<div style="position:absolute; inset:0; display:flex; flex-direction:column;'
+                  + ' align-items:center; justify-content:center; gap:14px; text-align:center;'
+                  + ' font-family:monospace; color:#e8b04b; padding:0 8vw;">'
+                  + '<div style="font-size:clamp(18px,2.6vw,30px); letter-spacing:3px;">SIN CALIBRAR</div>'
+                  + '<div style="font-size:clamp(12px,1.4vw,16px); color:#9a9a9a; line-height:1.6;">'
+                  + 'No se sabe cuántos píxeles mide un milímetro en esta pantalla,'
+                  + ' así que el estímulo no se puede dibujar a su tamaño real.<br>'
+                  + 'Mida la pantalla con una tarjeta — tecla <strong style="color:#ddd;">C</strong>.'
+                  + '</div></div>';
+                d.moduloNombre.textContent = 'sin calibrar · mida la pantalla con una tarjeta (tecla C)';
+            }
+
             /* Distancia de sala desde el mando. El operador está junto al paciente,
                no junto al teclado: si mueve la silla para que quepa el rombo de
                Worth, tiene que poder decirlo desde el móvil, o el estímulo se
@@ -1802,7 +1828,14 @@
                         distanciaModulo: distanciaModulo(),
                         cssPxPerMM: state.cssPxPerMM,
                         source: state.calSource,
-                        calibrado: state.isCalibrated
+                        calibrado: state.isCalibrated,
+                        /* La barra de la pantalla ya avisaba de esto, pero dentro
+                           de un módulo la barra está plegada y el pie escondido, y
+                           el optometrista está mirando el móvil. Sin mandarlo, una
+                           calibración de OTRA pantalla —lo que deja un portátil
+                           desconectado del monitor de la consulta— dejaba los ocho
+                           módulos midiendo con una estimación que parecía medida. */
+                        obsoleta: state.calStale
                     }
                 };
                 if (m.id === 'optotipos' && state.isCalibrated) {

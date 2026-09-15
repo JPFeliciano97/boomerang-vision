@@ -18,6 +18,7 @@ import pruebaModulos from './modulos.mjs';
 import pruebaGeometria from './geometria.mjs';
 import pruebaRegresiones from './regresiones.mjs';
 import pruebaSinMando from './sin-mando.mjs';
+import pruebaCalibracion from './calibracion.mjs';
 
 const VERDE = '\x1b[32m', ROJO = '\x1b[31m', GRIS = '\x1b[90m', FIN = '\x1b[0m';
 const color = process.stdout.isTTY && !process.env.NO_COLOR;
@@ -54,7 +55,8 @@ try {
     ['módulos',     pruebaModulos,     sala],
     ['geometría',   pruebaGeometria,   sala],
     ['regresiones', pruebaRegresiones, sala],
-    ['sin mando',   pruebaSinMando,    { navegador, url: servidor.url }]
+    ['sin mando',   pruebaSinMando,    { navegador, url: servidor.url }],
+    ['calibración', pruebaCalibracion, { navegador, url: servidor.url }]
   ]) {
     try {
       marcadores.push(await prueba(args));
@@ -83,11 +85,11 @@ try {
   });
 
   let total = 0, fallos = 0;
-  /* Las cinco suites más el recuento de errores de consola: seis marcadores.
+  /* Las seis suites más el recuento de errores de consola: siete marcadores.
      Si falta alguno es que el bucle de arriba no llegó a añadirlo, y eso no
      puede terminar en verde. */
-  if (marcadores.length !== 6) {
-    console.error(c('\nfaltan marcadores: ' + marcadores.length + ' de 6', ROJO));
+  if (marcadores.length !== 7) {
+    console.error(c('\nfaltan marcadores: ' + marcadores.length + ' de 7', ROJO));
     fallos++;
   }
   for (const m of marcadores) {

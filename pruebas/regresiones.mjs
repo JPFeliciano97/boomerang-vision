@@ -114,7 +114,7 @@ export default async function pruebaRegresiones({ pc, tel, abrir }) {
     return !!g && g.getBoundingClientRect().width > 0;
   });
   const pasosVisibles = () => tel.evaluate(() => {
-    const p = document.getElementById('mod-dist-pasos');
+    const p = document.getElementById('fila-distancia');
     return !!p && !p.classList.contains('oculto');
   });
   const hayCampo = await campoVisible(), hayPasos = await pasosVisibles();
@@ -132,22 +132,25 @@ export default async function pruebaRegresiones({ pc, tel, abrir }) {
   const paso = async () => +((await pc.textContent('#modulo-nombre')).match(/1Δ = (\d+)/) || [])[1];
   const dist = async () => +(await pc.inputValue('#test-distance'));
   const d0 = await dist(), p0 = await paso();
-  await tel.click('#mod-dist-pasos button:first-child');               // acercar 0,5 m
+  await tel.click('#fila-distancia .pasos button:first-child');         // acercar 0,5 m
   await tel.waitForTimeout(600);
   const d1 = await dist(), p1 = await paso();
   const espejo = (await tel.textContent('#mod-dist-val')).trim();
+  const espejoFila = (await tel.textContent('#fdist-val')).trim();
   m.comprobar('el paso «−» del mando acerca medio metro', Math.abs(d1 - (d0 - 0.5)) < 1e-9,
     d0 + ' → ' + d1 + ' m');
   m.comprobar('1Δ se recalcula con la distancia nueva', Math.abs(p1 - p0) > 1,
     p0 + ' → ' + p1 + ' mm');
-  m.comprobar('el mando refleja la distancia nueva', espejo === d1 + ' m', espejo);
+  m.comprobar('el mando refleja la distancia nueva en la cabecera y en los pasos',
+    espejo === d1 + ' m' && espejoFila === d1 + ' m',
+    `cabecera «${espejo}» · bloque de distancia «${espejoFila}»`);
 
   /* Los topes: por debajo de 0,5 m no hay sala y por encima de 10 m no hay
      consultorio; sin tope el operador puede dejar la geometría en absurdo. */
-  for (let i = 0; i < 25; i++) { await tel.click('#mod-dist-pasos button:first-child'); await tel.waitForTimeout(50); }
+  for (let i = 0; i < 25; i++) { await tel.click('#fila-distancia .pasos button:first-child'); await tel.waitForTimeout(50); }
   await tel.waitForTimeout(500);
   const minimo = await dist();
-  for (let i = 0; i < 45; i++) { await tel.click('#mod-dist-pasos button:last-child'); await tel.waitForTimeout(50); }
+  for (let i = 0; i < 45; i++) { await tel.click('#fila-distancia .pasos button:last-child'); await tel.waitForTimeout(50); }
   await tel.waitForTimeout(500);
   const maximo = await dist();
   m.comprobar('la distancia queda entre 0,5 y 10 m', minimo === 0.5 && maximo === 10,

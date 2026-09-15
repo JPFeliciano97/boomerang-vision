@@ -176,8 +176,11 @@
         .cabecera {
             display: flex; align-items: center; gap: 10px; margin-bottom: 12px;
         }
+        /* 44×44, no 40×40: es el control más usado del mando y el área de
+           40×40 se queda en 1.600 px², por debajo del equivalente a un objetivo
+           táctil de 44. Cuatro píxeles que no se notan y una diana que sí. */
         .cabecera .atras {
-            width: 40px; height: 40px; flex-shrink: 0; border: 1px solid #2f2f2f;
+            width: 44px; height: 44px; flex-shrink: 0; border: 1px solid #2f2f2f;
             border-radius: 8px; background: #232323; color: #ccc; font-size: 20px;
             line-height: 1; padding: 0;
         }
@@ -192,16 +195,76 @@
             font-size: 8px; text-transform: uppercase; letter-spacing: 1px; color: #5e5e5e;
         }
         .cabecera .dist .val { font-family: monospace; font-size: 13px; margin-top: 2px; }
-        /* Mover la silla es cosa del que está al lado del paciente, o sea del
-           que tiene el móvil. Sin esto la distancia solo se podía cambiar en el
-           PC, y los módulos que miden contra ella (Worth, Schober, relajación,
-           fijación) seguían calculando con la distancia vieja. */
-        .cabecera .dist .pasos { display: flex; gap: 4px; margin-top: 4px; }
-        .cabecera .dist .pasos button {
-            width: 30px; height: 26px; padding: 0; font-size: 15px; line-height: 1;
-            border: 1px solid #2f2f2f; border-radius: 6px; background: #232323; color: #bbb;
+        /* ═══ DE DÓNDE SALE EL MILÍMETRO ═══
+           Todo el sistema cuelga de una sola cantidad: cuántos píxeles CSS mide
+           un milímetro. Los ocho módulos calculan su estímulo contra ella, y hay
+           dos formas de saberla con calidades muy distintas: medida con una
+           tarjeta contra el cristal, o estimada con las pulgadas declaradas.
+           La pantalla ya lo decía en su barra — pero dentro de un módulo la barra
+           se repliega y el pie se esconde, y el optometrista está mirando esto.
+           El caso obsoleto (la tarjeta se midió en OTRA pantalla, que es lo que
+           deja un portátil desconectado del monitor de la consulta) se lleva el
+           tratamiento de aviso, no una nota al pie. */
+        #fila-calibracion {
+            font-size: 10px; letter-spacing: 0.3px; color: #6a6a6a;
+            padding: 0 2px 8px; display: flex; align-items: baseline; gap: 6px;
         }
-        .cabecera .dist .pasos button:active { background: #2980b9; color: #fff; }
+        #fila-calibracion .marca { font-family: monospace; }
+        #fila-calibracion.obsoleta {
+            background: rgba(231,76,60,0.12); border: 1px solid rgba(231,76,60,0.45);
+            border-radius: 10px; padding: 10px 12px; margin-bottom: 10px;
+            font-size: 11px; line-height: 1.45; color: #e8a49c; display: block;
+        }
+        #fila-calibracion.obsoleta .marca {
+            display: block; font-size: 12px; font-weight: 700; color: #e7796b;
+            letter-spacing: 0.5px; margin-bottom: 3px;
+        }
+
+        /* ═══ DISTANCIA DE LA SALA ═══
+           Mover la silla es cosa del que está al lado del paciente, o sea del
+           que tiene el móvil. Sin estos controles la distancia solo se podía
+           cambiar en el PC, y los cinco módulos que miden contra ella (Worth,
+           Schober, relajación, fijación, optotipos) seguían calculando con la
+           distancia vieja.
+
+           Vive en el CUERPO del panel, no en la cabecera. La primera versión
+           los metía arriba a la derecha y salían de 30×26 px: los controles más
+           pequeños de todo el mando, pegados uno al otro, haciendo lo contrario
+           el uno del otro, y cambiando la distancia con la que se mide. Un
+           resbalón ahí no es una molestia — es una medida mal tomada que nadie
+           va a notar, porque la cifra sigue saliendo y sigue pareciendo bien.
+           Agrandarlos en la cabecera no valía: a 320 px, dos botones de 44 px
+           más el valor dejan el título sin sitio. Aquí abajo hay ancho entero.
+           La cabecera conserva el valor, de solo lectura. */
+        #fila-distancia {
+            width: 100%; box-sizing: border-box; margin-bottom: 12px;
+            background: #141414; border: 1px solid #262626; border-radius: 10px;
+            padding: 10px 12px;
+        }
+        #fila-distancia .enc {
+            display: flex; align-items: baseline; justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        /* Mismo rótulo que los grupos de los paneles (.grupo-tit), pero sin su
+           relleno: aquí va dentro de la caja, no separando bloques. */
+        #fila-distancia .enc .rot {
+            font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: #666;
+        }
+        #fila-distancia .enc .val {
+            font-family: monospace; font-size: 19px; color: #2980b9; font-weight: 700;
+        }
+        #fila-distancia .pasos { display: flex; gap: 8px; }
+        #fila-distancia .pasos button {
+            flex: 1; min-width: 0; min-height: 46px; padding: 8px 4px;
+            border: 1px solid #2f2f2f; border-radius: 9px; background: #1f1f1f; color: #ddd;
+            display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+        }
+        #fila-distancia .pasos button:active { background: #2980b9; color: #fff; }
+        #fila-distancia .pasos .signo { font-size: 17px; line-height: 1; }
+        #fila-distancia .pasos .que {
+            font-size: 9px; text-transform: uppercase; letter-spacing: 0.6px; color: #7a7a7a;
+        }
+        #fila-distancia .pasos button:active .que { color: rgba(255,255,255,0.85); }
 
         /* ═══════════ CONTROLES DEL AMSLER ═══════════ */
         .lista-lam { display: flex; flex-direction: column; gap: 6px; }
@@ -438,14 +501,35 @@
             <div class="dist">
                 <div class="et" id="mod-dist-et">Distancia</div>
                 <div class="val" id="mod-dist-val"></div>
-                <div class="pasos oculto" id="mod-dist-pasos">
-                    <button onclick="enviar('D:menos')" title="Acercar 0,5 m">−</button>
-                    <button onclick="enviar('D:mas')" title="Alejar 0,5 m">+</button>
-                </div>
             </div>
         </div>
 
+        <!-- De dónde sale el milímetro. Encima del espejo a propósito: es la
+             condición de todo lo que se ve debajo. -->
+        <div id="fila-calibracion">
+            <span class="marca" id="fcal-marca"></span>
+            <span id="fcal-txt"></span>
+        </div>
+
         <div id="remote-screen"></div>
+
+        <!-- La distancia de la sala: encima de cualquier panel, así que no hay
+             que repetirla en los cinco módulos que la usan. Se esconde en los
+             tres que traen la suya fija y en el menú. -->
+        <div id="fila-distancia" class="oculto">
+            <div class="enc">
+                <span class="rot">Distancia de la sala</span>
+                <span class="val" id="fdist-val">—</span>
+            </div>
+            <div class="pasos">
+                <button onclick="enviar('D:menos')">
+                    <span class="signo">− 0,5 m</span><span class="que">acercar</span>
+                </button>
+                <button onclick="enviar('D:mas')">
+                    <span class="signo">+ 0,5 m</span><span class="que">alejar</span>
+                </button>
+            </div>
+        </div>
 
         <!-- Panel de optotipos: los controles que ya existían, intactos -->
         <div id="panel-optotipos" style="width:100%; display:flex; flex-direction:column; align-items:center;">
@@ -832,9 +916,43 @@
             const val = $r('mod-dist-val');
             val.textContent = (data.cal?.distanciaModulo ?? '—') + ' m';
             val.style.color = fija ? '#f0b26b' : '#2980b9';
-            /* Un módulo que fija su distancia (Amsler y color, a 1 m) no la
+            /* Un módulo que fija su distancia (Pelli, Amsler y color, a 1 m) no la
                negocia: ahí los pasos no pintan nada. En el menú tampoco. */
-            $r('mod-dist-pasos').classList.toggle('oculto', fija || info.id === 'menu');
+            const negociable = !fija && info.id !== 'menu';
+            $r('fila-distancia').classList.toggle('oculto', !negociable);
+            if (negociable) $r('fdist-val').textContent = (data.cal?.testDistanceM ?? '—') + ' m';
+
+            pintarCalibracion(data.cal || {}, info);
+        }
+
+        /* Tres estados, y solo uno grita. Que el milímetro sea una estimación no
+           es un fallo — es información que cambia cómo se lee el resultado, así
+           que va como nota. Que sea la medida de OTRA pantalla sí es un fallo:
+           ahí el número parece medido y no lo es. */
+        function pintarCalibracion(cal, info) {
+            const fila = $r('fila-calibracion'), marca = $r('fcal-marca'), txt = $r('fcal-txt');
+            fila.classList.toggle('oculto', info.id === 'menu');
+            const obsoleta = cal.obsoleta === true;
+            fila.classList.toggle('obsoleta', obsoleta);
+            if (obsoleta) {
+                marca.textContent = '⚠ La calibración es de otra pantalla';
+                txt.textContent = 'El estímulo se está dibujando con una estimación, no con la '
+                  + 'medida. Recalibre en el PC con una tarjeta — tecla C — antes de dar un '
+                  + 'resultado por bueno.';
+                return;
+            }
+            if (cal.calibrado === false) {
+                marca.textContent = 'sin calibrar';
+                txt.textContent = '· la pantalla no puede dibujar a tamaño real';
+                return;
+            }
+            const conTarjeta = cal.source === 'tarjeta';
+            // coma decimal, como el resto del mando
+            const pxmm = (cal.cssPxPerMM ?? 0).toFixed(3).replace('.', ',');
+            marca.textContent = conTarjeta ? 'milímetro medido' : 'milímetro estimado';
+            txt.textContent = conTarjeta
+                ? '· con tarjeta, ' + pxmm + ' px/mm'
+                : '· por las pulgadas declaradas, ' + pxmm + ' px/mm';
         }
 
         function espejoPendiente(espejo, info) {

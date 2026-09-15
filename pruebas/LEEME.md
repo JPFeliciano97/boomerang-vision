@@ -5,17 +5,23 @@ npm test
 ```
 
 Levanta el servidor en un puerto libre, abre Chromium, empareja una pantalla
-con un mando **de verdad** por el código de sala, y pasa 72 comprobaciones.
+con un mando **de verdad** por el código de sala, y pasa 82 comprobaciones.
 
 - `0` — todo pasa
 - `1` — algo falla
 - `2` — **no se pudo ejecutar** (no hay navegador). Nunca sale en verde sin
   haberse ejecutado: una suite que pasa sin correr es peor que no tenerla.
 
+Corre solo en cada push y en cada pull request
+(`.github/workflows/pruebas.yml`).
+
 ## Hace falta Playwright
 
-No es dependencia del proyecto a propósito: el servidor no la necesita y
-arrastra un navegador de cientos de megas.
+No es dependencia del proyecto a propósito: el servidor no la necesita, arrastra
+un navegador de cientos de megas, y esto se despliega en Render — meterla como
+`devDependency` significa que un `npm ci` en producción se baje Chromium para
+nada. El CI la instala con `--no-save`, con la versión fijada para que una
+actualización de Playwright no rompa la suite un martes cualquiera.
 
 ```
 npm i -D playwright && npx playwright install chromium
@@ -48,6 +54,25 @@ al medir píxeles dibujados:
 | `geometria.mjs`   | Amsler: los cuatro contornos con el grosor de las líneas interiores, la rejilla centrada, el paso en píxeles enteros del dispositivo, el cuadro a 1° de arco. Pelli: los ocho grises calculados, 11,5 altos de tabla, un cuarto de letra de margen. Schober: la invariancia de invertir colores y cambiar de ojo. |
 | `regresiones.mjs` | Los cuatro defectos que ya estuvieron en producción una vez. |
 | `sin-mando.mjs`   | La pantalla sola, sin móvil: los ocho módulos son alcanzables solo desde el mando, así que todo el armazón podría romper el uso más común sin que ninguna prueba de módulos lo notara. |
+| `calibracion.mjs` | Cuánto se puede confiar en el milímetro, y si alguien lo dice donde se lee. Siembra una calibración de tarjeta **de otra pantalla** —lo que deja un portátil desconectado del monitor de la consulta— y exige que el mando lo diga, porque dentro de un módulo la barra del PC está plegada y el pie escondido. |
+
+## El mínimo táctil, y por qué no es «44×44 y ya»
+
+44×44 px es la referencia (Apple HIG, WCAG 2.5.5). Exigirla tal cual marca unos
+treinta controles, porque el mando entero está construido sobre filas de 33-42
+px de alto y **ancho completo**. Y eso no es el problema: una fila de 387×42 px
+es un objetivo fácil — el dedo tiene sitio de sobra a lo ancho. Poner 44 de alto
+a todo sería rediseñar los ocho paneles, no arreglar un defecto.
+
+La regla tiene dos partes, y cada una caza una cosa distinta:
+
+- **área** equivalente a un 44×44 (1.936 px²) — caza el botón de volver, 40×40 =
+  1.600 px²;
+- **lado corto** de al menos 32 px — sin esto el área sola aprobaría una astilla
+  de 200×10; caza los pasos de distancia, 30×26 px.
+
+Las dos juntas marcaron exactamente los dos controles que eran pequeños de
+verdad y dejaron en paz el lenguaje visual del resto.
 
 ## Lo que NO comprueba
 
@@ -62,6 +87,14 @@ uniformes a DPR 1, 1,5 y 2.
 Lo que sí se comprueba es **el invariante que lo arregló** — que el paso sea un
 número entero de píxeles del dispositivo — leyendo las coordenadas. Eso sí
 falla con el defecto puesto, y la coordenada no miente.
+
+**El estado «sin calibrar».** `resolveCalibration()` cae a la estimación por
+monitor, que usa `monitorInches || 24`, así que `cssPxPerMM` sale > 0 siempre y
+`isCalibrated: false` **no es alcanzable por la interfaz**. El aviso que sustituye
+a la pantalla en negro está escrito de todos modos —una pantalla en negro no debe
+ser nunca la forma en que este sistema falla— pero no hay prueba que lo recorra,
+porque no se puede llegar. Lo que sí se comprueba es el estado vecino y sí
+alcanzable: la calibración de otra pantalla.
 
 **El color, en absoluto.** El módulo pseudoisocromático depende de lo que emita
 el monitor; sin colorímetro las cromaticidades son las nominales de sRGB, que
@@ -82,6 +115,8 @@ en `public/index.html` y comprobando que la ejecución se pone roja:
 | el CSS esconde la distancia en todo módulo | `el campo de distancia sigue a la vista` |
 | la rejilla pegada al borde del `viewBox` | los dos contornos, al 50 % del grosor interior, y el centrado |
 | el paso de la rejilla fraccionario | `el paso es un número entero de píxeles del dispositivo` |
+| los pasos de distancia de 30×26 px | `ningún control demasiado pequeño para un dedo`, en los tres tamaños |
+| el mando sin la nota de calibración | `el mando avisa de que la calibración no es de esta pantalla` |
 
 Ese ejercicio encontró **tres fallos en las propias pruebas**, todos del tipo
 que deja una suite en verde sin comprobar nada: una suite que petaba y bajaba

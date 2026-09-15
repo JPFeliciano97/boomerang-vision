@@ -917,21 +917,21 @@
             val.textContent = (data.cal?.distanciaModulo ?? '—') + ' m';
             val.style.color = fija ? '#f0b26b' : '#2980b9';
             /* Un módulo que fija su distancia (Pelli, Amsler y color, a 1 m) no la
-               negocia: ahí los pasos no pintan nada. En el menú tampoco. */
-            const negociable = !fija && info.id !== 'menu';
-            $r('fila-distancia').classList.toggle('oculto', !negociable);
-            if (negociable) $r('fdist-val').textContent = (data.cal?.testDistanceM ?? '—') + ' m';
+               negocia: ahí los pasos no pintan nada. Del menú no hay que
+               preocuparse — esta función no corre ahí y la vista entera del
+               módulo está oculta. */
+            $r('fila-distancia').classList.toggle('oculto', fija);
+            if (!fija) $r('fdist-val').textContent = (data.cal?.testDistanceM ?? '—') + ' m';
 
-            pintarCalibracion(data.cal || {}, info);
+            pintarCalibracion(data.cal || {});
         }
 
         /* Tres estados, y solo uno grita. Que el milímetro sea una estimación no
            es un fallo — es información que cambia cómo se lee el resultado, así
            que va como nota. Que sea la medida de OTRA pantalla sí es un fallo:
            ahí el número parece medido y no lo es. */
-        function pintarCalibracion(cal, info) {
+        function pintarCalibracion(cal) {
             const fila = $r('fila-calibracion'), marca = $r('fcal-marca'), txt = $r('fcal-txt');
-            fila.classList.toggle('oculto', info.id === 'menu');
             const obsoleta = cal.obsoleta === true;
             fila.classList.toggle('obsoleta', obsoleta);
             if (obsoleta) {

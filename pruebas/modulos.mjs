@@ -109,9 +109,31 @@ export default async function pruebaModulos({ pc, tel, abrir }) {
   for (const mod of MODULOS) {
     const nombre = await abrir(mod.nombre);
 
-    const dibuja = await pc.evaluate(() =>
-      document.getElementById('modulo-area').children.length > 0
-      || document.querySelectorAll('#lines-container > div').length > 0);
+    /* VISIBILIDAD, no número de hijos. La primera versión de esto era
+       `capa.children.length > 0 || lineas.length > 0`, y es débil de dos
+       maneras: los contenedores ocultos guardan su contenido en el DOM, así que
+       ese OR pasa aunque la capa visible sea la EQUIVOCADA — la pantalla del
+       paciente en negro con los optotipos escondidos detrás habría pasado la
+       prueba. Me caí en la misma trampa dos veces sondeando a mano antes de
+       darme cuenta de que la prueba la tenía dentro.
+       Lo correcto es exigir EXACTAMENTE UNA capa visible y con contenido: la de
+       optotipos en su módulo, la de estímulos en los otros siete. */
+    const capas = await pc.evaluate(() => {
+      const ver = e => {
+        if (!e) return false;
+        const r = e.getBoundingClientRect();
+        return r.width > 0 && r.height > 0 && getComputedStyle(e).visibility !== 'hidden';
+      };
+      const capa = document.getElementById('modulo-area');
+      const lineas = document.getElementById('lines-container');
+      return {
+        estimulo: ver(capa) && capa.children.length > 0,
+        optotipos: ver(lineas) && lineas.children.length > 0
+      };
+    });
+    const esOpto = mod.panel === 'panel-optotipos';
+    const dibuja = esOpto ? (capas.optotipos && !capas.estimulo)
+                          : (capas.estimulo && !capas.optotipos);
 
     const abiertos = await tel.evaluate(ids =>
       ids.filter(id => !document.getElementById(id).classList.contains('oculto')), PANELES);
@@ -121,8 +143,10 @@ export default async function pruebaModulos({ pc, tel, abrir }) {
       horizontal: Math.max(0, document.documentElement.scrollWidth - window.innerWidth)
     }));
 
-    m.comprobar(mod.nombre.padEnd(19) + ' dibuja estímulo', dibuja,
-      nombre ? nombre.slice(0, 96) : '(sin nombre)');
+    m.comprobar(mod.nombre.padEnd(19) + ' dibuja en una sola capa, la suya', dibuja,
+      dibuja ? (nombre ? nombre.slice(0, 90) : '(sin nombre)')
+             : `capa de estímulos ${capas.estimulo} · capa de optotipos ${capas.optotipos}`
+               + ` · se esperaba ${esOpto ? 'optotipos' : 'estímulos'}`);
     m.comprobar(mod.nombre.padEnd(19) + ' saca un solo panel',
       abiertos.length === 1 && abiertos[0] === mod.panel,
       abiertos.join(', ') || 'ninguno');
@@ -164,6 +188,57 @@ export default async function pruebaModulos({ pc, tel, abrir }) {
         `«${et}» ${val}`);
     }
   }
+
+  /* ══ El menú es también un estado de la pantalla ═══════════════════
+     Mientras el optometrista elige el test siguiente, el paciente no debe estar
+     leyendo nada. Así que el menú del mando deja la pantalla en negro, y eso es
+     una decisión de diseño — no un efecto secundario. Si algún día la capa se
+     queda con el estímulo anterior puesto, el paciente sigue leyendo la cartilla
+     que ya vio. */
+  await tel.click('.cabecera .atras').catch(() => {});
+  await tel.waitForTimeout(700);
+  const enMenu = await pc.evaluate(() => {
+    const ver = e => {
+      if (!e) return false;
+      const r = e.getBoundingClientRect();
+      return r.width > 0 && r.height > 0 && getComputedStyle(e).visibility !== 'hidden';
+    };
+    const capa = document.getElementById('modulo-area');
+    return {
+      nombre: (document.getElementById('modulo-nombre') || {}).textContent || '',
+      capa: ver(capa) && capa.children.length > 0,
+      lineas: ver(document.getElementById('lines-container')),
+      tinta: capa.querySelectorAll('svg, .optotype-text, img').length
+    };
+  });
+  m.comprobar('con el mando en el menú la pantalla no enseña nada',
+    !enMenu.capa && !enMenu.lineas && enMenu.tinta === 0,
+    `«${enMenu.nombre.trim()}» · capa ${enMenu.capa} · optotipos ${enMenu.lineas}`
+    + ` · ${enMenu.tinta} elementos de estímulo`);
+
+  /* ══ El ojo en examen no se filtra entre módulos ═══════════════════
+     Amsler, Worth y Schober tienen cada uno su ojo, y significan cosas
+     distintas: en Amsler es el ojo que mira, en los otros dos dónde va el
+     filtro rojo. Compartirlos por descuido cambiaría la lectura de una prueba
+     al tocar otra. */
+  const ojoAmsler = async () => ((await pc.textContent('#modulo-nombre')).match(/ojo (O[DI])/) || [, '?'])[1];
+  await abrir('Rejilla de Amsler');
+  const ojo0 = await ojoAmsler();
+  await tel.click('#amsler-ojo');
+  await tel.waitForTimeout(600);
+  const ojo1 = await ojoAmsler();
+  m.comprobar('el ojo del Amsler cambia cuando se le pide', ojo0 !== ojo1, `${ojo0} → ${ojo1}`);
+
+  const nSchober = await abrir('Schober');
+  const ojoSchober = (nSchober.match(/filtro rojo en (O[DI])/) || [, '?'])[1];
+  m.comprobar('y Schober conserva el suyo, no hereda el del Amsler',
+    ojoSchober === 'OD', `Amsler en ${ojo1}, Schober con el filtro en ${ojoSchober}`);
+
+  await abrir('Rejilla de Amsler');
+  m.comprobar('y el Amsler recuerda el suyo al volver', (await ojoAmsler()) === ojo1,
+    `sigue en ${await ojoAmsler()}`);
+  await tel.click('#amsler-ojo');   // devolverlo a como estaba
+  await tel.waitForTimeout(400);
 
   /* ══ El menú dice en qué situación queda cada test ════════════════
      Lo dice ANTES de entrar, para que el optometrista vea que Worth no cabe a

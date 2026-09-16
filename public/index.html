@@ -560,6 +560,33 @@
         }
         .pp-ops button.puesto .sub { color: rgba(0,0,0,0.6); }
 
+        .pp-dibujos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }
+        .pp-dibujos button {
+            min-height: 78px; padding: 7px 4px 5px; cursor: pointer;
+            display: flex; flex-direction: column; align-items: center; gap: 3px;
+            background: #1a1a1a; border: 1px solid #2f2f2f; border-radius: 9px;
+        }
+        .pp-dibujos button:hover { background: #232323; border-color: #454545; }
+        .pp-dibujos button.puesto { border-color: #f39c12; background: rgba(243,156,18,0.10); }
+        .pp-dibujos svg { width: 42px; height: 42px; display: block; }
+        .pp-dibujos .et {
+            font-family: var(--ui); font-size: 10px; color: #9a9a9a; line-height: 1.1;
+        }
+        .pp-dibujos button.puesto .et { color: #f0b26b; font-weight: 600; }
+
+        .pp-rejilla { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+        .pp-rejilla button {
+            min-height: 48px; padding: 5px 2px; cursor: pointer;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            gap: 1px; background: #1a1a1a; border: 1px solid #2f2f2f; border-radius: 8px;
+        }
+        .pp-rejilla button:hover { background: #232323; border-color: #454545; }
+        .pp-rejilla button.puesto { background: #f39c12; border-color: #f39c12; }
+        .pp-rejilla .n { font-family: var(--num); font-size: 14px; color: #ddd; }
+        .pp-rejilla .sub { font-family: var(--num); font-size: 8.5px; color: #6e6e6e; }
+        .pp-rejilla button.puesto .n { color: #111; font-weight: 700; }
+        .pp-rejilla button.puesto .sub { color: rgba(0,0,0,0.65); }
+
         .pp-fila { display: flex; gap: 7px; }
         .pp-fila button {
             flex: 1 1 0; min-height: 44px; cursor: pointer;
@@ -599,15 +626,45 @@
             background: rgba(243,156,18,0.12); border-color: #f39c12; color: #f0b26b;
         }
 
-        .pp-teclas {
-            margin-top: 14px; padding: 9px 11px; border-radius: 8px;
-            background: #151515; border: 1px solid #242424;
-            font-family: var(--num); font-size: 10px; line-height: 1.7; color: #7a7a7a;
+        /* El emparejamiento, plegado: hace falta una vez por sala y después
+           estorba. El código de sala queda a la vista en el título, que es lo
+           que se dicta por teléfono. */
+        .pp-mando { margin-top: 16px; }
+        .pp-mando > summary {
+            list-style: none; cursor: pointer; display: flex; align-items: center;
+            justify-content: space-between; gap: 10px; min-height: 44px;
+            padding: 11px 13px; border-radius: 9px;
+            background: #161616; border: 1px solid #2b2b2b;
+            font-size: 13px; color: #ddd;
         }
-        .pp-teclas b {
-            color: #cfcfcf; background: #222; border: 1px solid #383838;
-            border-radius: 4px; padding: 1px 5px; font-weight: 400;
+        .pp-mando > summary::-webkit-details-marker { display: none; }
+        .pp-mando > summary::after {
+            content: '+'; color: #5e5e5e; font-family: var(--num); flex-shrink: 0;
         }
+        .pp-mando[open] > summary::after { content: '\2212'; }
+        .pp-mando .pp-cod {
+            font-family: var(--num); font-size: 13px; letter-spacing: 2px; color: #f0b26b;
+        }
+        .pp-mando-cuerpo {
+            padding: 12px 13px; border-radius: 0 0 9px 9px;
+            background: #161616; border: 1px solid #2b2b2b; border-top: none;
+        }
+        #qr-panel {
+            background: #fff; padding: 8px; border-radius: 8px; width: max-content;
+            margin: 0 auto 10px;
+        }
+        #qr-panel svg { display: block; width: 150px; height: 150px; }
+        .pp-mando-txt { font-size: 11px; line-height: 1.55; color: #7a7a7a; }
+
+        .pp-conf {
+            width: 100%; min-height: 46px; margin-top: 10px; cursor: pointer;
+            display: flex; align-items: center; justify-content: space-between;
+            gap: 10px; padding: 10px 13px;
+            background: #161616; color: #ddd; border: 1px solid #2b2b2b;
+            border-radius: 9px; font-family: var(--ui); font-size: 13px; text-align: left;
+        }
+        .pp-conf:hover { background: #202020; border-color: #454545; }
+        .pp-conf .val { font-family: var(--num); font-size: 10px; color: #7a7a7a; flex-shrink: 0; }
 
         .pp-pie {
             margin-top: 16px; padding-top: 12px; border-top: 1px solid #222;
@@ -662,11 +719,34 @@
             <label class="pp-rot" for="panel-modulo">Test</label>
             <select id="panel-modulo"></select>
         </div>
-        <div class="pp-geo" id="panel-geo"></div>
+        <div class="pp-geo" id="panel-geo" role="status" aria-live="polite"></div>
         <div id="panel-cuerpo"></div>
         <button type="button" id="panel-corte" class="pp-corte" data-cmd="Corte">
             <span class="pp-corte-et">Pantalla en negro</span>
             <span class="pp-corte-val">el test sigue puesto &middot; N</span>
+        </button>
+        <details class="pp-mando">
+            <summary><span>Conectar el m&oacute;vil</span><span class="pp-cod"
+                id="panel-cod">&hellip;</span></summary>
+            <div class="pp-mando-cuerpo">
+                <div id="qr-panel"></div>
+                <div class="pp-mando-txt">Escanee el c&oacute;digo, o escriba el c&oacute;digo de
+                    sala en el navegador del m&oacute;vil. El mando y este panel manejan lo
+                    mismo: el que sobra es el que no tenga a mano.</div>
+            </div>
+        </details>
+        <!-- El arreglo de verdad para lo único que el panel compromete: que
+             tape parte de la cartilla. Esto abre EL MANDO en su propia ventana,
+             ya emparejado con esta pantalla — se arrastra al portátil o al
+             segundo monitor y la pantalla del paciente se queda limpia. No es
+             una interfaz nueva: es el mando de siempre, emparejado solo. -->
+        <button type="button" class="pp-conf" id="panel-ventana">
+            <span>Abrir los controles en otra ventana</span>
+            <span class="val">para el segundo monitor</span>
+        </button>
+        <button type="button" class="pp-conf" id="panel-conf">
+            <span>Configuraci&oacute;n inicial</span>
+            <span class="val">distancia y medida &middot; C</span>
         </button>
         <div class="pp-pie" id="panel-estado"></div>
     </aside>
@@ -696,16 +776,12 @@
             <span id="info-span"></span>
         </div>
 
-        <!-- Columna derecha -->
-        <div class="mode-selector">
-            <button class="mode-btn active" data-mode="letters">Letras</button>
-            <button class="mode-btn" data-mode="numbers">Números</button>
-            <button class="mode-btn" data-mode="pediatric">LEA</button>
-            <button class="mode-btn" data-mode="e_directional">E direc.</button>
-            <button class="bic-btn off" id="btn-bic">⚪ Fondo claro</button>
-            <button class="highlight-btn" id="btn-highlight" title="Resaltar línea (R)">🔦 Resaltar</button>
-            <button class="single-char-btn" id="btn-single-char" title="Modo 1 carácter (U)">Individual</button>
-        </div>
+        <!-- Aquí vivían siete chips: los cuatro optotipos, «Fondo claro»,
+             «Resaltar» e «Individual». Se han ido al panel de control (tecla P),
+             que los tiene todos con su rótulo y su estado, y además los ocho
+             test — que desde esta barra nunca se alcanzaron. Dos sitios para la
+             misma orden es como se separan dos interfaces; y estos, encima,
+             estaban a la vista del paciente todo el rato. -->
     </div>
 
     <div id="test-area">
@@ -879,14 +955,16 @@
                niveles a la vez obliga a letras de 26 mm. Salir de uno de estos
                deja al paciente acercado, así que el mando avisa. */
             const MODULOS = [
+                /* El orden es el de la consulta, no el del catálogo: los cuatro que
+                   más se usan primero, y son los que caen en las teclas 1 a 4. */
                 { id:'optotipos', titulo:'Optotipos',        sub:'Letras · números · LEA · E direccional', grupo:'Agudeza visual',           hecho:true,  distFija:null },
+                { id:'color',     titulo:'Pseudoisocromático', sub:'Láminas de puntos · cribado',          grupo:'Visión del color',         hecho:true,  distFija:1 },
+                { id:'infantil',  titulo:'Fijación infantil', sub:'9 figuras · 4 movimientos',             grupo:'Fijación',                 hecho:true,  distFija:null },
+                { id:'relax',     titulo:'Relax acomodativo', sub:'Para retinoscopía y fondo de ojo',      grupo:'Fijación',                 hecho:true,  distFija:null },
                 { id:'contraste', titulo:'Pelli-Robson',     sub:'5 niveles · 0 a 1,00 log CS',           grupo:'Sensibilidad al contraste', hecho:true,  distFija:1 },
                 { id:'worth',     titulo:'Luces de Worth',   sub:'Fusión y supresión · gafa rojo-verde',   grupo:'Binocularidad',            hecho:true,  distFija:null },
                 { id:'schober',   titulo:'Schober',          sub:'Cruz y anillos · forias',                grupo:'Binocularidad',            hecho:true,  distFija:null },
-                { id:'color',     titulo:'Pseudoisocromático', sub:'Láminas de puntos · cribado',          grupo:'Visión del color',         hecho:true,  distFija:1 },
                 { id:'amsler',    titulo:'Rejilla de Amsler', sub:'3 láminas · 1 cuadro = 1°',             grupo:'Mácula',                   hecho:true,  distFija:1 },
-                { id:'relax',     titulo:'Relax acomodativo', sub:'Para retinoscopía y fondo de ojo',      grupo:'Fijación',                 hecho:true,  distFija:null },
-                { id:'infantil',  titulo:'Fijación infantil', sub:'9 figuras · 4 movimientos',             grupo:'Fijación',                 hecho:true,  distFija:null }
             ];
             const MODULO = {};
             MODULOS.forEach(m => MODULO[m.id] = m);
@@ -1831,9 +1909,21 @@
                     return k;
                 };
                 /* Figura grande a propósito: con 30 puntos a lo ancho, una
-                   cifra del 46% del disco deja el trazo en 2,8 puntos y se
-                   lee como un borrón. Al 60% el trazo son 3,6 y tiene forma. */
-                const LADO = 0.60;
+                   cifra del 46% del disco deja el trazo en 2,8 puntos y se lee
+                   como un borrón. Al 60% el trazo son 3,6 y tiene forma.
+
+                   Y el tamaño DEPENDE DE CUÁNTOS DÍGITOS SON, porque el hueco
+                   disponible no es el mismo. En consulta costaba distinguir el
+                   6 del 5, que es exactamente lo que pasa cuando al trazo le
+                   faltan puntos. Un dígito solo cabe mucho más grande: a media
+                   altura la cuerda del disco es el diámetro entero. Dos
+                   dígitos ocupan el doble de ancho, y pasado cierto punto se
+                   comen el fondo — y sin fondo alrededor no hay dónde
+                   esconderse, que es de lo que vive esta prueba. Las dos
+                   cifras están medidas sobre la lámina dibujada, no puestas a
+                   ojo: ver pruebas/geometria.mjs. */
+                const UN_DIGITO = 0.82, DOS_DIGITOS = 0.64;
+                const LADO = String(lam.digito || '').length > 1 ? DOS_DIGITOS : UN_DIGITO;
                 const mascaraCifra = (txt, dx) => {
                     const k = lienzoMascara();
                     k.textAlign = 'center'; k.textBaseline = 'middle';
@@ -1982,6 +2072,7 @@
             const d = {
                 testDistance:$('test-distance'), distSala:$('dist-sala'), monitorSize:$('monitor-size'),
                 qrConfig:$('qr-config'), pairCodeConfig:$('pair-code-config'),
+                qrPanel:$('qr-panel'), panelCod:$('panel-cod'),
                 btnToggle:$('btn-toggle-cal'),
                 btnCardCal:$('btn-card-cal'), cardCal:$('card-cal'), cardShape:$('card-shape'),
                 cardHandle:$('card-handle'), cardReadout:$('card-readout'),
@@ -1990,10 +2081,8 @@
                 moduloArea:$('modulo-area'), moduloNombre:$('modulo-nombre'),
                 calStatus:$('cal-status-footer'), remoteStatus:$('remote-status'),
                 pairCodeLabel:$('pair-code-label'), shortcutsPanel:$('shortcuts-panel'),
-                shortcutsToggle:$('shortcuts-toggle'), btnHighlight:$('btn-highlight'),
-                btnSingleChar:$('btn-single-char'), btnBic:$('btn-bic'),
+                shortcutsToggle:$('shortcuts-toggle'),
                 testArea:$('test-area'), calBar:$('calibration-bar'),
-                modeBtns: document.querySelectorAll('.mode-btn'),
                 qrContainer: document.getElementById('qr-container'),
             };
 
@@ -2774,11 +2863,21 @@
             }
 
             function emitirEspejo(){
-                /* El panel del PC se repinta SIEMPRE, con móvil o sin él: es el
-                   camino del consultorio que solo tiene un PC. */
-                pintarPanelPC();
-                if (!(window.remoteSocket && window.remoteSocket.connected && state.remoteJoined)) return;
-                window.remoteSocket.emit('screenUpdate', construirEspejo());
+                /* El espejo se construye UNA VEZ y se reparte. Antes esta
+                   función llamaba a pintarPanelPC() —que lo construía— y
+                   después lo construía otra vez para el emit: dos objetos
+                   completos por repintado con el móvil conectado, y uno
+                   entero tirado a la basura sin móvil y con el panel cerrado.
+                   En optotipos ese objeto no es pequeño: lleva cada línea,
+                   cada carácter y los data-URI de los SVG.
+                   Y si no hay a quién contárselo —ni móvil ni panel abierto—
+                   no se construye ninguno. */
+                const hayMovil = !!(window.remoteSocket && window.remoteSocket.connected
+                                    && state.remoteJoined);
+                if (!hayMovil && !panelPCAbierto) return;
+                const datos = construirEspejo();
+                pintarPanelPC(datos);
+                if (hayMovil) window.remoteSocket.emit('screenUpdate', datos);
             }
 
             // Un módulo declarado pero sin construir lo dice en la pantalla, en
@@ -2886,7 +2985,6 @@
             }
 
             function updateModeButtons() {
-                d.modeBtns.forEach(btn => btn.classList.toggle('active', btn.dataset.mode === state.mode));
             }
 
             function setMode(mode) {
@@ -2988,17 +3086,11 @@
                 if (!isPairCode(state.pairCode)) state.pairCode = newPairCode();
                 updateModeButtons();
                 d.testArea.classList.toggle('bichromatic',state.bichromatic);
-                d.btnBic.textContent=state.bichromatic?'🔴🟢 Bicrom.':'⚪ Fondo claro';
-                d.btnBic.className='bic-btn'+(state.bichromatic?'':' off');
-                d.btnHighlight.classList.toggle('active', state.highlightMode);
-                d.btnSingleChar.classList.toggle('active', state.singleCharMode);
             }
 
             function toggleBichromatic(){
                 state.bichromatic=!state.bichromatic;
                 d.testArea.classList.toggle('bichromatic',state.bichromatic);
-                d.btnBic.textContent=state.bichromatic?'🔴🟢 Bicrom.':'⚪ Fondo claro';
-                d.btnBic.className='bic-btn'+(state.bichromatic?'':' off');
                 // El estado de los botones del mando viaja en screenUpdate, que
                 // solo sale de renderScreen: sin esto el 🔴🟢 del móvil no se
                 // encendía hasta que se pulsara cualquier otra cosa.
@@ -3018,7 +3110,6 @@
 
             function toggleHighlightMode(){
                 state.highlightMode = !state.highlightMode;
-                d.btnHighlight.classList.toggle('active', state.highlightMode);
                 if (state.highlightMode) state.highlightLineGlobalIdx = globalIdxOfFirstLine();
                 renderScreen();
                 saveToStorage();
@@ -3038,7 +3129,6 @@
 
             function toggleSingleCharMode(){
                 state.singleCharMode = !state.singleCharMode;
-                d.btnSingleChar.classList.toggle('active', state.singleCharMode);
                 renderScreen();
                 saveToStorage();
             }
@@ -3155,7 +3245,7 @@
                SOLO desde el móvil, eso dejaba la suite clínica entera invisible
                para quien abre la app por primera vez. */
             function pintarEmparejamiento(){
-                const cajas = [d.qrContainer, d.qrConfig].filter(Boolean);
+                const cajas = [d.qrContainer, d.qrConfig, d.qrPanel].filter(Boolean);
                 // location.origin, no una URL fija: si la pantalla corre en la
                 // red local, el móvil tiene que ir ahí y no a la instancia de la
                 // nube (donde manejaría otra pantalla).
@@ -3172,7 +3262,8 @@
                 for (const caja of cajas) {
                     if (svg) caja.innerHTML = svg; else caja.textContent = url;
                 }
-                for (const et of [d.pairCodeLabel, d.pairCodeConfig].filter(Boolean)) {
+                for (const et of [d.pairCodeLabel, d.pairCodeConfig, d.panelCod]
+                                 .filter(Boolean)) {
                     et.textContent = state.pairCode;
                 }
                 qrGenerated = true;
@@ -3195,7 +3286,6 @@
                 }
             }
 
-            d.modeBtns.forEach(btn => btn.addEventListener('click', () => setMode(btn.dataset.mode)));
             /* Sin listener de 'change': la distancia se aplica al guardar la
                configuración inicial, no en cuanto alguien teclea en el campo. */
             d.monitorSize.addEventListener('change',applyCalibration);
@@ -3206,9 +3296,6 @@
             d.remoteStatus.addEventListener('click', () => {
                 if (d.shortcutsPanel.classList.contains('hidden')) toggleShortcuts();
             });
-            d.btnBic.addEventListener('click',toggleBichromatic);
-            d.btnHighlight.addEventListener('click',toggleHighlightMode);
-            d.btnSingleChar.addEventListener('click',toggleSingleCharMode);
             d.shortcutsToggle.addEventListener('click',toggleShortcuts);
             d.btnCardCal.addEventListener('click',openCardCal);
             d.cardRefs.querySelectorAll('button').forEach(b =>
@@ -3254,11 +3341,18 @@
                     e.preventDefault();
                     return;
                 }
-                /* Con el foco dentro del panel el teclado es del panel: las
-                   flechas mueven su desplegable, no las pantallas de detrás. La
-                   P y la Escape siguen valiendo, que son las de salir. */
+                /* El teclado es del panel SOLO donde el panel lo necesita: en
+                   un desplegable o en un deslizador, donde las flechas mueven
+                   la opción y no deben navegar la pantalla de detrás. Sobre un
+                   BOTÓN no: el foco se queda ahí después de pulsarlo, y quien
+                   pulsa un botón y luego aprieta ↓ espera pasar de pantalla.
+                   La primera versión de la guarda cubría todo el panel y dejaba
+                   las flechas y los números muertos después de cada clic. */
                 const pp = document.getElementById('panel-pc');
-                if (pp && pp.contains(document.activeElement)
+                const foco = document.activeElement;
+                const suyo = foco && (foco.tagName === 'SELECT' || foco.tagName === 'INPUT'
+                                      || foco.tagName === 'TEXTAREA');
+                if (pp && suyo && pp.contains(foco)
                     && !['Escape','p','P'].includes(e.key)) return;
                 if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) e.preventDefault();
                 /* Los números: los ocho test y el 0 para dejarla sin estímulo.
@@ -3558,6 +3652,7 @@
                 return '<div class="pp-grupo"><span class="pp-rot">' + esc(rot) + '</span>'
                     + '<div class="pp-ops">' + ops.map(o =>
                         '<button type="button" data-cmd="' + esc(cmd + o.id) + '"'
+                      + ' aria-pressed="' + (o.id === puesto ? 'true' : 'false') + '"'
                       + (o.id === puesto ? ' class="puesto"' : '') + '>'
                       + esc(o.nombre || o.label)
                       + (o.sub || o.nota ? '<span class="sub">' + esc(o.sub || o.nota) + '</span>' : '')
@@ -3575,8 +3670,47 @@
                       + '</option>').join('') + '</select></div>';
             }
 
-            function ppConmut(et, val, cmd){
-                return '<button type="button" class="pp-conmut" data-cmd="' + esc(cmd) + '">'
+            /* Las figuras infantiles, con su dibujo dentro del botón: elegir
+               «Molinete» de una lista de nueve nombres obliga a traducir el
+               nombre a la figura en la cabeza, y lo que el niño va a mirar es
+               el dibujo. El SVG es el mismo que dibuja la pantalla — viene en
+               el espejo — así que el botón no puede enseñar otra cosa. */
+            function ppOpsDibujo(rot, ops, puesto, cmd){
+                if (!ops || !ops.length) return '';
+                return '<div class="pp-grupo"><span class="pp-rot">' + esc(rot) + '</span>'
+                    + '<div class="pp-dibujos">' + ops.map(o =>
+                        '<button type="button" data-cmd="' + esc(cmd + o.id) + '"'
+                      + ' title="' + esc(o.nombre) + '"'
+                      + ' aria-pressed="' + (o.id === puesto ? 'true' : 'false') + '"'
+                      + (o.id === puesto ? ' class="puesto"' : '') + '>'
+                      + '<svg viewBox="0 0 60 60" aria-hidden="true">' + (o.svg || '') + '</svg>'
+                      + '<span class="et">' + esc(o.nombre) + '</span>'
+                      + '</button>').join('') + '</div></div>';
+            }
+
+            /* Una rejilla de botones numerados para las listas cortas — las
+               láminas y las filas —, que en un desplegable obligan a abrir,
+               buscar y cerrar para ver en cuál se está. */
+            function ppRejilla(rot, ops, puesto, cmd){
+                if (!ops || !ops.length) return '';
+                return '<div class="pp-grupo"><span class="pp-rot">' + esc(rot) + '</span>'
+                    + '<div class="pp-rejilla">' + ops.map(o =>
+                        '<button type="button" data-cmd="' + esc(cmd + o.id) + '"'
+                      + ' title="' + esc(o.titulo || o.nombre) + '"'
+                      + ' aria-pressed="' + (String(o.id) === String(puesto) ? 'true' : 'false') + '"'
+                      + (String(o.id) === String(puesto) ? ' class="puesto"' : '') + '>'
+                      + '<span class="n">' + esc(o.nombre) + '</span>'
+                      + (o.sub ? '<span class="sub">' + esc(o.sub) + '</span>' : '')
+                      + '</button>').join('') + '</div></div>';
+            }
+
+            /* `aria-pressed` porque un conmutador sin él se anuncia como un botón
+               cualquiera: quien navega por el tabulador oye «Bicromático» y no
+               si está puesto. El estado se ve a la derecha, y ahí no llega. */
+            function ppConmut(et, val, cmd, puesto){
+                return '<button type="button" class="pp-conmut" data-cmd="' + esc(cmd) + '"'
+                    + (puesto === undefined ? '' : ' aria-pressed="' + (puesto ? 'true' : 'false') + '"')
+                    + '>'
                     + '<span>' + esc(et) + '</span><span class="val">' + esc(val) + '</span></button>';
             }
 
@@ -3608,15 +3742,15 @@
                       + '<button type="button" data-cmd="ArrowDown">siguiente ↓</button>'
                       + '</div></div>'
                       + ppFila([{ cmd:'ArrowLeft', et:'↻ Remezclar los caracteres' }])
-                      + ppConmut('Bicromático', o.bichromatic ? 'puesto' : 'no', 'KeyB')
-                      + ppConmut('Resaltar una línea', o.highlightMode ? 'puesto' : 'no', 'KeyR')
-                      + ppConmut('Un solo carácter', o.singleCharMode ? 'puesto' : 'no', 'KeyU');
+                      + ppConmut('Resaltar una línea', o.highlightMode ? 'puesto' : 'no', 'KeyR', o.highlightMode)
+                      + ppConmut('Un solo carácter', o.singleCharMode ? 'puesto' : 'no', 'KeyU', o.singleCharMode)
+                      + ppConmut('Bicromático', o.bichromatic ? 'puesto' : 'no', 'KeyB', o.bichromatic);
                 }
                 if (id === 'contraste') {
                     const p = dt.pelli || {};
-                    return ppSelect('Fila', 'pp-pelli-fila',
-                            (p.niveles || []).map(n => ({ id:n.n, nombre:'Fila ' + n.n,
-                                sub: n.log + ' log CS · ' + n.pct + ' %' })),
+                    return ppRejilla('Fila', (p.niveles || []).map(n => ({ id:n.n,
+                                nombre: String(n.n), sub: n.log,
+                                titulo: 'Fila ' + n.n + ' · ' + n.log + ' log CS · ' + n.pct + ' %' })),
                             p.fila, 'P:fila:')
                       + '<div class="pp-grupo"><div class="pp-fila">'
                       + '<button type="button" data-cmd="P:fila:arriba">↑ más contraste</button>'
@@ -3634,28 +3768,28 @@
                     const sc = dt.schober || {};
                     return ppOps('Anillos visibles', sc.opciones, sc.anillosPedidos, 'S:anillos:')
                       + ppConmut('Filtro rojo en', sc.ojoRojo || '—', 'S:ojo')
-                      + ppConmut('Invertir los colores', sc.invertido ? 'cruz verde' : 'cruz roja', 'S:inv')
+                      + ppConmut('Invertir los colores', sc.invertido ? 'cruz verde' : 'cruz roja', 'S:inv', sc.invertido)
                       + '<div class="pp-geo">' + esc(sc.derivacion || '') + '</div>';
                 }
                 if (id === 'color') {
                     const co = dt.color || {};
                     return ppOps('Juego de láminas', co.juegos, co.juego, 'C:juego:')
-                      + ppSelect('Lámina', 'pp-color-lam',
-                            (co.laminas || []).map((l, i) => ({ id:i + 1,
-                                nombre:'Lámina ' + (i + 1), sub:l.que })),
+                      + ppRejilla('Lámina', (co.laminas || []).map((l, i) => ({ id:i + 1,
+                                nombre: String(i + 1), sub: l.eje === 'demo' ? 'demo' : l.eje,
+                                titulo: 'Lámina ' + (i + 1) + ' · ' + (l.que || '') })),
                             co.lamina, 'C:lam:')
                       + '<div class="pp-grupo"><div class="pp-fila">'
                       + '<button type="button" data-cmd="C:lam:ant">‹ anterior</button>'
                       + '<button type="button" data-cmd="C:lam:sig">siguiente ›</button>'
                       + '</div></div>'
-                      + ppConmut('Respuesta correcta', co.mostrarResp ? String(co.resp) : 'oculta', 'C:resp')
+                      + ppConmut('Respuesta correcta', co.mostrarResp ? String(co.resp) : 'oculta', 'C:resp', co.mostrarResp)
                       + ppFila([{ cmd:'C:nueva', et:'↻ Remezclar los puntos' }]);
                 }
                 if (id === 'amsler') {
                     const a = dt.amsler || {};
                     return ppOps('Lámina', a.laminas, a.lamina, 'A:lamina:')
                       + ppConmut('Ojo en examen', a.ojo || '—', 'A:ojo')
-                      + ppConmut('Diagonales', a.diagonales ? 'puestas' : 'no', 'A:diag');
+                      + ppConmut('Diagonales', a.diagonales ? 'puestas' : 'no', 'A:diag', a.diagonales);
                 }
                 if (id === 'relax') {
                     const r = dt.relax || {};
@@ -3668,11 +3802,11 @@
                 }
                 if (id === 'infantil') {
                     const i = dt.infantil || {};
-                    return ppSelect('Figura', 'pp-inf-fig', i.figuras, i.figura, 'I:fig:')
+                    return ppOpsDibujo('Figura', i.figuras, i.figura, 'I:fig:')
                       + ppOps('Movimiento', i.movimientos, i.movimiento, 'I:mov:')
                       + ppOps('Velocidad', (i.velocidades || []).map(v => ({ id:v.id,
                             nombre:v.nombre, sub:v.seg + ' s' })), i.velocidad, 'I:vel:')
-                      + ppConmut('Congelar en el centro', i.congelado ? 'quieta' : 'en movimiento', 'I:congelar');
+                      + ppConmut('Congelar en el centro', i.congelado ? 'quieta' : 'en movimiento', 'I:congelar', i.congelado);
                 }
                 return '<div class="pp-geo">Este módulo todavía no está construido.</div>';
             }
@@ -3688,23 +3822,19 @@
                 return t || '';
             }
 
-            /* Lo que las flechas mueven AQUÍ, escrito aquí. Sale de la misma
-               tabla que las mueve, así que no puede decir una cosa y hacer
-               otra. */
-            function ppFlechas(id){
-                const e = EJES_FLECHA[id];
-                if (!e || (!e.vert && !e.horiz)) return '';
-                const f = [];
-                if (e.vert) f.push('<b>↑↓</b> ' + esc(e.vert));
-                if (e.horiz) f.push('<b>←→</b> ' + esc(e.horiz));
-                return '<div class="pp-teclas">' + f.join(' &nbsp;·&nbsp; ')
-                    + ' &nbsp;·&nbsp; <b>1–8</b> otro test</div>';
-            }
+            /* El mapa de teclas ya NO se escribe en el panel: quien lo tiene
+               abierto está usando el ratón, y el panel enseña cada opción con
+               su rótulo. Los atajos siguen en el panel de la «?», que es donde
+               se buscan. La tabla EJES_FLECHA se queda porque es la que MUEVE
+               las flechas. */
 
-            function pintarPanelPC(){
+            /* Recibe el espejo ya construido: construirlo aquí otra vez era
+               duplicar el trabajo más caro del repintado. Lo construye si se
+               le llama sin él, que es el caso de abrir el panel. */
+            function pintarPanelPC(datos){
                 const pp = document.getElementById('panel-pc');
                 if (!pp) return;
-                const dt = construirEspejo();
+                const dt = datos || construirEspejo();
                 document.body.classList.toggle('corte-puesto', !!dt.corte);
                 /* El desplegable de test se pinta una vez: sus opciones no
                    cambian, y rehacerlo cerraría la lista abierta. */
@@ -3741,8 +3871,7 @@
                     ? (foco.dataset && foco.dataset.cmd ? '[data-cmd="' + foco.dataset.cmd + '"]'
                        : (foco.id ? '#' + foco.id : null)) : null;
                 document.getElementById('panel-geo').textContent = ppGeo(dt);
-                document.getElementById('panel-cuerpo').innerHTML = ppCuerpo(dt)
-                    + ppFlechas(dt.modulo);
+                document.getElementById('panel-cuerpo').innerHTML = ppCuerpo(dt);
                 if (marca) { const v = pp.querySelector(marca); if (v) v.focus(); }
             }
 
@@ -3771,6 +3900,25 @@
                 if (!pp) return;
                 document.getElementById('panel-pc-abrir').addEventListener('click', abrirPanelPC);
                 document.getElementById('panel-pc-cerrar').addEventListener('click', cerrarPanelPC);
+                /* La distancia de la sala NO se edita desde aquí: este botón abre
+                   la CONFIGURACIÓN INICIAL, que es el único sitio donde se
+                   declara. Un campo de distancia dentro del panel invitaría a
+                   cambiarla a mitad de una prueba, que es exactamente el error
+                   que este sistema existe para evitar. */
+                document.getElementById('panel-ventana').addEventListener('click', () => {
+                    /* Con el código de sala en la URL el mando se empareja solo:
+                       el mismo camino que sigue el móvil al escanear el QR, así
+                       que no hay una segunda forma de emparejar que mantener. */
+                    const w = window.open(location.origin + '/remote?c=' + state.pairCode,
+                        'boomerang-mando', 'width=440,height=920');
+                    /* Y se cierra el cajón: si se queda abierto, el panel sigue
+                       tapando la cartilla y no se ha ganado nada. */
+                    if (w) { cerrarPanelPC(); w.focus(); }
+                });
+                document.getElementById('panel-conf').addEventListener('click', () => {
+                    cerrarPanelPC();
+                    openCardCal();
+                });
                 /* Delegación: el cuerpo se rehace entero en cada cambio, así que
                    enganchar botón a botón dejaría oyentes colgando. */
                 pp.addEventListener('click', e => {

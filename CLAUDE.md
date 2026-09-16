@@ -82,6 +82,19 @@ transformada de distancia. La tabla con las cifras está en el comentario de
 `COLOR_FIGURAS`. Una silueta fina no es una silueta: la estrella y la cruz
 salieron en 2,6 y 2,5 puntos y hubo que engordarlas.
 
+**El tamaño de la cifra depende de cuántos dígitos son.** En consulta costaba
+distinguir el 6 del 5, que es lo que pasa cuando al trazo le faltan puntos del
+mosaico. Un dígito solo cabe mucho más grande — a media altura la cuerda del
+disco es el diámetro entero — y dos ocupan el doble de ancho: `UN_DIGITO` 0,82 y
+`DOS_DIGITOS` 0,64 del disco. Medido sobre la lámina dibujada, las cifras pasan
+del 5,7–12,1 % de los puntos al 10,6–14,5 %.
+
+Y lo que sujeta ese tamaño es el **margen**: la figura no puede llegar al borde
+del disco, porque ahí deja de tener dónde esconderse y se lee por su contorno
+aunque no se distinga el color. Se mide el punto de la figura más lejano del
+centro frente al radio, y el mínimo es el 6 % — dos puntos del mosaico. Medido:
+cifras del 28 al 51 %, figuras del 13 al 53 %.
+
 **La figura tiene que poder NOMBRARLA un niño de cuatro años.** Es lo que se
 mide aquí: no si la ve, sino si la dice. El rombo y la casa se cayeron por eso
 —en consulta el niño no tiene la palabra, y el que calla cuenta como fallo
@@ -103,11 +116,32 @@ Se comprueba **midiendo**: el ancho de cada carácter pedido con la fuente frent
 al ancho pedido con una familia que no existe. Si miden lo mismo, el glifo lo
 puso la fuente de reserva.
 
-**El «0» no se dibuja.** Optician Sans lo trae con una barra diagonal y a la
-distancia de la sala un cero barrado y un ocho son el mismo borrón; un fallo así
-no se distingue de una agudeza baja. Las cifras van de 1 a 9 (`NUMBERS` en
-`public/index.html`), y hay una comprobación que barre las pantallas y los
-turnos de mezcla para que ninguna saque un cero.
+**El «0» va sin barra, y el «1» no va.** La barra diagonal que hace el cero
+indistinguible de un ocho la pone **`ss01`, no el glifo**: medido pintando el 0
+en el DOM con los dos juegos y leyendo la tinta del centro — base 0 % (óvalo
+limpio), ss01 100 % (la barra). Así que el 0 se dibuja con el glifo base y es el
+único que no lleva `ss01` (`sinSS01()`).
+
+Su alto de tinta es 0,520 em en vez de 0,500 y **eso no cuesta nada**:
+`spanOptotipo` calcula el tamaño como `h_css / ratio`, así que un ratio mayor da
+una fuente más pequeña que dibuja exactamente el alto pedido. Aquí hubo un error
+de razonamiento que conviene no repetir: se quitó el carácter entero por «un
+4 %, media línea de la escala», y la maquinaria ya compensaba.
+
+Sus medidas van en `BASE_METRICAS`, tomadas de los **píxeles pintados** a 300 y
+600 px (0,520 de alto, 0,065 de borde a cada lado, idénticas en los dos).
+Medirlas en vivo no vale: `actualBoundingBox*` sale del rasterizado y da 0,520 /
+0,535 / 0,532 según el tamaño de la sonda, y con ese ruido el alto dibujado se
+iba 0,016 px.
+
+El que se va es el **1**: en `ss01` es una bandera inclinada sin base y en el
+juego base lleva serif de pie — dos dibujos distintos del mismo carácter, y en
+los dos un trazo casi vertical que no aporta nada que reconocer. `NUMBERS` va de
+0 y del 2 al 9.
+
+Hay una comprobación que barre las pantallas y las mezclas para que el conjunto
+sea ese, y otra que lee la **tinta del centro del 0 dibujado** con otro dígito de
+la misma línea como control.
 
 ## El mando
 
@@ -207,6 +241,37 @@ eje de las flechas en el propio panel, y todo en el panel de la `?`.
 control ya escondido, la guarda «el teclado es del panel» se cumple para
 siempre y el teclado queda muerto con el panel cerrado: ni números, ni flechas,
 ni `N`.
+
+### Lo que el panel se llevó de la barra
+
+La barra del PC tenía siete chips — los cuatro optotipos, «Fondo claro»,
+«Resaltar» e «Individual» — y se han ido al panel, que los tiene todos con su
+rótulo y su estado. Dos sitios para la misma orden es como se separan dos
+interfaces, y estos además estaban a la vista del paciente todo el rato. Las
+pruebas eligen el modo con `elegirModo()` (`pruebas/ayuda.mjs`), que hace lo que
+hace una persona: abre el panel, pulsa y **cierra siempre** — una sonda de
+píxeles con el panel abierto mide el panel.
+
+El QR de emparejamiento vive ahora en el panel, plegado, con el código de sala a
+la vista en el título. Y hay un botón que abre **el mando en su propia ventana**,
+ya emparejado por el código en la URL: se arrastra al segundo monitor y la
+pantalla del paciente se queda limpia. Es el arreglo de lo único que el panel
+compromete.
+
+**El teclado es del panel SOLO en un desplegable o un deslizador**, donde las
+flechas mueven la opción. Sobre un botón no: el foco se queda ahí después de
+pulsarlo, y quien pulsa un botón y luego aprieta ↓ espera pasar de pantalla. La
+primera versión cubría todo el panel y dejaba el teclado muerto tras cada clic.
+
+**Y los mandos no viajan disfrazados de tecla.** El despachador reparte un
+`KeyboardEvent` para los atajos de optotipos, y al pulsarlos en el panel el foco
+se queda en el botón: la guarda de arriba se los comía, y bicromático, resaltar,
+un solo carácter y las flechas de pantalla no hacían nada. Están en
+`atajoOptotipos()`, que usan el teclado y el panel.
+
+**El estado se anuncia, no solo se pinta**: `aria-pressed` en todo lo que es
+selección o conmutador — y en nada que sea una acción, que no está «pulsada» —
+y `aria-live` en la línea de geometría, que cambia sola.
 
 ## Cortar el estímulo
 

@@ -11,7 +11,7 @@
    otra cosa y nada en la pantalla lo delata. Esta prueba es lo que lo
    delata.
    ═══════════════════════════════════════════════════════════════════════════ */
-import { marcador } from './ayuda.mjs';
+import { marcador, elegirModo } from './ayuda.mjs';
 
 /* 5' de arco a 6 m son 8,727 mm para el 20/20; el resto escala con el
    denominador de Snellen. Se deriva, no se copia de una tabla: una tabla
@@ -28,7 +28,7 @@ export default async function pruebaOptotipos({ pc }) {
   const peores = [];
 
   for (const modo of ['letters', 'numbers', 'pediatric', 'e_directional']) {
-    await pc.click(`.mode-btn[data-mode="${modo}"]`);
+    await elegirModo(pc, modo);
     await pc.waitForTimeout(250);
     for (let i = 0; i < 8; i++) { await pc.keyboard.press('ArrowUp'); await pc.waitForTimeout(30); }
 
@@ -93,7 +93,7 @@ export default async function pruebaOptotipos({ pc }) {
      pantalla dejó el bucle de arriba: se recorren las seis buscando la línea.
      Una comprobación que casi nunca se ejecuta es peso muerto que da falsa
      tranquilidad. */
-  await pc.click('.mode-btn[data-mode="letters"]');
+  await elegirModo(pc, 'letters');
   await pc.waitForTimeout(250);
   for (let i = 0; i < 8; i++) { await pc.keyboard.press('ArrowUp'); await pc.waitForTimeout(30); }
 
@@ -135,7 +135,7 @@ export default async function pruebaOptotipos({ pc }) {
      El que se va es el 1: en ss01 es una bandera inclinada sin base y en el
      juego base lleva serif de pie — dos dibujos distintos del mismo carácter, y
      en los dos es un trazo casi vertical que no aporta nada que reconocer. */
-  await pc.click('.mode-btn[data-mode="numbers"]');
+  await elegirModo(pc, 'numbers');
   await pc.waitForTimeout(400);
   const digitos = new Set();
   for (let pant = 0; pant < 6; pant++) {
@@ -167,16 +167,23 @@ export default async function pruebaOptotipos({ pc }) {
      primer 8 de toda la pantalla, y cada línea tiene su tamaño: comparaba un 0
      de 105 px con un 8 de 131 y acusaba al 0 de estar mal escalado estándolo
      bien. Un control que vive en otra línea no es un control. */
-  let linea = -1;
-  for (let i = 0; i < 25; i++) {
-    linea = await pc.evaluate(() => {
+  /* El control no tiene que ser el 8: basta CUALQUIER otro dígito de la misma
+     línea, porque todos menos el 0 tienen tinta en el centro. Pedir el 8 en
+     concreto dependía de la suerte del reparto y una ejecución se quedó sin
+     encontrarlo en 25 mezclas. Lo que la prueba necesita es un control al
+     mismo tamaño, no un carácter concreto. */
+  let linea = -1, control = null;
+  for (let i = 0; i < 30; i++) {
+    const hallado = await pc.evaluate(() => {
       const ls = [...document.querySelectorAll('#lines-container > div')];
-      return ls.findIndex(ld => {
-        const t = [...ld.querySelectorAll('.optotype-text')].map(e => e.textContent);
-        return t.includes('0') && t.includes('8');
-      });
+      for (let k = 0; k < ls.length; k++) {
+        const t = [...ls[k].querySelectorAll('.optotype-text')].map(e => e.textContent);
+        const otro = t.find(c => c !== '0');
+        if (t.includes('0') && otro) return { linea: k, control: otro };
+      }
+      return null;
     });
-    if (linea >= 0) break;
+    if (hallado) { linea = hallado.linea; control = hallado.control; break; }
     await pc.keyboard.press('ArrowRight');
     await pc.waitForTimeout(110);
   }
@@ -221,15 +228,15 @@ export default async function pruebaOptotipos({ pc }) {
     }, png.toString('base64'));
   };
   const c0 = linea >= 0 ? await centroDe('0') : null;
-  const c8 = linea >= 0 ? await centroDe('8') : null;
-  m.comprobar('y el 0 dibujado no lleva barra: su centro está hueco y el del 8 no',
+  const c8 = linea >= 0 ? await centroDe(control) : null;
+  m.comprobar('y el 0 dibujado no lleva barra: su centro está hueco y el de al lado no',
     c0 && c8 && c0.centro === 0 && c8.centro > 40
       && Math.abs(c0.alto - c8.alto) <= Math.max(1, c8.alto * 0.02),
-    c0 && c8 ? `centro del 0 ${c0.centro} % (alto ${c0.alto} px) · centro del 8 ${c8.centro} %`
-             + ` (alto ${c8.alto} px)`
-             : linea < 0 ? 'no salieron el 0 y el 8 en la misma línea en 25 mezclas'
-             : 'no se pudo medir: ' + (c0 ? 'falta el 8' : 'falta el 0'));
-  await pc.click('.mode-btn[data-mode="letters"]');
+    c0 && c8 ? `centro del 0 ${c0.centro} % (alto ${c0.alto} px) · centro del ${control}`
+             + ` ${c8.centro} % (alto ${c8.alto} px)`
+             : linea < 0 ? 'no salió el 0 con otro dígito al lado en 30 mezclas'
+             : 'no se pudo medir el ' + (c0 ? control : '0'));
+  await elegirModo(pc, 'letters');
   await pc.waitForTimeout(300);
 
   /* Volver arriba: las pruebas siguientes esperan el estado de arranque. */

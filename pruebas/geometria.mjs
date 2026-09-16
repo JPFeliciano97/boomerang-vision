@@ -20,7 +20,7 @@
      clínica, así que la tabla de lectura tiene que salir idéntica. Si no
      sale, la convención exo/endo está mal en una de las dos ramas.
    ═══════════════════════════════════════════════════════════════════════════ */
-import { marcador } from './ayuda.mjs';
+import { marcador, elegirModo } from './ayuda.mjs';
 
 /* El perfil de la rejilla, línea por línea.
    Se rasteriza el SVG en un canvas dentro de la página y se promedia la
@@ -329,7 +329,7 @@ export default async function pruebaGeometria({ pc, tel, abrir }) {
      cuadrado y la casa tienen esquinas y ahí el grosor se despega por
      geometría y no por descuido. */
   await abrir('Optotipos');
-  await pc.click('.mode-btn[data-mode="pediatric"]');
+  await elegirModo(pc, 'pediatric');
   await pc.waitForTimeout(700);
   /* La primera pantalla dibuja UN símbolo —es la línea 20/400— así que hay que
      bajar hasta una que tenga las cinco posiciones y enseñe los cuatro. */
@@ -414,7 +414,7 @@ export default async function pruebaGeometria({ pc, tel, abrir }) {
         + ` · el más uniforme ${ref.toFixed(2)} · fuera del 10 %: `
         + valores.filter(v => v > ref * 1.10).map(v => v.toFixed(2)).join(', ') || 'ninguno'
       : 'solo ' + valores.length + ' símbolos medidos');
-  await pc.click('.mode-btn[data-mode="letters"]');
+  await elegirModo(pc, 'letters');
   await pc.waitForTimeout(400);
 
   /* ── La medida estándar de Worth y de Schober ───────────────────────────
@@ -543,6 +543,8 @@ export default async function pruebaGeometria({ pc, tel, abrir }) {
        Un píxel cuenta si sus cuatro vecinos son casi idénticos —eso deja fuera
        los bordes— y si no es el papel. */
     const papel = [242, 240, 236];
+    /* El disco llena el lienzo: centro y radio salen de sus dimensiones. */
+    const cx = W / 2, cy = H / 2, R = Math.min(W, H) / 2;
     const pts = [];
     for (let y = 1; y < H - 1; y++) {
       for (let x = 1; x < W - 1; x++) {
@@ -560,7 +562,7 @@ export default async function pruebaGeometria({ pc, tel, abrir }) {
             && Math.abs(d[i+2] - papel[2]) < 10) continue;
         const sum = d[i] + d[i+1] + d[i+2];
         if (sum < 30) continue;
-        pts.push([d[i] / sum, d[i+1] / sum]);
+        pts.push([d[i] / sum, d[i+1] / sum, x, y]);
       }
     }
     if (pts.length < 1000) return { n: pts.length, share: 0, separacion: 0 };
@@ -592,13 +594,26 @@ export default async function pruebaGeometria({ pc, tel, abrir }) {
       if (nb) b = [sb[0] / nb, sb[1] / nb];
     }
     let na = 0;
+    const deA = [], deB = [];
     for (const p of pts) {
       const da = (p[0] - a[0]) ** 2 + (p[1] - a[1]) ** 2;
       const db = (p[0] - b[0]) ** 2 + (p[1] - b[1]) ** 2;
-      if (da <= db) na++;
+      if (da <= db) { na++; deA.push(p); } else deB.push(p);
+    }
+    /* Y cuánto fondo le queda alrededor a la figura. Es de lo que vive esta
+       prueba: la cifra se esconde en el mosaico, y si llega al borde del disco
+       deja de tener dónde esconderse — se ve el contorno aunque no se
+       distinga el color. Se mide el punto de la figura MÁS LEJANO del centro
+       frente al radio del disco. */
+    const figura = na <= pts.length - na ? deA : deB;
+    let lejos = 0;
+    for (const p of figura) {
+      const r = Math.hypot(p[2] - cx, p[3] - cy);
+      if (r > lejos) lejos = r;
     }
     return { n: pts.length, share: Math.min(na, pts.length - na) / pts.length,
-             separacion: +Math.hypot(a[0] - b[0], a[1] - b[1]).toFixed(4) };
+             separacion: +Math.hypot(a[0] - b[0], a[1] - b[1]).toFixed(4),
+             margen: +(1 - lejos / R).toFixed(3) };
   });
 
   await abrir('Pseudoisocromático');
@@ -621,12 +636,22 @@ export default async function pruebaGeometria({ pc, tel, abrir }) {
       const nombre = (await pc.textContent('#modulo-nombre') || '');
       const lam = (nombre.match(/lámina (\d+)\/(\d+)/) || []);
       if (!r) { flojas.push('sin lienzo'); break; }
-      medidas.push((lam[1] || '?') + ': ' + (100 * r.share).toFixed(1) + ' % · sep ' + r.separacion);
+      medidas.push((lam[1] || '?') + ': ' + (100 * r.share).toFixed(1) + ' % · sep '
+        + r.separacion + ' · margen ' + (100 * (r.margen || 0)).toFixed(0) + ' %');
       if (!(r.share >= RACIMO_MIN && r.share <= RACIMO_MAX)) {
         flojas.push('lámina ' + (lam[1] || '?') + ' al ' + (100 * r.share).toFixed(1) + ' % del disco');
       }
       if (!(r.separacion >= SEPARACION_MIN)) {
         flojas.push('lámina ' + (lam[1] || '?') + ' con separación ' + r.separacion);
+      }
+      /* Y que le quede FONDO alrededor. Al agrandar las cifras —costaba
+         distinguir el 6 del 5— lo que hay que sujetar es esto: una figura que
+         llega al borde del disco deja de tener dónde esconderse y se lee por
+         su contorno, no por su color. Un 6 % del radio son dos puntos del
+         mosaico, que es el mínimo para que haya un anillo de fondo completo. */
+      if (!(r.margen >= 0.06)) {
+        flojas.push('lámina ' + (lam[1] || '?') + ' pegada al borde: margen '
+          + (100 * r.margen).toFixed(0) + ' % del radio');
       }
       if (!lam[1] || lam[1] === lam[2]) break;
       await tel.click('#color-sig');

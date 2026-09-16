@@ -5,7 +5,7 @@ npm test
 ```
 
 Levanta el servidor en un puerto libre, abre Chromium, empareja una pantalla
-con un mando **de verdad** por el código de sala, y pasa 176 comprobaciones en
+con un mando **de verdad** por el código de sala, y pasa 182 comprobaciones en
 unos tres minutos.
 
 - `0` — todo pasa
@@ -116,6 +116,12 @@ Lo que sí se comprueba es **el invariante que lo arregló** — que el paso sea
 número entero de píxeles del dispositivo — leyendo las coordenadas. Eso sí
 falla con el defecto puesto, y la coordenada no miente.
 
+**Qué cuenta como «estímulo» en las sondas del corte.** Todo lo que haya en
+`#modulo-area` **menos** `.corte-aviso`, que es la frase que explica el negro.
+Definirlo como «svg, canvas o img» no vale: el relax dibuja con un `div` y el
+Pelli con texto, así que sus estímulos no contaban y las sondas los daban por
+cortados estando puestos. Y contar hijos tampoco: el aviso es un hijo.
+
 **Aviso sobre `checkVisibility()`.** Aparece en dos comprobaciones y por
 motivos contrarios, que conviene no confundir. Para un `<details>` cerrado es
 la ÚNICA señal que sirve, porque el rect miente. Para un elemento en
@@ -206,6 +212,15 @@ en `public/index.html` y comprobando que la ejecución se pone roja:
 | el lanzador del panel en la esquina del botón `?` | `el lanzador del panel no se monta sobre ningún otro control` — «panel-pc-abrir pisa shortcuts-toggle» |
 | el despachador sacado del bloque del socket | el contador de errores de consola: «socket is not defined» al cambiar de optotipo desde el panel |
 | el foco atrapado en el panel cerrado | `las teclas 1 a 8 llevan a los ocho test` — no llegaba ni al primero: la guarda «el teclado es del panel» se cumplía para siempre |
+| `Mode:tumbling` en vez de `Mode:e_directional` | `los cuatro modos de optotipo dibujan algo desde el panel` — la E direccional salía en blanco y el contrato solo miraba que el mando existiera |
+| los atajos de optotipos repartidos como tecla sintética | `los conmutadores y las flechas del panel cambian la pantalla` — la guarda del foco se los comía |
+| el 0 con el ratio de `ss01` (0,500 en vez de 0,520) | `el 0 dibujado no lleva barra` — 137 px de tinta frente a los 131 de su línea |
+| la cifra del color pegada al borde del disco | `cada cifra tiene puntos suficientes` — el margen al borde, mínimo el 6 % del radio |
+| `aria-pressed` puesto en las acciones, o quitado de la selección | `el estado de cada control se anuncia, no solo se pinta` |
+| el corte sin explicación en pantalla | `con el estímulo cortado la pantalla no dibuja nada` — exige NINGÚN estímulo Y el aviso puesto: la barra que lo decía ya no existe |
+| el panel abriéndose solo en cada repintado | `el panel no se abre solo tras siete pulsaciones` — hereda el defecto que tenía la barra de calibración |
+| la distancia sin efecto visible al cambiarla | `cambiarla mueve la geometría que el test declara` — al acercar medio metro, el 20/20 mide menos en la misma proporción |
+| la configuración inicial plantándose en cada arranque | `solo se pide la primera vez` |
 
 La sonda del color se estrenó con uno de esos fallos y conviene que quede
 escrito: agrupaba por cromaticidad TODOS los píxeles pintados, papel de la

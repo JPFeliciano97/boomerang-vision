@@ -46,24 +46,6 @@
         }
 
         /* Barra de calibración con grid de 3 columnas */
-        #calibration-bar {
-            background: #252525;
-            border-bottom: 1px solid #333;
-            padding: 8px 12px;
-            display: grid;
-            grid-template-columns: 1fr auto 1fr;
-            align-items: center;
-            gap: 12px;
-            z-index: 100;
-            font-size: 10px;
-            transition: all 0.3s ease;
-            /* Hace falta un máximo para que la animación de plegado funcione,
-               pero 140px recortaba los botones cuando el selector de modo
-               envuelve en ventanas estrechas. */
-            max-height: 40vh;
-            overflow: hidden;
-        }
-        #calibration-bar.collapsed { max-height:0; padding:0; opacity:0; border-bottom:none; }
 
         /* Columna izquierda: inputs y botón CALIBRAR */
         .left-group {
@@ -75,13 +57,6 @@
         }
         .cal-group { display:flex; align-items:center; gap:4px; }
         .cal-sep { width:1px; height:18px; background:#444; margin:0 4px; }
-        #calibration-bar label { color:#999; font-size:9px; text-transform:uppercase; letter-spacing:0.5px; }
-        #calibration-bar input {
-            background:#1a1a1a; border:1px solid #444; color:#fff; padding:5px 8px;
-            border-radius:6px; font-size:10px; font-family:monospace; text-align:center; width:62px;
-            transition: border-color 0.2s;
-        }
-        #calibration-bar input:focus { border-color:#3498db; outline:none; }
         .btn-sm {
             background: #2980b9; color:#fff; border:none; padding:6px 12px; border-radius:6px;
             cursor:pointer; font-size:10px; font-weight:600; white-space:nowrap;
@@ -211,9 +186,6 @@
            su estímulo físico contra state.testDistanceM, así que el campo se
            queda a la vista. Solo se esconde en los módulos que fijan ellos la
            distancia (Amsler y color, a 1 m), donde la de sala no interviene. */
-        #calibration-bar.modo-modulo .mode-selector { display:none; }
-        #calibration-bar.dist-fija .cal-group,
-        #calibration-bar.dist-fija .cal-sep { display:none; }
 
         /* ═══ MOVIMIENTOS DE FIJACIÓN INFANTIL ═══
            El recorrido y el rebote se mueven en vw/vh a propósito: lo que atrae
@@ -560,6 +532,33 @@
         }
         .pp-ops button.puesto .sub { color: rgba(0,0,0,0.6); }
 
+        .pp-dibujos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }
+        .pp-dibujos button {
+            min-height: 78px; padding: 7px 4px 5px; cursor: pointer;
+            display: flex; flex-direction: column; align-items: center; gap: 3px;
+            background: #1a1a1a; border: 1px solid #2f2f2f; border-radius: 9px;
+        }
+        .pp-dibujos button:hover { background: #232323; border-color: #454545; }
+        .pp-dibujos button.puesto { border-color: #f39c12; background: rgba(243,156,18,0.10); }
+        .pp-dibujos svg { width: 42px; height: 42px; display: block; }
+        .pp-dibujos .et {
+            font-family: var(--ui); font-size: 10px; color: #9a9a9a; line-height: 1.1;
+        }
+        .pp-dibujos button.puesto .et { color: #f0b26b; font-weight: 600; }
+
+        .pp-rejilla { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+        .pp-rejilla button {
+            min-height: 48px; padding: 5px 2px; cursor: pointer;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            gap: 1px; background: #1a1a1a; border: 1px solid #2f2f2f; border-radius: 8px;
+        }
+        .pp-rejilla button:hover { background: #232323; border-color: #454545; }
+        .pp-rejilla button.puesto { background: #f39c12; border-color: #f39c12; }
+        .pp-rejilla .n { font-family: var(--num); font-size: 14px; color: #ddd; }
+        .pp-rejilla .sub { font-family: var(--num); font-size: 8.5px; color: #6e6e6e; }
+        .pp-rejilla button.puesto .n { color: #111; font-weight: 700; }
+        .pp-rejilla button.puesto .sub { color: rgba(0,0,0,0.65); }
+
         .pp-fila { display: flex; gap: 7px; }
         .pp-fila button {
             flex: 1 1 0; min-height: 44px; cursor: pointer;
@@ -599,15 +598,79 @@
             background: rgba(243,156,18,0.12); border-color: #f39c12; color: #f0b26b;
         }
 
-        .pp-teclas {
-            margin-top: 14px; padding: 9px 11px; border-radius: 8px;
-            background: #151515; border: 1px solid #242424;
-            font-family: var(--num); font-size: 10px; line-height: 1.7; color: #7a7a7a;
+        /* El emparejamiento, plegado: hace falta una vez por sala y después
+           estorba. El código de sala queda a la vista en el título, que es lo
+           que se dicta por teléfono. */
+        .pp-rotulo {
+            font-family: var(--ui); font-size: 10.5px; letter-spacing: 1.4px;
+            color: #6e6e6e; line-height: 1.5; margin-bottom: 4px;
         }
-        .pp-teclas b {
-            color: #cfcfcf; background: #222; border: 1px solid #383838;
-            border-radius: 4px; padding: 1px 5px; font-weight: 400;
+        .pp-rotulo:empty, .pp-info:empty { display: none; }
+        .pp-info {
+            font-family: var(--num); font-size: 9.5px; color: #5a5a5a;
+            margin-bottom: 12px; line-height: 1.5;
         }
+
+        .pp-sala { margin-top: 18px; padding-top: 14px; border-top: 1px solid #222; }
+        .pp-dist { display: flex; align-items: center; gap: 8px; }
+        .pp-dist button {
+            width: 44px; height: 44px; flex-shrink: 0; cursor: pointer;
+            background: #1a1a1a; color: #ddd; border: 1px solid #2f2f2f;
+            border-radius: 9px; font-size: 18px; line-height: 1;
+        }
+        .pp-dist button:hover { background: #232323; border-color: #454545; }
+        .pp-dist-et {
+            font-size: 11px; color: #8a8a8a; flex-shrink: 0;
+        }
+        #pp-dist {
+            flex-grow: 1; min-width: 0; min-height: 44px; padding: 8px 10px;
+            background: #1a1a1a; color: #fff; border: 1px solid #333;
+            border-radius: 9px; font-family: var(--num); font-size: 17px;
+            text-align: center;
+        }
+        #pp-dist:focus { border-color: #f39c12; outline: none; }
+        .pp-dist-u { font-family: var(--num); font-size: 12px; color: #8a8a8a; flex-shrink: 0; }
+        .pp-dist-nota {
+            font-size: 10.5px; line-height: 1.5; color: #7a7a7a; margin-top: 7px;
+        }
+        .pp-dist-nota.fija { color: #a8895f; }
+
+        .pp-mando { margin-top: 16px; }
+        .pp-mando > summary {
+            list-style: none; cursor: pointer; display: flex; align-items: center;
+            justify-content: space-between; gap: 10px; min-height: 44px;
+            padding: 11px 13px; border-radius: 9px;
+            background: #161616; border: 1px solid #2b2b2b;
+            font-size: 13px; color: #ddd;
+        }
+        .pp-mando > summary::-webkit-details-marker { display: none; }
+        .pp-mando > summary::after {
+            content: '+'; color: #5e5e5e; font-family: var(--num); flex-shrink: 0;
+        }
+        .pp-mando[open] > summary::after { content: '\2212'; }
+        .pp-mando .pp-cod {
+            font-family: var(--num); font-size: 13px; letter-spacing: 2px; color: #f0b26b;
+        }
+        .pp-mando-cuerpo {
+            padding: 12px 13px; border-radius: 0 0 9px 9px;
+            background: #161616; border: 1px solid #2b2b2b; border-top: none;
+        }
+        #qr-panel {
+            background: #fff; padding: 8px; border-radius: 8px; width: max-content;
+            margin: 0 auto 10px;
+        }
+        #qr-panel svg { display: block; width: 150px; height: 150px; }
+        .pp-mando-txt { font-size: 11px; line-height: 1.55; color: #7a7a7a; }
+
+        .pp-conf {
+            width: 100%; min-height: 46px; margin-top: 10px; cursor: pointer;
+            display: flex; align-items: center; justify-content: space-between;
+            gap: 10px; padding: 10px 13px;
+            background: #161616; color: #ddd; border: 1px solid #2b2b2b;
+            border-radius: 9px; font-family: var(--ui); font-size: 13px; text-align: left;
+        }
+        .pp-conf:hover { background: #202020; border-color: #454545; }
+        .pp-conf .val { font-family: var(--num); font-size: 10px; color: #7a7a7a; flex-shrink: 0; }
 
         .pp-pie {
             margin-top: 16px; padding-top: 12px; border-top: 1px solid #222;
@@ -662,51 +725,75 @@
             <label class="pp-rot" for="panel-modulo">Test</label>
             <select id="panel-modulo"></select>
         </div>
-        <div class="pp-geo" id="panel-geo"></div>
+        <div class="pp-geo" id="panel-geo" role="status" aria-live="polite"></div>
+        <!-- El rótulo que el operador lee y la cifra de la escala: estaban en
+             la barra de arriba, a la vista del paciente. Aquí siguen
+             actualizándose siempre, con el panel abierto o cerrado. -->
+        <div class="pp-rotulo"><span id="modulo-nombre"></span></div>
+        <div class="pp-info"><span id="info-span"></span></div>
         <div id="panel-cuerpo"></div>
         <button type="button" id="panel-corte" class="pp-corte" data-cmd="Corte">
             <span class="pp-corte-et">Pantalla en negro</span>
             <span class="pp-corte-val">el test sigue puesto &middot; N</span>
         </button>
+        <!-- LA SALA. Abajo y agrupado a propósito: arriba va lo que se toca en
+             cada test, aquí lo que se declara una vez por sala. La distancia es
+             editable — se pide sola la primera vez, en la configuración
+             inicial, y después se corrige aquí sin volver a pasar por el
+             diálogo — y cada cambio se ve al instante en la cifra que el test
+             declara, que es lo que hay que mirar para saber si la geometría y
+             el sitio donde está sentado el paciente siguen coincidiendo. -->
+        <div class="pp-sala">
+            <span class="pp-rot">La sala</span>
+            <div class="pp-dist">
+                <button type="button" id="pp-dist-menos" title="Acercar 0,5 m"
+                    aria-label="Acercar medio metro">&minus;</button>
+                <label for="pp-dist" class="pp-dist-et">Distancia</label>
+                <input type="number" id="pp-dist" min="0.5" max="20" step="0.5"
+                    inputmode="decimal" aria-label="Distancia de la sala en metros">
+                <span class="pp-dist-u">m</span>
+                <button type="button" id="pp-dist-mas" title="Alejar 0,5 m"
+                    aria-label="Alejar medio metro">+</button>
+            </div>
+            <div class="pp-dist-nota" id="pp-dist-nota"></div>
+        </div>
+
+        <details class="pp-mando">
+            <summary><span>Conectar el m&oacute;vil</span><span class="pp-cod"
+                id="panel-cod">&hellip;</span></summary>
+            <div class="pp-mando-cuerpo">
+                <div id="qr-panel"></div>
+                <div class="pp-mando-txt">Escanee el c&oacute;digo, o escriba el c&oacute;digo de
+                    sala en el navegador del m&oacute;vil. El mando y este panel manejan lo
+                    mismo: el que sobra es el que no tenga a mano.</div>
+            </div>
+        </details>
+        <!-- El arreglo de verdad para lo único que el panel compromete: que
+             tape parte de la cartilla. Esto abre EL MANDO en su propia ventana,
+             ya emparejado con esta pantalla — se arrastra al portátil o al
+             segundo monitor y la pantalla del paciente se queda limpia. No es
+             una interfaz nueva: es el mando de siempre, emparejado solo. -->
+        <button type="button" class="pp-conf" id="panel-ventana">
+            <span>Abrir los controles en otra ventana</span>
+            <span class="val">para el segundo monitor</span>
+        </button>
+        <button type="button" class="pp-conf" id="panel-conf">
+            <span>Configuraci&oacute;n inicial</span>
+            <span class="val">distancia y medida &middot; C</span>
+        </button>
         <div class="pp-pie" id="panel-estado"></div>
     </aside>
 
-    <div id="calibration-bar">
-        <!-- Columna izquierda: lo único que hay que decirle al sistema -->
-        <div class="left-group">
-            <!-- La distancia se VE aquí y se declara en la configuración inicial.
-                 Era un campo editable en cualquier momento, y eso invita al error
-                 que este sistema existe para evitar: que la geometría y el sitio
-                 donde está sentado el paciente dejen de coincidir a mitad de una
-                 prueba, sin que nada lo delate. La distancia es una propiedad de
-                 la SALA, no un mando por test. -->
-            <div class="cal-group">
-                <label>Distancia</label>
-                <span id="dist-sala" class="cal-fijo">6</span>
-                <span class="cal-unit">m</span>
-            </div>
-            <div class="cal-sep"></div>
-            <button class="btn-sm" id="btn-card-cal" title="Configuración inicial: distancia y medida de la pantalla (C)">⚙ CONFIGURACIÓN</button>
-        </div>
+    <!-- Aquí estaba la barra de calibración: distancia, ⚙ CONFIGURACIÓN, el
+         botón ▲, el rótulo del módulo y la cifra de px/mm. Se ha ido entera al
+         panel de control (tecla P), agrupada por lo que es: arriba lo que se
+         toca en cada test, abajo LA SALA — la distancia y la medida de la
+         pantalla, que se declaran una vez.
 
-        <!-- Columna central: botón toggle + info -->
-        <div class="center-group">
-            <button class="btn-sm toggle-btn" id="btn-toggle-cal">▲</button>
-            <span id="modulo-nombre"></span>
-            <span id="info-span"></span>
-        </div>
-
-        <!-- Columna derecha -->
-        <div class="mode-selector">
-            <button class="mode-btn active" data-mode="letters">Letras</button>
-            <button class="mode-btn" data-mode="numbers">Números</button>
-            <button class="mode-btn" data-mode="pediatric">LEA</button>
-            <button class="mode-btn" data-mode="e_directional">E direc.</button>
-            <button class="bic-btn off" id="btn-bic">⚪ Fondo claro</button>
-            <button class="highlight-btn" id="btn-highlight" title="Resaltar línea (R)">🔦 Resaltar</button>
-            <button class="single-char-btn" id="btn-single-char" title="Modo 1 carácter (U)">Individual</button>
-        </div>
-    </div>
+         La barra estaba a la vista del paciente todo el rato y encima ocupaba
+         alto de pantalla, que es lo que este sistema gasta en el estímulo. El
+         corte ya no depende de ella para explicarse: lo dice en la propia
+         pantalla, tenue y abajo. -->
 
     <div id="test-area">
         <div class="bichromatic-half" id="half-r"></div>
@@ -862,7 +949,7 @@
                    La forma sigue la manzana del juego: hombros altos y redondos, una
                    V honda entre los dos —que el trazo convierte en un hueco interior
                    con punta, que es lo que se reconoce— y una muesca pequeña abajo. */
-                apple: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 60"><path fill="none" stroke="#000" stroke-width="7.5" stroke-linejoin="round" stroke-linecap="round" d="M30,17 C26,7 21,3 17.5,5 C10,8 4.8,18 4.8,30 C4.8,42 13,55 20.5,54.2 C24,53.8 27,50 30,49.5 C33,50 36,53.8 39.5,54.2 C47,55 55.2,42 55.2,30 C55.2,18 50,8 42.5,5 C39,3 34,7 30,17 Z"/></svg>`
+                apple: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 63 60"><path fill="none" stroke="#000" stroke-width="7.5" stroke-linejoin="round" stroke-linecap="round" d="M31.5,18 C28,6 21,4.2 19,3.75 C11,3.75 3.75,11 3.75,19.5 C3.75,30 8,44 14,51 C17,54.5 20,55.3 23.5,55.3 C27,55.3 29.5,51 31.5,51 C33.5,51 36,55.3 39.5,55.3 C43,55.3 46,54.5 49,51 C55,44 59.25,30 59.25,19.5 C59.25,11 52,3.75 44,3.75 C42,4.2 35,6 31.5,18 Z"/></svg>`
             };
             for (let [k,v] of Object.entries(LEA_SVGS)) registerOptotype('P_'+k, v);
 
@@ -879,14 +966,16 @@
                niveles a la vez obliga a letras de 26 mm. Salir de uno de estos
                deja al paciente acercado, así que el mando avisa. */
             const MODULOS = [
+                /* El orden es el de la consulta, no el del catálogo: los cuatro que
+                   más se usan primero, y son los que caen en las teclas 1 a 4. */
                 { id:'optotipos', titulo:'Optotipos',        sub:'Letras · números · LEA · E direccional', grupo:'Agudeza visual',           hecho:true,  distFija:null },
+                { id:'color',     titulo:'Pseudoisocromático', sub:'Láminas de puntos · cribado',          grupo:'Visión del color',         hecho:true,  distFija:1 },
+                { id:'infantil',  titulo:'Fijación infantil', sub:'9 figuras · 4 movimientos',             grupo:'Fijación',                 hecho:true,  distFija:null },
+                { id:'relax',     titulo:'Relax acomodativo', sub:'Para retinoscopía y fondo de ojo',      grupo:'Fijación',                 hecho:true,  distFija:null },
                 { id:'contraste', titulo:'Pelli-Robson',     sub:'5 niveles · 0 a 1,00 log CS',           grupo:'Sensibilidad al contraste', hecho:true,  distFija:1 },
                 { id:'worth',     titulo:'Luces de Worth',   sub:'Fusión y supresión · gafa rojo-verde',   grupo:'Binocularidad',            hecho:true,  distFija:null },
                 { id:'schober',   titulo:'Schober',          sub:'Cruz y anillos · forias',                grupo:'Binocularidad',            hecho:true,  distFija:null },
-                { id:'color',     titulo:'Pseudoisocromático', sub:'Láminas de puntos · cribado',          grupo:'Visión del color',         hecho:true,  distFija:1 },
                 { id:'amsler',    titulo:'Rejilla de Amsler', sub:'3 láminas · 1 cuadro = 1°',             grupo:'Mácula',                   hecho:true,  distFija:1 },
-                { id:'relax',     titulo:'Relax acomodativo', sub:'Para retinoscopía y fondo de ojo',      grupo:'Fijación',                 hecho:true,  distFija:null },
-                { id:'infantil',  titulo:'Fijación infantil', sub:'9 figuras · 4 movimientos',             grupo:'Fijación',                 hecho:true,  distFija:null }
             ];
             const MODULO = {};
             MODULOS.forEach(m => MODULO[m.id] = m);
@@ -1831,9 +1920,21 @@
                     return k;
                 };
                 /* Figura grande a propósito: con 30 puntos a lo ancho, una
-                   cifra del 46% del disco deja el trazo en 2,8 puntos y se
-                   lee como un borrón. Al 60% el trazo son 3,6 y tiene forma. */
-                const LADO = 0.60;
+                   cifra del 46% del disco deja el trazo en 2,8 puntos y se lee
+                   como un borrón. Al 60% el trazo son 3,6 y tiene forma.
+
+                   Y el tamaño DEPENDE DE CUÁNTOS DÍGITOS SON, porque el hueco
+                   disponible no es el mismo. En consulta costaba distinguir el
+                   6 del 5, que es exactamente lo que pasa cuando al trazo le
+                   faltan puntos. Un dígito solo cabe mucho más grande: a media
+                   altura la cuerda del disco es el diámetro entero. Dos
+                   dígitos ocupan el doble de ancho, y pasado cierto punto se
+                   comen el fondo — y sin fondo alrededor no hay dónde
+                   esconderse, que es de lo que vive esta prueba. Las dos
+                   cifras están medidas sobre la lámina dibujada, no puestas a
+                   ojo: ver pruebas/geometria.mjs. */
+                const UN_DIGITO = 0.82, DOS_DIGITOS = 0.64;
+                const LADO = String(lam.digito || '').length > 1 ? DOS_DIGITOS : UN_DIGITO;
                 const mascaraCifra = (txt, dx) => {
                     const k = lienzoMascara();
                     k.textAlign = 'center'; k.textBaseline = 'middle';
@@ -1930,7 +2031,7 @@
             }
 
             const LETTERS = ['A','C','D','E','H','K','N','O','R','S','V','Z'];
-            const NUMBERS = ['1','2','3','4','5','6','7','8','9'];   // sin el 0: ver pruebas/optotipos.mjs
+            const NUMBERS = ['0','2','3','4','5','6','7','8','9'];  // el 0 sí, el 1 no: ver pruebas/optotipos.mjs
 
             // decimal = la fracción exacta (20/x), no el redondeo a dos cifras:
             // de ahí sale el tamaño físico, y 0.13 en vez de 0.1333 lo falseaba un 2.5%.
@@ -1982,7 +2083,7 @@
             const d = {
                 testDistance:$('test-distance'), distSala:$('dist-sala'), monitorSize:$('monitor-size'),
                 qrConfig:$('qr-config'), pairCodeConfig:$('pair-code-config'),
-                btnToggle:$('btn-toggle-cal'),
+                qrPanel:$('qr-panel'), panelCod:$('panel-cod'),
                 btnCardCal:$('btn-card-cal'), cardCal:$('card-cal'), cardShape:$('card-shape'),
                 cardHandle:$('card-handle'), cardReadout:$('card-readout'),
                 cardLabel:$('card-label'), cardRefs:$('card-refs'),
@@ -1990,10 +2091,8 @@
                 moduloArea:$('modulo-area'), moduloNombre:$('modulo-nombre'),
                 calStatus:$('cal-status-footer'), remoteStatus:$('remote-status'),
                 pairCodeLabel:$('pair-code-label'), shortcutsPanel:$('shortcuts-panel'),
-                shortcutsToggle:$('shortcuts-toggle'), btnHighlight:$('btn-highlight'),
-                btnSingleChar:$('btn-single-char'), btnBic:$('btn-bic'),
-                testArea:$('test-area'), calBar:$('calibration-bar'),
-                modeBtns: document.querySelectorAll('.mode-btn'),
+                shortcutsToggle:$('shortcuts-toggle'),
+                testArea:$('test-area'),
                 qrContainer: document.getElementById('qr-container'),
             };
 
@@ -2040,8 +2139,6 @@
                optotipo y no el ancho de cada glifo, que es lo que mantiene el
                ritmo uniforme que pide la norma. */
             const SS01_METRICAS = {
-                '0': { ratio: 0.5, left: 0.075, right: 0.075 },
-                '1': { ratio: 0.5, left: 0.075, right: 0.075 },
                 '2': { ratio: 0.5, left: 0.075, right: 0.075 },
                 '3': { ratio: 0.5, left: 0.065, right: 0.065 },
                 '4': { ratio: 0.5, left: 0.050, right: 0.050 },
@@ -2069,6 +2166,7 @@
             let CHAR_METRICS = {};
             let metricsCanvas = null;
             function charMetrics(ch){
+                if (sinSS01(ch) && BASE_METRICAS[ch]) return BASE_METRICAS[ch];
                 if (usaSS01() && SS01_METRICAS[ch]) return SS01_METRICAS[ch];
                 if (CHAR_METRICS[ch]) return CHAR_METRICS[ch];
                 const fallback = { ratio: CAP_HEIGHT_RATIO, left: 0, right: 0 };
@@ -2263,13 +2361,38 @@
                descuentan con márgenes negativos, así las separaciones de la
                norma se aplican tal cual sobre la tinta y no sobre el cuadratín.
                Lo comparten el optotipo y el Pelli-Robson. */
+            /* El 0 se dibuja SIN ss01, y es el único. La barra diagonal que lo
+               hace indistinguible de un 8 a la distancia de la sala la pone
+               `ss01`, no el glifo: medido pintándolo en el DOM con los dos
+               juegos y leyendo la tinta del centro — base 0 % (óvalo hueco),
+               ss01 100 % (barra). El glifo base mide 0,520 em de tinta en vez
+               de 0,500, y eso NO cuesta nada: el tamaño se calcula como
+               `h_css / ratio`, así que un ratio mayor da una fuente más pequeña
+               que dibuja exactamente el alto pedido. Por eso el 0 no está en
+               SS01_METRICAS — su ratio se mide del glifo que de verdad se
+               pinta. Hay una comprobación que lee la tinta del centro del 0
+               dibujado, con el 8 como control. */
+            function sinSS01(ch){ return ch === '0'; }
+
+            /* Y sus medidas también van en tabla. Medirlas en vivo con
+               `measureText` no vale: `actualBoundingBox*` sale del rasterizado
+               y da 0,520 / 0,535 / 0,532 según el tamaño de la sonda — con eso
+               el alto dibujado se iba 0,016 px de la línea y la comprobación de
+               uniformidad lo cazó. Estas cifras se midieron de los PÍXELES
+               PINTADOS a 300 y 600 px, y salen idénticas en los dos:
+                 alto de tinta 0,520 em · bordes 0,065 a cada lado
+                 (ancho de tinta 0,470 · avance 0,600) */
+            const BASE_METRICAS = {
+                '0': { ratio: 0.52, left: 0.065, right: 0.065 }
+            };
+
             function spanOptotipo(ch, h_css, conSS01, color){
                 const span = document.createElement('span');
                 span.className = 'optotype-text';
                 span.textContent = ch;
                 const cm = charMetrics(ch);
                 const fs = h_css / cm.ratio;
-                if (conSS01) span.style.fontFeatureSettings = "'ss01'";
+                if (conSS01 && !sinSS01(ch)) span.style.fontFeatureSettings = "'ss01'";
                 span.style.fontSize = fs + 'px';
                 span.style.lineHeight = String(cm.ratio);            // alto de caja = tinta
                 span.style.marginLeft = (-cm.left * fs) + 'px';      // descontar el hueco
@@ -2374,8 +2497,6 @@
                 const esOpto = m.id === 'optotipos';
                 d.linesContainer.classList.toggle('oculto', !esOpto);
                 d.moduloArea.classList.toggle('oculto', esOpto);
-                d.calBar.classList.toggle('modo-modulo', !esOpto);
-                d.calBar.classList.toggle('dist-fija', !esOpto && m.distFija != null);
                 document.body.classList.toggle('en-modulo', !esOpto);
                 /* El fondo bicromático es del optotipo: dejarlo puesto en otro
                    módulo pintaría media rejilla de Amsler sobre rojo y media
@@ -2388,8 +2509,6 @@
                    en cada comando del mando, y forzar la clase en todos los
                    repintados deshacía el ▲/▼ que acababa de pulsar el operador. */
                 if (m.id !== moduloPintado) {
-                    d.calBar.classList.toggle('collapsed', !esOpto);
-                    d.btnToggle.textContent = esOpto ? '▲' : '▼';
                     moduloPintado = m.id;
                 }
                 /* ── El corte de estímulo ──
@@ -2408,7 +2527,18 @@
                     d.linesContainer.classList.add('oculto');
                     d.moduloArea.classList.remove('oculto');
                     d.moduloArea.style.background = '#000000';
-                    d.moduloArea.innerHTML = '';
+                    /* La explicación va AQUÍ, en la pantalla, y no en una barra
+                       de arriba: esa barra ya no existe. La regla es que el
+                       paciente nunca se quede delante de un negro sin una
+                       palabra, y el rótulo del operador vive ahora en el panel
+                       —que puede estar cerrado—. Tenue y abajo: dice lo que hace
+                       falta sin volver a ser un estímulo. */
+                    d.moduloArea.innerHTML =
+                        '<div class="corte-aviso" style="position:absolute;left:0;right:0;bottom:26px;'
+                      + 'text-align:center;font-family:var(--ui);font-size:12px;'
+                      + 'letter-spacing:2px;color:#2b2b2b;">EST\u00cdMULO CORTADO'
+                      + '<span style="color:#1f1f1f;"> \u00b7 ' + esc(m.titulo.toUpperCase())
+                      + ' SIGUE PUESTO</span></div>';
                     d.testArea.classList.remove('bichromatic');
                     d.moduloNombre.textContent = 'estímulo CORTADO · ' + m.titulo + ' sigue puesto';
                     /* Y SE SIGUE EMITIENDO EL ESPEJO. Este return salía antes del
@@ -2562,7 +2692,7 @@
                             rot: ch.rot || 0,
                             uri: ch.type === 'img' ? SVG_CACHE[ch.key] : null,
                             aspect: ch.type === 'img' ? (SVG_ASPECT[ch.key] || 1) : 1,
-                            ss01: usaSS01()
+                            ss01: usaSS01() && !sinSS01(ch.char || '')
                         }))
                     }));
                     datos.mode = state.mode;
@@ -2750,11 +2880,21 @@
             }
 
             function emitirEspejo(){
-                /* El panel del PC se repinta SIEMPRE, con móvil o sin él: es el
-                   camino del consultorio que solo tiene un PC. */
-                pintarPanelPC();
-                if (!(window.remoteSocket && window.remoteSocket.connected && state.remoteJoined)) return;
-                window.remoteSocket.emit('screenUpdate', construirEspejo());
+                /* El espejo se construye UNA VEZ y se reparte. Antes esta
+                   función llamaba a pintarPanelPC() —que lo construía— y
+                   después lo construía otra vez para el emit: dos objetos
+                   completos por repintado con el móvil conectado, y uno
+                   entero tirado a la basura sin móvil y con el panel cerrado.
+                   En optotipos ese objeto no es pequeño: lleva cada línea,
+                   cada carácter y los data-URI de los SVG.
+                   Y si no hay a quién contárselo —ni móvil ni panel abierto—
+                   no se construye ninguno. */
+                const hayMovil = !!(window.remoteSocket && window.remoteSocket.connected
+                                    && state.remoteJoined);
+                if (!hayMovil && !panelPCAbierto) return;
+                const datos = construirEspejo();
+                pintarPanelPC(datos);
+                if (hayMovil) window.remoteSocket.emit('screenUpdate', datos);
             }
 
             // Un módulo declarado pero sin construir lo dice en la pantalla, en
@@ -2862,7 +3002,6 @@
             }
 
             function updateModeButtons() {
-                d.modeBtns.forEach(btn => btn.classList.toggle('active', btn.dataset.mode === state.mode));
             }
 
             function setMode(mode) {
@@ -2964,17 +3103,11 @@
                 if (!isPairCode(state.pairCode)) state.pairCode = newPairCode();
                 updateModeButtons();
                 d.testArea.classList.toggle('bichromatic',state.bichromatic);
-                d.btnBic.textContent=state.bichromatic?'🔴🟢 Bicrom.':'⚪ Fondo claro';
-                d.btnBic.className='bic-btn'+(state.bichromatic?'':' off');
-                d.btnHighlight.classList.toggle('active', state.highlightMode);
-                d.btnSingleChar.classList.toggle('active', state.singleCharMode);
             }
 
             function toggleBichromatic(){
                 state.bichromatic=!state.bichromatic;
                 d.testArea.classList.toggle('bichromatic',state.bichromatic);
-                d.btnBic.textContent=state.bichromatic?'🔴🟢 Bicrom.':'⚪ Fondo claro';
-                d.btnBic.className='bic-btn'+(state.bichromatic?'':' off');
                 // El estado de los botones del mando viaja en screenUpdate, que
                 // solo sale de renderScreen: sin esto el 🔴🟢 del móvil no se
                 // encendía hasta que se pulsara cualquier otra cosa.
@@ -2994,7 +3127,6 @@
 
             function toggleHighlightMode(){
                 state.highlightMode = !state.highlightMode;
-                d.btnHighlight.classList.toggle('active', state.highlightMode);
                 if (state.highlightMode) state.highlightLineGlobalIdx = globalIdxOfFirstLine();
                 renderScreen();
                 saveToStorage();
@@ -3014,7 +3146,6 @@
 
             function toggleSingleCharMode(){
                 state.singleCharMode = !state.singleCharMode;
-                d.btnSingleChar.classList.toggle('active', state.singleCharMode);
                 renderScreen();
                 saveToStorage();
             }
@@ -3116,10 +3247,11 @@
                 applyCalibration();   // la distancia declarada arriba también cuenta por esta vía
             }
 
-            function toggleCalPanel(){
-                const collapsed=d.calBar.classList.toggle('collapsed');
-                d.btnToggle.textContent=collapsed?'▼':'▲';
-            }
+            /* La barra que esto replegaba ya no existe. `H` sigue valiendo y
+               hace lo único que queda que tenga sentido: abrir y cerrar el
+               panel, igual que `P`. Una tecla anunciada que no hace nada es
+               peor que una tecla que no existe. */
+            function toggleCalPanel(){ togglePanelPC(); }
 
             let qrGenerated = false;
             let shortcutsTimer = null;
@@ -3131,7 +3263,7 @@
                SOLO desde el móvil, eso dejaba la suite clínica entera invisible
                para quien abre la app por primera vez. */
             function pintarEmparejamiento(){
-                const cajas = [d.qrContainer, d.qrConfig].filter(Boolean);
+                const cajas = [d.qrContainer, d.qrConfig, d.qrPanel].filter(Boolean);
                 // location.origin, no una URL fija: si la pantalla corre en la
                 // red local, el móvil tiene que ir ahí y no a la instancia de la
                 // nube (donde manejaría otra pantalla).
@@ -3148,7 +3280,8 @@
                 for (const caja of cajas) {
                     if (svg) caja.innerHTML = svg; else caja.textContent = url;
                 }
-                for (const et of [d.pairCodeLabel, d.pairCodeConfig].filter(Boolean)) {
+                for (const et of [d.pairCodeLabel, d.pairCodeConfig, d.panelCod]
+                                 .filter(Boolean)) {
                     et.textContent = state.pairCode;
                 }
                 qrGenerated = true;
@@ -3171,22 +3304,21 @@
                 }
             }
 
-            d.modeBtns.forEach(btn => btn.addEventListener('click', () => setMode(btn.dataset.mode)));
             /* Sin listener de 'change': la distancia se aplica al guardar la
                configuración inicial, no en cuanto alguien teclea en el campo. */
             d.monitorSize.addEventListener('change',applyCalibration);
-            d.btnToggle.addEventListener('click',toggleCalPanel);
             /* El cartel del móvil abre el panel donde está el QR. Si ya está
                abierto no lo cierra: pulsarlo buscando el código y que desaparezca
                sería exactamente lo contrario de lo que se pide. */
             d.remoteStatus.addEventListener('click', () => {
                 if (d.shortcutsPanel.classList.contains('hidden')) toggleShortcuts();
             });
-            d.btnBic.addEventListener('click',toggleBichromatic);
-            d.btnHighlight.addEventListener('click',toggleHighlightMode);
-            d.btnSingleChar.addEventListener('click',toggleSingleCharMode);
             d.shortcutsToggle.addEventListener('click',toggleShortcuts);
-            d.btnCardCal.addEventListener('click',openCardCal);
+            /* El botón ⚙ CONFIGURACIÓN vivía en la barra, que ya no existe: su
+               sitio es el panel (#panel-conf, cableado allí). La tecla C sigue
+               abriéndola. Dejar el listener aquí reventaba el arranque entero
+               —«addEventListener of null»— y con él el emparejamiento. */
+            if (d.btnCardCal) d.btnCardCal.addEventListener('click', openCardCal);
             d.cardRefs.querySelectorAll('button').forEach(b =>
                 b.addEventListener('click', () => setCardRef(b.dataset.ref)));
             $('card-save').addEventListener('click',saveCardCal);
@@ -3230,11 +3362,18 @@
                     e.preventDefault();
                     return;
                 }
-                /* Con el foco dentro del panel el teclado es del panel: las
-                   flechas mueven su desplegable, no las pantallas de detrás. La
-                   P y la Escape siguen valiendo, que son las de salir. */
+                /* El teclado es del panel SOLO donde el panel lo necesita: en
+                   un desplegable o en un deslizador, donde las flechas mueven
+                   la opción y no deben navegar la pantalla de detrás. Sobre un
+                   BOTÓN no: el foco se queda ahí después de pulsarlo, y quien
+                   pulsa un botón y luego aprieta ↓ espera pasar de pantalla.
+                   La primera versión de la guarda cubría todo el panel y dejaba
+                   las flechas y los números muertos después de cada clic. */
                 const pp = document.getElementById('panel-pc');
-                if (pp && pp.contains(document.activeElement)
+                const foco = document.activeElement;
+                const suyo = foco && (foco.tagName === 'SELECT' || foco.tagName === 'INPUT'
+                                      || foco.tagName === 'TEXTAREA');
+                if (pp && suyo && pp.contains(foco)
                     && !['Escape','p','P'].includes(e.key)) return;
                 if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) e.preventDefault();
                 /* Los números: los ocho test y el 0 para dejarla sin estímulo.
@@ -3265,18 +3404,11 @@
                 if (state.modulo !== 'optotipos'
                     && !['c','C','h','H','?','Escape','m','M','n','N','p','P'].includes(e.key)) return;
                 if(e.key==='m'||e.key==='M'){ if(!e.ctrlKey&&!e.metaKey) entrarModulo('optotipos'); }
-                else if(e.key==='ArrowUp'){
-                    if (state.highlightMode) moveHighlight(-1);
-                    else navigateToScreen(state.currentScreenIdx-1);
-                }
-                else if(e.key==='ArrowDown'){
-                    if (state.highlightMode) moveHighlight(1);
-                    else navigateToScreen(state.currentScreenIdx+1);
-                }
-                else if(e.key==='ArrowLeft'||e.key==='ArrowRight') shuffleCurrentScreen();
-                else if(e.key==='b'||e.key==='B'){ if(!e.ctrlKey&&!e.metaKey) toggleBichromatic(); }
-                else if(e.key==='r'||e.key==='R'){ if(!e.ctrlKey&&!e.metaKey) toggleHighlightMode(); }
-                else if(e.key==='u'||e.key==='U'){ if(!e.ctrlKey&&!e.metaKey) toggleSingleCharMode(); }
+                else if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key))
+                    atajoOptotipos(e.key);
+                else if((e.key==='b'||e.key==='B') && !e.ctrlKey && !e.metaKey) atajoOptotipos('KeyB');
+                else if((e.key==='r'||e.key==='R') && !e.ctrlKey && !e.metaKey) atajoOptotipos('KeyR');
+                else if((e.key==='u'||e.key==='U') && !e.ctrlKey && !e.metaKey) atajoOptotipos('KeyU');
                 else if(e.key==='c'||e.key==='C'){ if(!e.ctrlKey&&!e.metaKey) openCardCal(); }
                 else if(e.key==='h'||e.key==='H'){ if(!e.ctrlKey&&!e.metaKey) toggleCalPanel(); }
                 /* N de negro. La pantalla tiene que poder cortarse sin el móvil:
@@ -3388,11 +3520,7 @@
                         // ciegas una pantalla que no se está viendo
                         return;
                     } else {
-                        const keyEvent = new KeyboardEvent('keydown', {
-                            key: cmd.startsWith('Key') ? cmd.slice(3) : cmd,
-                            code: cmd, bubbles: true
-                        });
-                        document.dispatchEvent(keyEvent);
+                        atajoOptotipos(cmd);
                     }
             }
 
@@ -3458,6 +3586,34 @@
                 infantil:  { vert: 'figura', horiz: 'velocidad' }
             };
 
+            /* Los atajos que solo valen en optotipos, en un sitio: los usa el
+               teclado y los usa el panel. Antes el panel los mandaba como un
+               KeyboardEvent sintético repartido en `document`, y al pulsarlos
+               EN EL PANEL el foco se quedaba en el botón — con lo que la guarda
+               «con el foco en el panel el teclado es del panel» se los comía.
+               Resultado: bicromático, resaltar, un solo carácter y las flechas
+               de pantalla no hacían NADA desde el panel. Un mando que viaja
+               disfrazado de tecla acaba topándose con las reglas del teclado. */
+            function atajoOptotipos(que){
+                if (state.modulo !== 'optotipos') return false;
+                switch (que) {
+                    case 'ArrowUp':
+                        if (state.highlightMode) moveHighlight(-1);
+                        else navigateToScreen(state.currentScreenIdx - 1);
+                        return true;
+                    case 'ArrowDown':
+                        if (state.highlightMode) moveHighlight(1);
+                        else navigateToScreen(state.currentScreenIdx + 1);
+                        return true;
+                    case 'ArrowLeft': case 'ArrowRight':
+                        shuffleCurrentScreen(); return true;
+                    case 'KeyB': toggleBichromatic(); return true;
+                    case 'KeyR': toggleHighlightMode(); return true;
+                    case 'KeyU': toggleSingleCharMode(); return true;
+                }
+                return false;
+            }
+
             function flechaModulo(tecla){
                 const vertical = tecla === 'ArrowUp' || tecla === 'ArrowDown';
                 const paso = (tecla === 'ArrowDown' || tecla === 'ArrowRight') ? 1 : -1;
@@ -3517,6 +3673,7 @@
                 return '<div class="pp-grupo"><span class="pp-rot">' + esc(rot) + '</span>'
                     + '<div class="pp-ops">' + ops.map(o =>
                         '<button type="button" data-cmd="' + esc(cmd + o.id) + '"'
+                      + ' aria-pressed="' + (o.id === puesto ? 'true' : 'false') + '"'
                       + (o.id === puesto ? ' class="puesto"' : '') + '>'
                       + esc(o.nombre || o.label)
                       + (o.sub || o.nota ? '<span class="sub">' + esc(o.sub || o.nota) + '</span>' : '')
@@ -3534,8 +3691,47 @@
                       + '</option>').join('') + '</select></div>';
             }
 
-            function ppConmut(et, val, cmd){
-                return '<button type="button" class="pp-conmut" data-cmd="' + esc(cmd) + '">'
+            /* Las figuras infantiles, con su dibujo dentro del botón: elegir
+               «Molinete» de una lista de nueve nombres obliga a traducir el
+               nombre a la figura en la cabeza, y lo que el niño va a mirar es
+               el dibujo. El SVG es el mismo que dibuja la pantalla — viene en
+               el espejo — así que el botón no puede enseñar otra cosa. */
+            function ppOpsDibujo(rot, ops, puesto, cmd){
+                if (!ops || !ops.length) return '';
+                return '<div class="pp-grupo"><span class="pp-rot">' + esc(rot) + '</span>'
+                    + '<div class="pp-dibujos">' + ops.map(o =>
+                        '<button type="button" data-cmd="' + esc(cmd + o.id) + '"'
+                      + ' title="' + esc(o.nombre) + '"'
+                      + ' aria-pressed="' + (o.id === puesto ? 'true' : 'false') + '"'
+                      + (o.id === puesto ? ' class="puesto"' : '') + '>'
+                      + '<svg viewBox="0 0 60 60" aria-hidden="true">' + (o.svg || '') + '</svg>'
+                      + '<span class="et">' + esc(o.nombre) + '</span>'
+                      + '</button>').join('') + '</div></div>';
+            }
+
+            /* Una rejilla de botones numerados para las listas cortas — las
+               láminas y las filas —, que en un desplegable obligan a abrir,
+               buscar y cerrar para ver en cuál se está. */
+            function ppRejilla(rot, ops, puesto, cmd){
+                if (!ops || !ops.length) return '';
+                return '<div class="pp-grupo"><span class="pp-rot">' + esc(rot) + '</span>'
+                    + '<div class="pp-rejilla">' + ops.map(o =>
+                        '<button type="button" data-cmd="' + esc(cmd + o.id) + '"'
+                      + ' title="' + esc(o.titulo || o.nombre) + '"'
+                      + ' aria-pressed="' + (String(o.id) === String(puesto) ? 'true' : 'false') + '"'
+                      + (String(o.id) === String(puesto) ? ' class="puesto"' : '') + '>'
+                      + '<span class="n">' + esc(o.nombre) + '</span>'
+                      + (o.sub ? '<span class="sub">' + esc(o.sub) + '</span>' : '')
+                      + '</button>').join('') + '</div></div>';
+            }
+
+            /* `aria-pressed` porque un conmutador sin él se anuncia como un botón
+               cualquiera: quien navega por el tabulador oye «Bicromático» y no
+               si está puesto. El estado se ve a la derecha, y ahí no llega. */
+            function ppConmut(et, val, cmd, puesto){
+                return '<button type="button" class="pp-conmut" data-cmd="' + esc(cmd) + '"'
+                    + (puesto === undefined ? '' : ' aria-pressed="' + (puesto ? 'true' : 'false') + '"')
+                    + '>'
                     + '<span>' + esc(et) + '</span><span class="val">' + esc(val) + '</span></button>';
             }
 
@@ -3556,9 +3752,9 @@
                     const o = dt;
                     return ppOps('Optotipo', [
                             { id:'letters', nombre:'Letras', sub:'Sloan' },
-                            { id:'numbers', nombre:'Números', sub:'del 1 al 9' },
+                            { id:'numbers', nombre:'Números', sub:'0 y 2 a 9' },
                             { id:'pediatric', nombre:'LEA', sub:'símbolos' },
-                            { id:'tumbling', nombre:'E', sub:'direccional' }
+                            { id:'e_directional', nombre:'E', sub:'direccional' }
                         ], o.mode, 'Mode:')
                       + '<div class="pp-grupo"><span class="pp-rot">Pantalla '
                       + (o.pantalla || 1) + ' de ' + (o.pantallas || 1) + '</span>'
@@ -3567,15 +3763,15 @@
                       + '<button type="button" data-cmd="ArrowDown">siguiente ↓</button>'
                       + '</div></div>'
                       + ppFila([{ cmd:'ArrowLeft', et:'↻ Remezclar los caracteres' }])
-                      + ppConmut('Bicromático', o.bichromatic ? 'puesto' : 'no', 'KeyB')
-                      + ppConmut('Resaltar una línea', o.highlightMode ? 'puesto' : 'no', 'KeyR')
-                      + ppConmut('Un solo carácter', o.singleCharMode ? 'puesto' : 'no', 'KeyU');
+                      + ppConmut('Resaltar una línea', o.highlightMode ? 'puesto' : 'no', 'KeyR', o.highlightMode)
+                      + ppConmut('Un solo carácter', o.singleCharMode ? 'puesto' : 'no', 'KeyU', o.singleCharMode)
+                      + ppConmut('Bicromático', o.bichromatic ? 'puesto' : 'no', 'KeyB', o.bichromatic);
                 }
                 if (id === 'contraste') {
                     const p = dt.pelli || {};
-                    return ppSelect('Fila', 'pp-pelli-fila',
-                            (p.niveles || []).map(n => ({ id:n.n, nombre:'Fila ' + n.n,
-                                sub: n.log + ' log CS · ' + n.pct + ' %' })),
+                    return ppRejilla('Fila', (p.niveles || []).map(n => ({ id:n.n,
+                                nombre: String(n.n), sub: n.log,
+                                titulo: 'Fila ' + n.n + ' · ' + n.log + ' log CS · ' + n.pct + ' %' })),
                             p.fila, 'P:fila:')
                       + '<div class="pp-grupo"><div class="pp-fila">'
                       + '<button type="button" data-cmd="P:fila:arriba">↑ más contraste</button>'
@@ -3593,28 +3789,28 @@
                     const sc = dt.schober || {};
                     return ppOps('Anillos visibles', sc.opciones, sc.anillosPedidos, 'S:anillos:')
                       + ppConmut('Filtro rojo en', sc.ojoRojo || '—', 'S:ojo')
-                      + ppConmut('Invertir los colores', sc.invertido ? 'cruz verde' : 'cruz roja', 'S:inv')
+                      + ppConmut('Invertir los colores', sc.invertido ? 'cruz verde' : 'cruz roja', 'S:inv', sc.invertido)
                       + '<div class="pp-geo">' + esc(sc.derivacion || '') + '</div>';
                 }
                 if (id === 'color') {
                     const co = dt.color || {};
                     return ppOps('Juego de láminas', co.juegos, co.juego, 'C:juego:')
-                      + ppSelect('Lámina', 'pp-color-lam',
-                            (co.laminas || []).map((l, i) => ({ id:i + 1,
-                                nombre:'Lámina ' + (i + 1), sub:l.que })),
+                      + ppRejilla('Lámina', (co.laminas || []).map((l, i) => ({ id:i + 1,
+                                nombre: String(i + 1), sub: l.eje === 'demo' ? 'demo' : l.eje,
+                                titulo: 'Lámina ' + (i + 1) + ' · ' + (l.que || '') })),
                             co.lamina, 'C:lam:')
                       + '<div class="pp-grupo"><div class="pp-fila">'
                       + '<button type="button" data-cmd="C:lam:ant">‹ anterior</button>'
                       + '<button type="button" data-cmd="C:lam:sig">siguiente ›</button>'
                       + '</div></div>'
-                      + ppConmut('Respuesta correcta', co.mostrarResp ? String(co.resp) : 'oculta', 'C:resp')
+                      + ppConmut('Respuesta correcta', co.mostrarResp ? String(co.resp) : 'oculta', 'C:resp', co.mostrarResp)
                       + ppFila([{ cmd:'C:nueva', et:'↻ Remezclar los puntos' }]);
                 }
                 if (id === 'amsler') {
                     const a = dt.amsler || {};
                     return ppOps('Lámina', a.laminas, a.lamina, 'A:lamina:')
                       + ppConmut('Ojo en examen', a.ojo || '—', 'A:ojo')
-                      + ppConmut('Diagonales', a.diagonales ? 'puestas' : 'no', 'A:diag');
+                      + ppConmut('Diagonales', a.diagonales ? 'puestas' : 'no', 'A:diag', a.diagonales);
                 }
                 if (id === 'relax') {
                     const r = dt.relax || {};
@@ -3627,11 +3823,11 @@
                 }
                 if (id === 'infantil') {
                     const i = dt.infantil || {};
-                    return ppSelect('Figura', 'pp-inf-fig', i.figuras, i.figura, 'I:fig:')
+                    return ppOpsDibujo('Figura', i.figuras, i.figura, 'I:fig:')
                       + ppOps('Movimiento', i.movimientos, i.movimiento, 'I:mov:')
                       + ppOps('Velocidad', (i.velocidades || []).map(v => ({ id:v.id,
                             nombre:v.nombre, sub:v.seg + ' s' })), i.velocidad, 'I:vel:')
-                      + ppConmut('Congelar en el centro', i.congelado ? 'quieta' : 'en movimiento', 'I:congelar');
+                      + ppConmut('Congelar en el centro', i.congelado ? 'quieta' : 'en movimiento', 'I:congelar', i.congelado);
                 }
                 return '<div class="pp-geo">Este módulo todavía no está construido.</div>';
             }
@@ -3647,23 +3843,19 @@
                 return t || '';
             }
 
-            /* Lo que las flechas mueven AQUÍ, escrito aquí. Sale de la misma
-               tabla que las mueve, así que no puede decir una cosa y hacer
-               otra. */
-            function ppFlechas(id){
-                const e = EJES_FLECHA[id];
-                if (!e || (!e.vert && !e.horiz)) return '';
-                const f = [];
-                if (e.vert) f.push('<b>↑↓</b> ' + esc(e.vert));
-                if (e.horiz) f.push('<b>←→</b> ' + esc(e.horiz));
-                return '<div class="pp-teclas">' + f.join(' &nbsp;·&nbsp; ')
-                    + ' &nbsp;·&nbsp; <b>1–8</b> otro test</div>';
-            }
+            /* El mapa de teclas ya NO se escribe en el panel: quien lo tiene
+               abierto está usando el ratón, y el panel enseña cada opción con
+               su rótulo. Los atajos siguen en el panel de la «?», que es donde
+               se buscan. La tabla EJES_FLECHA se queda porque es la que MUEVE
+               las flechas. */
 
-            function pintarPanelPC(){
+            /* Recibe el espejo ya construido: construirlo aquí otra vez era
+               duplicar el trabajo más caro del repintado. Lo construye si se
+               le llama sin él, que es el caso de abrir el panel. */
+            function pintarPanelPC(datos){
                 const pp = document.getElementById('panel-pc');
                 if (!pp) return;
-                const dt = construirEspejo();
+                const dt = datos || construirEspejo();
                 document.body.classList.toggle('corte-puesto', !!dt.corte);
                 /* El desplegable de test se pinta una vez: sus opciones no
                    cambian, y rehacerlo cerraría la lista abierta. */
@@ -3678,6 +3870,18 @@
                       + '<option value="menu" data-cmd="Modulo:menu">0 · Sin estímulo · entre test y test</option>';
                 }
                 if (sel && sel.value !== dt.modulo) sel.value = dt.modulo;
+                const campoDist = document.getElementById('pp-dist');
+                if (campoDist && document.activeElement !== campoDist) {
+                    campoDist.value = dt.cal.testDistanceM;
+                }
+                const fija = dt.cal.distanciaModulo !== dt.cal.testDistanceM;
+                const nota = document.getElementById('pp-dist-nota');
+                nota.className = 'pp-dist-nota' + (fija ? ' fija' : '');
+                nota.textContent = fija
+                    ? 'Este test se toma a ' + dt.cal.distanciaModulo + ' m y no usa la '
+                      + 'distancia de la sala: el paciente se acerca.'
+                    : 'Es una propiedad de la sala, no de cada test. Al cambiarla se '
+                      + 'rehace la geometría: mire la cifra de arriba.';
                 document.getElementById('panel-estado').innerHTML =
                     esc((dt.cal.resolucion || '') + ' · ' + dt.cal.pulgadas + '″ · '
                       + (dt.cal.cssPxPerMM || 0).toFixed(3).replace('.', ',') + ' px/mm')
@@ -3700,8 +3904,7 @@
                     ? (foco.dataset && foco.dataset.cmd ? '[data-cmd="' + foco.dataset.cmd + '"]'
                        : (foco.id ? '#' + foco.id : null)) : null;
                 document.getElementById('panel-geo').textContent = ppGeo(dt);
-                document.getElementById('panel-cuerpo').innerHTML = ppCuerpo(dt)
-                    + ppFlechas(dt.modulo);
+                document.getElementById('panel-cuerpo').innerHTML = ppCuerpo(dt);
                 if (marca) { const v = pp.querySelector(marca); if (v) v.focus(); }
             }
 
@@ -3730,6 +3933,62 @@
                 if (!pp) return;
                 document.getElementById('panel-pc-abrir').addEventListener('click', abrirPanelPC);
                 document.getElementById('panel-pc-cerrar').addEventListener('click', cerrarPanelPC);
+                /* La distancia de la sala NO se edita desde aquí: este botón abre
+                   la CONFIGURACIÓN INICIAL, que es el único sitio donde se
+                   declara. Un campo de distancia dentro del panel invitaría a
+                   cambiarla a mitad de una prueba, que es exactamente el error
+                   que este sistema existe para evitar. */
+                /* LA DISTANCIA, EDITABLE. Se pide sola la primera vez —la
+                   configuración inicial se abre al arrancar sin calibrar— y
+                   después se corrige aquí sin volver a pasar por el diálogo.
+
+                   Lo que se conserva del criterio viejo es lo que de verdad
+                   importaba: que un cambio NO sea invisible. Al cambiarla se
+                   rehace la geometría y se repinta, así que la cifra que el test
+                   declara —la que dice si el estímulo cabe y cuánto mide— cambia
+                   delante de quien la toca. El riesgo no era editarla: era
+                   editarla sin que nada lo delatara.
+
+                   Los tres módulos de cerca traen su distancia fija y no la
+                   usan; ahí el campo lo dice en vez de mentir. */
+                const ponerDistancia = v => {
+                    const dm = Math.round(Math.min(20, Math.max(0.5, v)) * 2) / 2;
+                    if (dm === state.testDistanceM) return;
+                    state.testDistanceM = dm;
+                    if (d.testDistance) d.testDistance.value = dm;   // la configuración inicial
+                    resolveCalibration();
+                    state.lineChars = {};
+                    renderScreen();
+                    saveToStorage();
+                    panelPCFirma = null;
+                    pintarPanelPC();
+                };
+                const campo = document.getElementById('pp-dist');
+                campo.addEventListener('change', () => ponerDistancia(parseFloat(campo.value)));
+                /* Con el foco en el campo las flechas son suyas —lo dice la
+                   guarda del teclado— así que aquí mueven la distancia. */
+                campo.addEventListener('keydown', e => {
+                    if (e.key === 'Enter') { campo.blur(); e.preventDefault(); }
+                });
+                document.getElementById('pp-dist-menos').addEventListener('click',
+                    () => ponerDistancia(state.testDistanceM - 0.5));
+                document.getElementById('pp-dist-mas').addEventListener('click',
+                    () => ponerDistancia(state.testDistanceM + 0.5));
+
+                document.getElementById('panel-ventana').addEventListener('click', () => {
+                    /* Con el código de sala en la URL el mando se empareja solo:
+                       el mismo camino que sigue el móvil al escanear el QR, así
+                       que no hay una segunda forma de emparejar que mantener. */
+                    const w = window.open(location.origin + '/remote?c=' + state.pairCode,
+                        'boomerang-mando', 'width=440,height=920');
+                    /* Y se cierra el cajón: si se queda abierto, el panel sigue
+                       tapando la cartilla y no se ha ganado nada. */
+                    if (w) { cerrarPanelPC(); w.focus(); }
+                });
+                document.getElementById('panel-conf').addEventListener('click', () => {
+                    cerrarPanelPC();
+                    openCardCal();
+                });
                 /* Delegación: el cuerpo se rehace entero en cada cambio, así que
                    enganchar botón a botón dejaría oyentes colgando. */
                 pp.addEventListener('click', e => {

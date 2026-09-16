@@ -258,7 +258,13 @@ export default async function pruebaModulos({ pc, tel, abrir }) {
     const area = document.getElementById('modulo-area');
     const lin = document.getElementById('lines-container');
     return {
+      /* Estímulo es TODO lo que haya en la capa menos el aviso del corte, que
+         lleva su clase. Definirlo como «svg, canvas o img» no valía: el relax
+         dibuja con un div y el Pelli con texto, así que sus estímulos no
+         contaban y los daba por cortados estando puestos. */
+      estimulos: vis(area) ? area.querySelectorAll(':scope > *:not(.corte-aviso)').length : 0,
       estimulo: vis(area) ? area.querySelectorAll('svg, canvas, div').length : 0,
+      texto: vis(area) ? (area.textContent || '').replace(/\s+/g, ' ').trim() : '',
       optotipos: vis(lin) ? lin.querySelectorAll('.optotype-text, img').length : 0,
       nombre: (document.getElementById('modulo-nombre') || {}).textContent || ''
     };
@@ -279,7 +285,7 @@ export default async function pruebaModulos({ pc, tel, abrir }) {
     await tel.waitForTimeout(700);
     const cortado = await capasConContenido();
     m.comprobar('con el estímulo cortado la pantalla del paciente no dibuja nada',
-      cortado.estimulo === 0 && cortado.optotipos === 0,
+      cortado.estimulos === 0 && cortado.optotipos === 0 && /CORTAD/i.test(cortado.texto),
       `capa de estímulo ${cortado.estimulo} · optotipos ${cortado.optotipos}`);
     m.comprobar('y la pantalla dice por qué está en negro',
       /cortad|negro|pausa/i.test(cortado.nombre), `«${cortado.nombre.slice(0, 60)}»`);
@@ -531,7 +537,7 @@ export default async function pruebaModulos({ pc, tel, abrir }) {
   await pc.waitForTimeout(500);
   const conN = await capasConContenido();
   m.comprobar('la tecla N del PC corta el estímulo también dentro de un módulo',
-    conN.estimulo === 0 && conN.optotipos === 0 && /CORTAD/i.test(conN.nombre),
+    conN.estimulos === 0 && conN.optotipos === 0 && /CORTAD/i.test(conN.texto),
     `estímulo ${conN.estimulo} · «${conN.nombre.slice(0, 46)}»`);
   await pc.keyboard.press('n');
   await pc.waitForTimeout(500);

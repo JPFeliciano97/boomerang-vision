@@ -163,3 +163,42 @@ export function marcador(titulo) {
     get fallos() { return filas.filter(f => f.ok === false).length; }
   };
 }
+
+/* El modo de optotipo se elegía en los chips de la barra del PC, y esos chips
+   se han ido al panel de control: eran una segunda interfaz para la misma
+   orden, a la vista del paciente todo el rato. Aquí se hace lo que hace una
+   persona — abrir el panel, pulsar, cerrar — y se cierra SIEMPRE, porque el
+   panel se superpone y una sonda de píxeles con el panel abierto mide el panel. */
+export async function elegirModo(pagina, modo) {
+  const abierto = () => pagina.evaluate(() => {
+    const p = document.getElementById('panel-pc');
+    return !!(p && p.checkVisibility({ visibilityProperty: true }));
+  });
+  if (!(await abierto())) { await pagina.keyboard.press('p'); await pagina.waitForTimeout(300); }
+  await pagina.click(`#panel-pc [data-cmd="Mode:${modo}"]`, { timeout: 5000 });
+  await pagina.waitForTimeout(350);
+  await pagina.keyboard.press('Escape');
+  await pagina.waitForTimeout(250);
+}
+
+/* El corte deja la pantalla en negro pero NO muda: pinta una línea tenue que
+   dice que el estímulo está cortado y qué test sigue puesto. Antes eso vivía en
+   la barra de arriba, y la barra ya no existe — el paciente se habría quedado
+   delante de un negro sin una palabra, que es la regla que este proyecto no se
+   salta. Así que «no dibuja nada» pasa a ser lo que de verdad importa: NINGÚN
+   ESTÍMULO —ni svg, ni canvas, ni img, ni el mosaico— y la explicación puesta.
+   Contar hijos daba 1 y acusaba al corte de seguir dibujando. */
+export function estadoCorte(pagina) {
+  return pagina.evaluate(() => {
+    const ma = document.getElementById('modulo-area');
+    const lc = document.getElementById('lines-container');
+    return {
+      estimulos: ma.querySelectorAll('svg, canvas, img, .estimulo').length,
+      hijos: ma.children.length,
+      texto: (ma.textContent || '').replace(/\s+/g, ' ').trim(),
+      optotiposOcultos: lc.classList.contains('oculto'),
+      optotipos: lc.querySelectorAll(':scope > div').length,
+      nombre: (document.getElementById('modulo-nombre') || {}).textContent || ''
+    };
+  });
+}

@@ -99,68 +99,96 @@ export default async function pruebaRegresiones({ pc, tel, abrir }) {
     `distancia ${guardado.testDistanceM} m · anillos ${guardado.schoberAnillos}`
     + ` · figura ${guardado.infFigura} · movimiento ${guardado.infMovimiento}`);
 
-  // ═══ 3 · la barra de calibración se desplegaba sola en cada repintado ═══
-  /* renderScreen() forzaba la clase collapsed desde !esOptotipos, y corre en
-     cada flecha y en cada comando del mando: replegar la barra se deshacía a
-     la siguiente pulsación. Ahora la decisión se toma solo al CAMBIAR de
-     módulo, que es la conducta que se quería. */
-  const plegada = () => pc.evaluate(() =>
-    document.getElementById('calibration-bar').classList.contains('collapsed'));
-  await abrir('Optotipos');
-  if (await plegada()) { await pc.keyboard.press('h'); await pc.waitForTimeout(250); }
-  await pc.keyboard.press('h'); await pc.waitForTimeout(250);           // plegar
-  const tras = await plegada();
-  for (const k of ['ArrowDown', 'ArrowUp', 'ArrowRight', 'ArrowLeft']) {
-    await pc.keyboard.press(k); await pc.waitForTimeout(180);
-  }
-  const sigue = await plegada();
-  m.comprobar('la barra plegada sigue plegada tras cuatro flechas', tras && sigue,
-    !tras ? 'la tecla H no llegó a plegarla' : (sigue ? 'plegada antes y después' : 'se plegó y las flechas la volvieron a desplegar'));
-
-  await pc.keyboard.press('h'); await pc.waitForTimeout(250);           // desplegar
-  await abrir('Pelli-Robson');
-  m.comprobar('al ENTRAR en un módulo se repliega sola', await plegada());
-  await pc.keyboard.press('h'); await pc.waitForTimeout(250);           // el operador la abre dentro
-  /* Dos comandos del mando, y ninguno que pueda estar deshabilitado: la
-     sección de arriba deja la cartilla en su última fila y entrar en el módulo
-     no la reinicia, así que «bajar» estaría gris y el clic se quedaría 30 s
-     esperando a un botón que nunca se habilita. Subir siempre se puede desde
-     la última fila. */
-  await tel.click('#pelli-arriba'); await tel.waitForTimeout(350);
-  await tel.click('#panel-pelli .conmut'); await tel.waitForTimeout(350);
-  const abiertaTrasComandos = !(await plegada());
-  m.comprobar('abierta dentro del módulo, aguanta dos comandos del mando',
-    abiertaTrasComandos,
-    abiertaTrasComandos ? 'sigue abierta' : 'un comando del mando la volvió a plegar');
-
-  // ═══ 4 · la distancia de sala se declara UNA VEZ ═══════════════════════
-  /* Esta comprobación cambió de signo, y conviene que quede escrito por qué.
-     La revisión había señalado que la distancia no se podía tocar dentro de un
-     módulo, y se añadieron dos pasos de ±0,5 m en el mando. El criterio de
-     quien usa esto es el contrario y es mejor: la distancia es una propiedad
-     de la SALA, no un mando por test. Poder cambiarla a mitad de una prueba
-     invita justo al error que este sistema existe para evitar — que la
-     geometría y el sitio donde está sentado el paciente dejen de coincidir sin
-     que nada lo delate.
-     Así que ahora se declara en la configuración inicial y en ningún otro
-     sitio, y lo que se protege es lo de no poder cambiarla desde un test. */
-
-  await abrir('Schober');
-
-  /* En la barra de la pantalla la distancia es un VALOR, no un campo: si
-     alguien vuelve a poner un <input> ahí, esto se pone rojo. */
-  const enLaBarra = await pc.evaluate(() => {
-    const g = document.querySelector('#calibration-bar .cal-group');
-    if (!g) return null;
-    return {
-      texto: g.textContent.replace(/\s+/g, ' ').trim(),
-      editables: g.querySelectorAll('input, select, button').length
-    };
+  // ═══ 3 · el panel no se abre solo en cada repintado ═══
+  /* El defecto de origen era la barra de calibración: renderScreen() forzaba
+     su clase `collapsed` desde !esOptotipos, y corre en cada flecha y en cada
+     comando del mando, así que replegarla se deshacía a la siguiente pulsación.
+     La barra ya no existe, pero el defecto se puede repetir igual con el panel:
+     esta pantalla la mira el paciente, y un panel que se abra solo le enseña
+     los controles. Así que lo que se sujeta ahora es que NADIE lo abra salvo
+     quien lo pida. */
+  const panelAbierto = () => pc.evaluate(() => {
+    const p = document.getElementById('panel-pc');
+    return !!(p && p.checkVisibility({ visibilityProperty: true }));
   });
-  m.comprobar('la barra muestra la distancia sin dejar editarla',
-    enLaBarra && enLaBarra.editables === 0,
-    enLaBarra ? `«${enLaBarra.texto}» · ${enLaBarra.editables} controles editables`
-              : 'no encuentro el grupo de distancia en la barra');
+  await abrir('Optotipos');
+  if (await panelAbierto()) { await pc.keyboard.press('Escape'); await pc.waitForTimeout(250); }
+  for (const k of ['ArrowDown', 'ArrowUp', 'ArrowRight', 'ArrowLeft', 'b', 'r', 'u']) {
+    await pc.keyboard.press(k); await pc.waitForTimeout(160);
+  }
+  const traspulsar = await panelAbierto();
+  m.comprobar('el panel no se abre solo tras siete pulsaciones',
+    !traspulsar, traspulsar ? 'se abrió sin que nadie lo pidiera' : 'sigue cerrado');
+
+  // ═══ 4 · la distancia: editable, pero nunca a ciegas ══════════════════
+  /* Esta comprobación ha cambiado de signo DOS veces, y conviene que quede
+     escrito por qué, porque las dos veces lo decidió quien usa esto.
+
+     Primero se añadieron dos pasos de ±0,5 m en el mando. Después se quitaron
+     enteros: la distancia es una propiedad de la SALA, no un mando por test, y
+     cambiarla a mitad de una prueba invita al error que este sistema existe
+     para evitar. Y ahora vuelve a ser editable, en el panel del PC, porque
+     tenerla solo detrás del diálogo de configuración obligaba a pasar por él
+     para corregir un número.
+
+     Lo que se conserva de las tres vueltas es lo único que de verdad importaba:
+     que un cambio NO SEA INVISIBLE. Editarla no era el riesgo; el riesgo era
+     editarla sin que la geometría lo dijera. Así que lo que se sujeta aquí es
+     que al cambiarla cambie la cifra que el test declara, delante de quien la
+     toca. Y que se pida sola UNA vez, no en cada arranque. */
+
+  await abrir('Optotipos');
+  if (!(await pc.evaluate(() => {
+    const p = document.getElementById('panel-pc');
+    return !!(p && p.checkVisibility({ visibilityProperty: true }));
+  }))) { await pc.keyboard.press('p'); await pc.waitForTimeout(350); }
+
+  const mandosDist = await pc.evaluate(() => {
+    const c = document.getElementById('pp-dist');
+    return { campo: !!c, tipo: c ? c.type : null,
+             pasos: document.querySelectorAll('#pp-dist-menos, #pp-dist-mas').length };
+  });
+  m.comprobar('la distancia de la sala se puede editar en el panel',
+    mandosDist.campo && mandosDist.tipo === 'number' && mandosDist.pasos === 2,
+    mandosDist.campo ? `campo «${mandosDist.tipo}» y ${mandosDist.pasos} pasos`
+                     : 'no hay campo de distancia en el panel');
+
+  /* Y cambiarla se ve: el 20/20 mide la mitad al acercar el paciente a la
+     mitad de la distancia. Es la cifra que el propio panel enseña. */
+  /* Con `evaluate` y no con `textContent`: el segundo ESPERA al selector, y una
+     espera de 30 s dentro de una suite se la lleva entera por delante en vez de
+     dar un fallo legible. Aquí no hace falta esperar a nada. */
+  const veinte = async () => +(((await pc.evaluate(() =>
+    (document.getElementById('info-span') || {}).textContent || '')) || '')
+    .match(/20\/20: ([\d.]+)mm/) || [])[1];
+  const antesDist = await pc.evaluate(() => +document.getElementById('pp-dist').value);
+  const mmAntes = await veinte();
+  await pc.click('#pp-dist-menos');
+  await pc.waitForTimeout(500);
+  const mmTras = await veinte();
+  const trasDist = await pc.evaluate(() => +document.getElementById('pp-dist').value);
+  m.comprobar('y cambiarla mueve la geometría que el test declara, a la vista',
+    trasDist === antesDist - 0.5 && mmAntes > 0 && mmTras > 0
+      && Math.abs(mmTras / mmAntes - trasDist / antesDist) < 0.02,
+    `${antesDist} m → ${trasDist} m · el 20/20, de ${mmAntes} a ${mmTras} mm`);
+  /* Devolver la sala a donde estaba: las pruebas siguientes cuentan con ella. */
+  await pc.click('#pp-dist-mas');
+  await pc.waitForTimeout(400);
+  await pc.keyboard.press('Escape');
+  await pc.waitForTimeout(250);
+
+  /* Lo de «solo se pide la primera vez» se comprueba en pruebas/panel.mjs, que
+     tiene su propia página: aquí hay un móvil emparejado y recargar el PC lo
+     deja esperando, con lo que todo lo que viene detrás se queda colgado
+     midiendo elementos que ya no están.
+
+     Y se vuelve a Schober, que es donde el bloque siguiente espera encontrar
+     las dos pantallas: lee la cabecera del MÓVIL, y esa cabecera solo existe
+     dentro de un módulo. Cambiar la precondición de un bloque sin mirar el de
+     al lado deja al de al lado esperando treinta segundos a un elemento que
+     nadie va a pintar. */
+  await abrir('Schober');
+  await pc.waitForTimeout(400);
 
   /* Y el mando no tiene NADA que la cambie. Se busca por el comando, no por un
      identificador concreto: así la comprobación sigue valiendo si mañana
@@ -207,7 +235,9 @@ export default async function pruebaRegresiones({ pc, tel, abrir }) {
   });
   m.comprobar('la tecla C abre la configuración inicial', dialogoAbierto);
   if (dialogoAbierto) {
-    const veinte = async () => +((await pc.textContent('#info-span')).match(/20\/20: ([\d.]+)mm/) || [])[1];
+    const veinte = async () => +(((await pc.evaluate(() =>
+      (document.getElementById('info-span') || {}).textContent || '')) || '')
+      .match(/20\/20: ([\d.]+)mm/) || [])[1];
     const antes = await veinte();
     await pc.fill('#test-distance', '3');
     await pc.click('#card-cancel');           // cancelar NO aplica
@@ -221,11 +251,14 @@ export default async function pruebaRegresiones({ pc, tel, abrir }) {
     await pc.click('#card-save');             // guardar SÍ aplica
     await pc.waitForTimeout(700);
     const despues = await veinte();
-    const barra = await pc.textContent('#dist-sala');
+    /* El valor ya no está en una barra —esa barra se fue al panel— sino en el
+       campo de distancia del propio panel, que es donde ahora se corrige. */
+    const campo = await pc.evaluate(() =>
+      (document.getElementById('pp-dist') || {}).value || '');
     /* El 20/20 son 5' de arco: a la mitad de distancia, la mitad de milímetros. */
     m.comprobar('guardar la configuración aplica la distancia nueva',
-      Math.abs(despues - antes / 2) < 0.05 && barra.trim() === '3',
-      `20/20 de ${antes} a ${despues} mm · la barra dice «${barra.trim()} m»`);
+      Math.abs(despues - antes / 2) < 0.05 && parseFloat(campo) === 3,
+      `20/20 de ${antes} a ${despues} mm · el panel dice «${campo} m»`);
   }
 
   return m;

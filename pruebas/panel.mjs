@@ -41,9 +41,9 @@ const CONTRATO = {
    del nombre del test — la primera versión de esta prueba acusó al panel de no
    llegar a cuatro módulos a los que llegaba. */
 const MODULOS = [
-  ['optotipos', null], ['contraste', /Pelli/], ['worth', /Worth/],
-  ['schober', /Schober/], ['color', /Color/], ['amsler', /Amsler/],
-  ['relax', /Relax/], ['infantil', /Fijaci/]
+  ['optotipos', null], ['color', /Color/], ['infantil', /Fijaci/],
+  ['relax', /Relax/], ['contraste', /Pelli/], ['worth', /Worth/],
+  ['schober', /Schober/], ['amsler', /Amsler/]
 ];
 
 /* `checkVisibility()` a secas NO mira `visibility`, solo `display`: con el
@@ -79,6 +79,10 @@ export default async function pruebaPanel({ navegador, url }) {
   await pc.click('#card-cancel').catch(() => {});
 
   /* ── 1 · Al arrancar, el paciente no ve un panel ─────────────────────── */
+  const panelAbierto = () => pc.evaluate(V => {
+    const p = document.getElementById('panel-pc');
+    return !!(p && p.checkVisibility(V));
+  }, VIS);
   const visible = () => pc.evaluate(V => {
     const p = document.getElementById('panel-pc');
     return !!(p && p.checkVisibility(V));
@@ -131,7 +135,7 @@ export default async function pruebaPanel({ navegador, url }) {
   for (const [id, rot] of MODULOS) {
     const nombre = await abrirModulo(id);
     const pinta = await pc.evaluate(V => ({
-      estimulo: document.getElementById('modulo-area').children.length,
+      estimulos: document.getElementById('modulo-area').querySelectorAll(':scope > *:not(.corte-aviso)').length,
       capaVisible: document.getElementById('modulo-area').checkVisibility(V),
       lineas: document.querySelectorAll('#lines-container > div').length }), VIS);
     /* Optotipos no tiene rótulo de módulo: se reconoce porque dibuja líneas y
@@ -141,9 +145,9 @@ export default async function pruebaPanel({ navegador, url }) {
        la vuelta a optotipos de no dibujar. Lo que importa es que el paciente
        no vea nada del test anterior. */
     const ok = id === 'optotipos' ? (pinta.lineas > 0 && !pinta.capaVisible)
-                                  : (rot.test(nombre) && pinta.estimulo > 0);
+                                  : (rot.test(nombre) && pinta.estimulos > 0);
     (ok ? alcanzados : fallados).push(id + (ok ? '' : ' («' + nombre.slice(0, 22) + '», '
-      + pinta.estimulo + ' elementos, ' + pinta.lineas + ' líneas)'));
+      + pinta.estimulos + ' elementos, ' + pinta.lineas + ' líneas)'));
   }
   m.comprobar('desde el panel se llega a los ocho módulos, sin móvil',
     alcanzados.length === 8,
@@ -183,12 +187,13 @@ export default async function pruebaPanel({ navegador, url }) {
   const hayCorte = await pulsar('#panel-pc [data-cmd="Corte"]');
   await pc.waitForTimeout(450);
   const cortada = await pc.evaluate(() => ({
-    estimulo: document.getElementById('modulo-area').children.length,
+    estimulos: document.getElementById('modulo-area').querySelectorAll(':scope > *:not(.corte-aviso)').length,
+    texto: (document.getElementById('modulo-area').textContent || '').replace(/\s+/g, ' ').trim(),
     ocultos: document.getElementById('lines-container').classList.contains('oculto'),
     nombre: (document.getElementById('modulo-nombre') || {}).textContent || '' }));
   m.comprobar('y el panel corta el estímulo sin salir del test',
-    hayCorte && cortada.estimulo === 0 && /CORTAD/i.test(cortada.nombre),
-    hayCorte ? `estímulo ${cortada.estimulo} · «${cortada.nombre.slice(0, 40)}»`
+    hayCorte && cortada.estimulos === 0 && /CORTAD/i.test(cortada.nombre),
+    hayCorte ? `estímulo ${cortada.estimulos} · «${cortada.nombre.slice(0, 40)}»`
              : 'el panel no ofrece cortar el estímulo');
   if (hayCorte) { await pulsar('#panel-pc [data-cmd="Corte"]'); await pc.waitForTimeout(450); }
 
@@ -276,6 +281,89 @@ export default async function pruebaPanel({ navegador, url }) {
          : solapes.cuantos < 2 ? 'solo ' + solapes.cuantos + ' controles fijos: no hay con quién comparar'
          : solapes.cuantos + ' controles fijos a la vista, ninguno se pisa'));
 
+  /* ── 10b · Los cuatro optotipos DIBUJAN ────────────────────────────────
+     La comprobación del contrato solo miraba que el panel tuviera un mando de
+     la familia `Mode:`, no que el modo que pide exista. Y no existía: el panel
+     mandaba `Mode:tumbling` cuando el identificador es `e_directional`, así
+     que `getPoolItems()` devolvía una lista vacía y la E direccional salía en
+     blanco — la pantalla del paciente vacía, sin una palabra. Un mando que la
+     pantalla no entiende es peor que un mando que falta. */
+  await pc.keyboard.press('1');
+  await pc.waitForTimeout(400);
+  /* `await`: sin él el `if` mira una Promesa, que es siempre cierta, y el
+     panel se quedaba cerrado con la prueba midiendo botones invisibles. */
+  if (!(await panelAbierto())) { await pc.keyboard.press('p'); await pc.waitForTimeout(300); }
+  const modos = [];
+  for (const [cmd, clase] of [['Mode:letters','texto'], ['Mode:numbers','texto'],
+                              ['Mode:pediatric','imagen'], ['Mode:e_directional','imagen']]) {
+    const hay = await pulsar('#panel-pc [data-cmd="' + cmd + '"]');
+    await pc.waitForTimeout(500);
+    const v = await pc.evaluate(() => {
+      const fila = document.querySelector('#lines-container .optotype-row');
+      const imgs = [...(fila ? fila.querySelectorAll('img') : [])];
+      return { hijos: fila ? fila.children.length : 0,
+               imgs: imgs.length,
+               vacias: imgs.filter(i => !i.src || i.naturalWidth === 0).length,
+               texto: (fila ? fila.textContent : '').trim().length };
+    });
+    const ok = hay && v.hijos > 0 && v.vacias === 0
+      && (clase === 'texto' ? v.texto > 0 : v.imgs > 0);
+    modos.push((ok ? '' : '✗ ') + cmd.slice(5) + (ok ? ''
+      : ' (' + v.hijos + ' hijos, ' + v.imgs + ' imgs, ' + v.vacias + ' sin cargar, '
+        + v.texto + ' letras)'));
+  }
+  m.comprobar('los cuatro modos de optotipo dibujan algo desde el panel',
+    !modos.some(x => x.startsWith('✗')), modos.join(' · '));
+
+  /* ── 10c · Y los mandos que van por tecla sintética también llegan ─────
+     Bicromático, resaltar y un solo carácter no viajan como comando propio:
+     el despachador reparte un KeyboardEvent. Al pulsarlos EN EL PANEL el foco
+     se queda en el botón, y la guarda «con el foco en el panel el teclado es
+     del panel» se los comía: los tres botones no hacían nada, y las flechas
+     de pantalla tampoco. Es el mismo defecto que dejaba el teclado muerto al
+     cerrar el panel, por la otra punta. */
+  /* La huella tiene que cubrir los cuatro. El bicromático NO toca
+     #lines-container —pone una clase en #test-area y enseña las dos mitades—
+     así que mirar solo el contenedor de líneas lo daba por muerto estando
+     vivo. Y la flecha abajo se mide desde la pantalla 1: en la última está
+     topada y no mover nada es lo correcto. */
+  const huella = () => pc.evaluate(() => JSON.stringify({
+    html: document.getElementById('lines-container').innerHTML.length,
+    area: (document.getElementById('test-area') || {}).className || '',
+    mitades: [...document.querySelectorAll('.bichromatic-half')]
+      .filter(e => e.checkVisibility({ visibilityProperty: true })).length,
+    resaltada: document.querySelectorAll('#lines-container .line-highlight,'
+      + ' #lines-container [class*=highlight]').length,
+    lineas: document.querySelectorAll('#lines-container > div').length }));
+  const conmuta = [];
+  /* A una pantalla CON VARIAS LÍNEAS Y VARIOS CARACTERES, y con sitio para
+     bajar. En la pantalla 1 hay una línea de un solo carácter: allí resaltar
+     una línea y «un solo carácter» no pueden cambiar nada, y la prueba los
+     acusaba de no funcionar. */
+  for (let i = 0; i < 8; i++) { await pc.keyboard.press('ArrowUp'); await pc.waitForTimeout(90); }
+  for (let i = 0; i < 2; i++) { await pc.keyboard.press('ArrowDown'); await pc.waitForTimeout(120); }
+  const rica = await pc.evaluate(() => {
+    const ls = [...document.querySelectorAll('#lines-container > div')];
+    return { lineas: ls.length,
+             chars: Math.max(0, ...ls.map(l => l.querySelectorAll('.optotype-text, img').length)) };
+  });
+  for (const [cmd, nombre] of [['KeyR','resaltar'], ['KeyU','un solo carácter'],
+                               ['KeyB','bicromático'], ['ArrowDown','pantalla siguiente']]) {
+    const a = await huella();
+    const hay = await pulsar('#panel-pc [data-cmd="' + cmd + '"]');
+    await pc.waitForTimeout(500);
+    const b = await huella();
+    conmuta.push((hay && a !== b ? '' : '✗ ') + nombre);
+    if (hay && cmd !== 'ArrowDown') await pulsar('#panel-pc [data-cmd="' + cmd + '"]');
+    await pc.waitForTimeout(300);
+  }
+  m.comprobar('y los conmutadores y las flechas del panel cambian la pantalla',
+    !conmuta.some(x => x.startsWith('✗')) && rica.lineas >= 2 && rica.chars >= 2,
+    conmuta.join(' · ')
+    + (rica.lineas >= 2 && rica.chars >= 2 ? ''
+       : ` — pero se midió en una pantalla de ${rica.lineas} líneas y ${rica.chars} caracteres:`
+         + ' la prueba no prueba nada'));
+
   /* ── 11 · Los números llevan a los ocho test ──────────────────────────
      Sin móvil, el teclado tiene que llegar a todo. Los ocho test en el orden
      del menú, y el 0 para dejar la pantalla sin estímulo entre uno y otro. */
@@ -287,12 +375,12 @@ export default async function pruebaPanel({ navegador, url }) {
     await pc.waitForTimeout(450);
     const v = await pc.evaluate(V => ({
       rot: (document.getElementById('modulo-nombre') || {}).textContent || '',
-      estimulo: document.getElementById('modulo-area').children.length,
+      estimulos: document.getElementById('modulo-area').querySelectorAll(':scope > *:not(.corte-aviso)').length,
       capaVisible: document.getElementById('modulo-area').checkVisibility(V),
       lineas: document.querySelectorAll('#lines-container > div').length }), VIS);
     const [id, rot] = MODULOS[n - 1];
     const ok = id === 'optotipos' ? (v.lineas > 0 && !v.capaVisible)
-                                  : (rot.test(v.rot) && v.estimulo > 0);
+                                  : (rot.test(v.rot) && v.estimulos > 0);
     (ok ? porNumero : falladosNum).push(n + '→' + id + (ok ? '' : ' («' + v.rot.slice(0, 20)
       + '», capa ' + (v.capaVisible ? 'A LA VISTA' : 'oculta') + ', ' + v.lineas + ' líneas)'));
   }
@@ -303,29 +391,30 @@ export default async function pruebaPanel({ navegador, url }) {
   await pc.keyboard.press('0');
   await pc.waitForTimeout(450);
   const cero = await pc.evaluate(() => ({
-    estimulo: document.getElementById('modulo-area').children.length,
+    estimulos: document.getElementById('modulo-area').querySelectorAll(':scope > *:not(.corte-aviso)').length,
+    texto: (document.getElementById('modulo-area').textContent || '').replace(/\s+/g, ' ').trim(),
     ocultos: document.getElementById('lines-container').classList.contains('oculto'),
     rot: (document.getElementById('modulo-nombre') || {}).textContent || '' }));
   m.comprobar('y el 0 deja la pantalla sin estímulo',
-    cero.estimulo === 0 && /sin est|menú|menu/i.test(cero.rot),
-    `estímulo ${cero.estimulo} · «${cero.rot.slice(0, 40)}»`);
+    cero.estimulos === 0 && /sin est|menú|menu/i.test(cero.rot),
+    `estímulo ${cero.estimulos} · «${cero.rot.slice(0, 40)}»`);
 
   /* ── 12 · Una tecla, un significado ────────────────────────────────────
      Dentro del Pelli el 3 podría querer decir «fila 3» en vez de «test 3», y
      esa ambigüedad es justo lo que no puede pasar: la misma tecla tiene que
      hacer lo mismo en todas partes, como la N y la P. Se deja sujeto para que
      nadie lo «arregle» más tarde en el otro sentido. */
-  await pc.keyboard.press('2');
+  await pc.keyboard.press('5');
   await pc.waitForTimeout(450);
   const filaAntes = await pc.evaluate(() =>
     (document.getElementById('modulo-nombre') || {}).textContent || '');
-  await pc.keyboard.press('4');
+  await pc.keyboard.press('7');
   await pc.waitForTimeout(450);
   const tras4 = await pc.evaluate(() =>
     (document.getElementById('modulo-nombre') || {}).textContent || '');
   m.comprobar('un número significa lo mismo dentro de un test que fuera: el test, no la fila',
     /Pelli/.test(filaAntes) && /Schober/.test(tras4),
-    `en «${filaAntes.slice(0, 18)}» la tecla 4 llevó a «${tras4.slice(0, 18)}»`);
+    `en «${filaAntes.slice(0, 18)}» la tecla 7 llevó a «${tras4.slice(0, 18)}»`);
 
   /* ── 13 · Las flechas mueven lo que cada test ordena ──────────────────
      «Cambiar de pantalla con las flechas» solo existía en optotipos. En los
@@ -333,13 +422,8 @@ export default async function pruebaPanel({ navegador, url }) {
      pasar de lámina ni de subir una fila. Cada test tiene un eje ordenado y
      es el que mueven: pantalla, fila, lámina, anillos, luz, figura. */
   const eje = [
-    ['optotipos', 1, /pantalla|20\/|0\.\d/i],
-    ['contraste', 2, /log CS|fila/i],
-    ['schober',   4, /anillos/i],
-    ['color',     5, /l[áa]mina/i],
-    ['amsler',    6, /sobre/i],
-    ['relax',     7, /% de blanco/i],
-    ['infantil',  8, /·/]
+    ['optotipos', 1], ['color', 2], ['infantil', 3], ['relax', 4],
+    ['contraste', 5], ['schober', 7], ['amsler', 8]
   ];
   const mueven = [], quietos = [];
   const estadoVisible = () => pc.evaluate(() => {
@@ -363,7 +447,7 @@ export default async function pruebaPanel({ navegador, url }) {
                    : mueven.length + ' test responden a ↑↓');
 
   /* Y la de arriba deshace lo que hizo la de abajo. */
-  await pc.keyboard.press('5');
+  await pc.keyboard.press('2');
   await pc.waitForTimeout(450);
   const c0 = await estadoVisible();
   await pc.keyboard.press('ArrowDown');
@@ -385,6 +469,96 @@ export default async function pruebaPanel({ navegador, url }) {
     /1\s*[-–—a]\s*8|1\.\.8|1 a 8/.test(anuncio) && /\bP\b/.test(anuncio)
       && /\bN\b/.test(anuncio) && /0/.test(anuncio),
     '«' + anuncio.slice(0, 150) + '»');
+
+  /* ── 15 · Y se puede sacar a otra ventana ─────────────────────────────
+     Es el arreglo de lo único que el panel compromete: que tape parte de la
+     cartilla. La ventana nueva es EL MANDO de siempre, con el código de sala
+     en la URL para que se empareje solo — el mismo camino del QR, así que no
+     hay una segunda forma de emparejar que mantener. */
+  if (!(await panelAbierto())) { await pc.keyboard.press('p'); await pc.waitForTimeout(300); }
+  const hayBoton = await pc.evaluate(V => {
+    const b = document.getElementById('panel-ventana');
+    return !!(b && b.checkVisibility(V));
+  }, VIS);
+  let otra = null, urlOtra = '';
+  if (hayBoton) {
+    const espera = ctx.waitForEvent('page', { timeout: 6000 }).catch(() => null);
+    await pc.click('#panel-ventana');
+    otra = await espera;
+    if (otra) {
+      await otra.waitForLoadState('domcontentloaded').catch(() => {});
+      urlOtra = otra.url();
+      await otra.waitForTimeout(1500);
+    }
+  }
+  const codigoPC = await pc.evaluate(() =>
+    (document.getElementById('panel-cod') || {}).textContent || '');
+  const emparejada = otra ? await otra.evaluate(() =>
+    /* El mando emparejado deja de pedir el código y enseña los controles. */
+    !!document.querySelector('#vista-modulo, #panel-optotipos, .bloque')
+    && !document.body.textContent.includes('Escribe el código')).catch(() => false) : false;
+  m.comprobar('el panel se puede sacar a otra ventana, ya emparejada con esta pantalla',
+    hayBoton && !!otra && urlOtra.includes('/remote') && codigoPC.length >= 4
+      && urlOtra.includes(codigoPC.trim()),
+    !hayBoton ? 'no hay botón para abrirla'
+      : !otra ? 'no se abrió ninguna ventana'
+      : `abrió «${urlOtra.replace(/^https?:\/\/[^/]+/, '')}» con el código «${codigoPC.trim()}»`
+        + (emparejada ? ' y ya trae los controles' : ''));
+  /* Y al sacarla, el cajón se cierra: si no, sigue tapando la cartilla. */
+  m.comprobar('y al sacarla el cajón se cierra, que es de lo que se trata',
+    !!otra && !(await panelAbierto()),
+    otra ? (await panelAbierto() ? 'el cajón se quedó abierto' : 'cerrado')
+         : 'no se abrió ninguna ventana');
+  if (otra) await otra.close().catch(() => {});
+
+  /* ── 16 · Y el estado se puede oír, no solo ver ───────────────────────
+     El naranja dice cuál está puesto, y a quien navega por el tabulador el
+     naranja no le llega: un conmutador sin aria-pressed se anuncia como un
+     botón cualquiera. */
+  await pc.keyboard.press('1');
+  await pc.waitForTimeout(400);
+  if (!(await panelAbierto())) { await pc.keyboard.press('p'); await pc.waitForTimeout(300); }
+  const aria = await pc.evaluate(V => {
+    const vis = e => e.checkVisibility(V);
+    /* Los que TIENEN estado: selección (.pp-ops, .pp-dibujos, .pp-rejilla) y
+       conmutadores. Las acciones —«remezclar», «siguiente»— no deben llevar
+       aria-pressed: un botón que solo hace algo no está «pulsado», y marcarlo
+       lo anuncia mal. La primera versión de esta prueba lo pedía a todos y
+       acusaba de ello a los tres botones de acción. */
+    const conEstado = [...document.querySelectorAll('#panel-cuerpo .pp-ops button,'
+      + ' #panel-cuerpo .pp-dibujos button, #panel-cuerpo .pp-rejilla button,'
+      + ' #panel-cuerpo .pp-conmut')].filter(vis);
+    const acciones = [...document.querySelectorAll('#panel-cuerpo .pp-fila button')].filter(vis);
+    const sinAria = conEstado.filter(b => !b.hasAttribute('aria-pressed'));
+    const sobran = acciones.filter(b => b.hasAttribute('aria-pressed'));
+    const puestos = conEstado.filter(b => b.classList.contains('puesto'));
+    const coinciden = puestos.length > 0
+      && puestos.every(b => b.getAttribute('aria-pressed') === 'true');
+    const geo = document.getElementById('panel-geo');
+    return { conEstado: conEstado.length, acciones: acciones.length,
+             sinAria: sinAria.length, sobran: sobran.length, coinciden,
+             vivo: geo ? geo.getAttribute('aria-live') : null };
+  }, VIS);
+  m.comprobar('el estado de cada control se anuncia, no solo se pinta',
+    aria.conEstado > 4 && aria.sinAria === 0 && aria.sobran === 0 && aria.coinciden
+      && aria.vivo === 'polite',
+    `${aria.conEstado} controles con estado, ${aria.sinAria} sin anunciarlo · `
+    + `${aria.acciones} acciones, ${aria.sobran} marcadas de más · el naranja y el aria `
+    + (aria.coinciden ? 'coinciden' : 'NO coinciden')
+    + ` · la geometría, aria-live «${aria.vivo}»`);
+
+  /* ── 17 · La configuración se pide UNA vez ────────────────────────────
+     La distancia es editable en el panel y el diálogo de configuración se abre
+     solo al arrancar sin calibrar. Si volviera a plantarse en cada arranque,
+     el panel no habría servido de nada. Aquí se puede recargar sin romper
+     nada: esta suite tiene su propia página y no hay móvil emparejado. */
+  await pc.reload();
+  await pc.evaluate(() => document.fonts.ready);
+  await pc.waitForTimeout(1700);
+  const otraVez = await pc.evaluate(() =>
+    !document.getElementById('card-cal').classList.contains('hidden'));
+  m.comprobar('la configuración inicial solo se pide la primera vez',
+    !otraVez, otraVez ? 'volvió a plantarse al recargar' : 'no volvió a salir');
 
   m.comprobar('sin errores de consola en todo el recorrido', errores.length === 0,
     errores.length ? errores.slice(0, 3).join(' | ') : 'ninguno');

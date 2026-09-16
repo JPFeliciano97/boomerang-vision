@@ -80,10 +80,18 @@ export default async function pruebaCalibracion({ navegador, url }) {
   await tel.locator('#lista-modulos .fila-mod').filter({ hasText: 'Schober' }).first().click();
   await tel.waitForTimeout(900);
 
-  const plegada = await pc.evaluate(() =>
-    document.getElementById('calibration-bar').classList.contains('collapsed'));
-  m.comprobar('dentro del módulo la barra del PC está plegada',
-    plegada, plegada ? 'el aviso del PC no se ve: tiene que estar en el móvil' : '');
+  /* La barra del PC ya no existe: el aviso de calibración vive en el panel, que
+     nace cerrado. Así que lo que hay que comprobar es lo mismo por la otra
+     punta — que el aviso NO está a la vista del paciente y sí llega al mando. */
+  const aLaVista = await pc.evaluate(() => {
+    const p = document.getElementById('panel-pc');
+    const abierto = !!(p && p.checkVisibility({ visibilityProperty: true }));
+    return { abierto, barra: !!document.getElementById('calibration-bar') };
+  });
+  m.comprobar('el aviso de calibración no está a la vista del paciente',
+    !aLaVista.abierto && !aLaVista.barra,
+    aLaVista.barra ? 'la barra del PC ha vuelto' :
+      (aLaVista.abierto ? 'el panel está abierto' : 'el panel está cerrado y no hay barra'));
 
   const enMando = (await tel.textContent('#vista-modulo') || '').replace(/\s+/g, ' ');
   m.comprobar('el mando avisa de que la calibración no es de esta pantalla',

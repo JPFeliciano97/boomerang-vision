@@ -599,6 +599,16 @@
             background: rgba(243,156,18,0.12); border-color: #f39c12; color: #f0b26b;
         }
 
+        .pp-teclas {
+            margin-top: 14px; padding: 9px 11px; border-radius: 8px;
+            background: #151515; border: 1px solid #242424;
+            font-family: var(--num); font-size: 10px; line-height: 1.7; color: #7a7a7a;
+        }
+        .pp-teclas b {
+            color: #cfcfcf; background: #222; border: 1px solid #383838;
+            border-radius: 4px; padding: 1px 5px; font-weight: 400;
+        }
+
         .pp-pie {
             margin-top: 16px; padding-top: 12px; border-top: 1px solid #222;
             font-family: var(--num); font-size: 10px; line-height: 1.7; color: #6a6a6a;
@@ -781,8 +791,8 @@
 
     <button id="shortcuts-toggle" title="Mostrar atajos">?</button>
     <div id="shortcuts-panel" class="hidden">
-        <div><kbd>↑</kbd><kbd>↓</kbd> Navegar pantallas</div>
-        <div><kbd>←</kbd><kbd>→</kbd> Nuevos caracteres</div>
+        <div><kbd>↑</kbd><kbd>↓</kbd> Pantalla, fila, lámina, anillos, luz, figura</div>
+        <div><kbd>←</kbd><kbd>→</kbd> Remezclar, o la otra elección del test</div>
         <div><kbd>B</kbd> Bicromático</div>
         <div><kbd>R</kbd> Resaltar línea</div>
         <div><kbd>U</kbd> Modo 1 carácter</div>
@@ -791,6 +801,7 @@
         <div><kbd>M</kbd> Volver a optotipos</div>
         <div><kbd>N</kbd> Cortar el estímulo</div>
         <div><kbd>P</kbd> Panel de control</div>
+        <div><kbd>1</kbd>–<kbd>8</kbd> Los ocho test &nbsp;<kbd>0</kbd> sin estímulo</div>
         <div><kbd>?</kbd> Este menú</div>
         <div style="margin-top:10px; font-size:9px; color:#aaa;">Escanea para control remoto:</div>
         <div id="qr-container"></div>
@@ -3226,6 +3237,21 @@
                 if (pp && pp.contains(document.activeElement)
                     && !['Escape','p','P'].includes(e.key)) return;
                 if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) e.preventDefault();
+                /* Los números: los ocho test y el 0 para dejarla sin estímulo.
+                   Antes de la lista blanca de abajo, porque valen en cualquier
+                   módulo y no solo en optotipos. */
+                if(/^[0-9]$/.test(e.key) && !e.ctrlKey && !e.metaKey){
+                    const k = +e.key;
+                    if (k === 0) entrarModulo('menu');
+                    else if (k <= MODULOS.length) entrarModulo(MODULOS[k - 1].id);
+                    return;
+                }
+                /* Y las flechas, en los test que tienen un eje que mover. */
+                if(state.modulo !== 'optotipos'
+                   && ['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)){
+                    flechaModulo(e.key);
+                    return;
+                }
                 /* Fuera del módulo de optotipos solo siguen vivos los atajos que
                    valen en cualquiera: calibrar, la barra, los atajos, salir y
                    cortar el estímulo. El resto navegaría una pantalla que nadie
@@ -3388,6 +3414,95 @@
                opciones como botones, todos a la vista; lo que no cabe —nueve
                figuras, siete láminas— plegado en un desplegable.
                ═══════════════════════════════════════════════════════════════ */
+            /* ═══════════ LAS FLECHAS Y LOS NÚMEROS, EN TODOS LOS TEST ═══════════
+               Sin móvil el teclado tiene que llegar a todo, y hasta ahora solo
+               llegaba a optotipos: en los otros siete las flechas no hacían
+               nada, así que no había forma de pasar de lámina ni de subir una
+               fila con el PC solo.
+
+               La regla, y es una sola para que quepa en la cabeza:
+
+                 ↑ ↓  mueven lo que el test ORDENA — la pantalla, la fila de
+                      contraste, la lámina, los anillos, la figura. ↓ avanza.
+                 ← →  remezclan, o mueven la OTRA elección cuando la hay —
+                      caracteres nuevos, letras nuevas, puntos nuevos, la
+                      velocidad de la figura.
+
+               Con una excepción que nadie va a tropezar: en el relax la luz es
+               una magnitud, no una lista, así que ↓ baja la luz y ↑ la sube.
+               Un nivel al que la flecha abajo le SUBE el valor está mal hecho.
+
+               Y los números 1 a 8 son los ocho test, en el orden del menú, con
+               el 0 para dejar la pantalla sin estímulo. Valen en CUALQUIER
+               módulo, igual que la N y la P: una tecla, un significado. Dentro
+               del Pelli el 3 podría querer decir «fila 3», y esa ambigüedad es
+               justo lo que no puede pasar — hay una comprobación que lo sujeta
+               para que nadie lo «arregle» más tarde en el otro sentido. */
+            function vecinoDe(lista, actual, paso){
+                if (!lista || !lista.length) return null;
+                const i = lista.findIndex(x => String(x.id) === String(actual));
+                const j = Math.min(lista.length - 1, Math.max(0, (i < 0 ? 0 : i) + paso));
+                return j === i ? null : lista[j].id;
+            }
+
+            /* Lo que las flechas mueven en cada test, para que el panel pueda
+               anunciarlo sin que haya dos verdades. */
+            const EJES_FLECHA = {
+                optotipos: { vert: 'pantalla', horiz: 'remezclar los caracteres' },
+                contraste: { vert: 'fila de contraste', horiz: 'letras nuevas' },
+                worth:     { vert: null, horiz: null },
+                schober:   { vert: 'anillos visibles', horiz: null },
+                color:     { vert: 'lámina', horiz: 'remezclar los puntos' },
+                amsler:    { vert: 'lámina', horiz: null },
+                relax:     { vert: 'luz', horiz: null },
+                infantil:  { vert: 'figura', horiz: 'velocidad' }
+            };
+
+            function flechaModulo(tecla){
+                const vertical = tecla === 'ArrowUp' || tecla === 'ArrowDown';
+                const paso = (tecla === 'ArrowDown' || tecla === 'ArrowRight') ? 1 : -1;
+                const dt = construirEspejo();
+                const id = dt.modulo;
+                if (id === 'contraste') {
+                    if (vertical) aplicarComando(paso > 0 ? 'P:fila:abajo' : 'P:fila:arriba');
+                    else aplicarComando('P:nuevas');
+                    return;
+                }
+                if (id === 'color') {
+                    if (vertical) aplicarComando(paso > 0 ? 'C:lam:sig' : 'C:lam:ant');
+                    else aplicarComando('C:nueva');
+                    return;
+                }
+                if (id === 'schober' && vertical) {
+                    const v = vecinoDe((dt.schober || {}).opciones, (dt.schober || {}).anillosPedidos, paso);
+                    if (v != null) aplicarComando('S:anillos:' + v);
+                    return;
+                }
+                if (id === 'amsler' && vertical) {
+                    const v = vecinoDe((dt.amsler || {}).laminas, (dt.amsler || {}).lamina, paso);
+                    if (v != null) aplicarComando('A:lamina:' + v);
+                    return;
+                }
+                if (id === 'relax' && vertical) {
+                    const r = dt.relax || {};
+                    /* La luz es un nivel: ↓ baja y ↑ sube, como cualquiera
+                       esperaría de un mando de volumen. */
+                    const v = Math.min(r.luzMax, Math.max(r.luzMin, r.luz + paso * r.luzPaso));
+                    if (v !== r.luz) aplicarComando('R:luz:' + v);
+                    return;
+                }
+                if (id === 'infantil') {
+                    const i = dt.infantil || {};
+                    const v = vertical ? vecinoDe(i.figuras, i.figura, paso)
+                                       : vecinoDe(i.velocidades, i.velocidad, paso);
+                    if (v != null) aplicarComando((vertical ? 'I:fig:' : 'I:vel:') + v);
+                    return;
+                }
+                /* Worth no tiene eje ordenado: el filtro es un conmutador y va
+                   en su botón, no en una flecha. Mejor que la tecla no haga
+                   nada que hacer algo que no se espera. */
+            }
+
             let panelPCAbierto = false;
             let panelPCFirma = null;
             let panelPCArrastrando = false;
@@ -3532,6 +3647,19 @@
                 return t || '';
             }
 
+            /* Lo que las flechas mueven AQUÍ, escrito aquí. Sale de la misma
+               tabla que las mueve, así que no puede decir una cosa y hacer
+               otra. */
+            function ppFlechas(id){
+                const e = EJES_FLECHA[id];
+                if (!e || (!e.vert && !e.horiz)) return '';
+                const f = [];
+                if (e.vert) f.push('<b>↑↓</b> ' + esc(e.vert));
+                if (e.horiz) f.push('<b>←→</b> ' + esc(e.horiz));
+                return '<div class="pp-teclas">' + f.join(' &nbsp;·&nbsp; ')
+                    + ' &nbsp;·&nbsp; <b>1–8</b> otro test</div>';
+            }
+
             function pintarPanelPC(){
                 const pp = document.getElementById('panel-pc');
                 if (!pp) return;
@@ -3541,10 +3669,13 @@
                    cambian, y rehacerlo cerraría la lista abierta. */
                 const sel = document.getElementById('panel-modulo');
                 if (sel && !sel.options.length) {
-                    sel.innerHTML = (dt.modulos || []).map(x =>
+                    /* El número delante: es donde se descubre el atajo. Un
+                       atajo que no está escrito al lado de lo que hace no
+                       existe — nadie lo va a encontrar pulsando teclas. */
+                    sel.innerHTML = (dt.modulos || []).map((x, i) =>
                         '<option value="' + esc(x.id) + '" data-cmd="Modulo:' + esc(x.id) + '">'
-                      + esc(x.titulo) + ' · ' + esc(x.grupo) + '</option>').join('')
-                      + '<option value="menu" data-cmd="Modulo:menu">Sin estímulo · entre test y test</option>';
+                      + (i + 1) + ' · ' + esc(x.titulo) + ' · ' + esc(x.grupo) + '</option>').join('')
+                      + '<option value="menu" data-cmd="Modulo:menu">0 · Sin estímulo · entre test y test</option>';
                 }
                 if (sel && sel.value !== dt.modulo) sel.value = dt.modulo;
                 document.getElementById('panel-estado').innerHTML =
@@ -3569,7 +3700,8 @@
                     ? (foco.dataset && foco.dataset.cmd ? '[data-cmd="' + foco.dataset.cmd + '"]'
                        : (foco.id ? '#' + foco.id : null)) : null;
                 document.getElementById('panel-geo').textContent = ppGeo(dt);
-                document.getElementById('panel-cuerpo').innerHTML = ppCuerpo(dt);
+                document.getElementById('panel-cuerpo').innerHTML = ppCuerpo(dt)
+                    + ppFlechas(dt.modulo);
                 if (marca) { const v = pp.querySelector(marca); if (v) v.focus(); }
             }
 
@@ -3580,6 +3712,14 @@
                 pintarPanelPC();
             }
             function cerrarPanelPC(){
+                /* El foco tiene que SALIR del panel. Si se queda dentro de un
+                   control ya escondido, la guarda «el teclado es del panel» se
+                   cumple para siempre y el teclado queda muerto con el panel
+                   cerrado: ni números, ni flechas, ni N. Lo cazó la prueba de
+                   los números, que no llegaba ni al primero. */
+                const a = document.activeElement;
+                const pp = document.getElementById('panel-pc');
+                if (a && pp && pp.contains(a) && a.blur) a.blur();
                 document.body.classList.remove('panel-abierto');
                 panelPCAbierto = false;
             }

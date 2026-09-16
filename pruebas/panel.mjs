@@ -130,12 +130,17 @@ export default async function pruebaPanel({ navegador, url }) {
   const alcanzados = [], fallados = [];
   for (const [id, rot] of MODULOS) {
     const nombre = await abrirModulo(id);
-    const pinta = await pc.evaluate(() => ({
+    const pinta = await pc.evaluate(V => ({
       estimulo: document.getElementById('modulo-area').children.length,
-      lineas: document.querySelectorAll('#lines-container > div').length }));
+      capaVisible: document.getElementById('modulo-area').checkVisibility(V),
+      lineas: document.querySelectorAll('#lines-container > div').length }), VIS);
     /* Optotipos no tiene rótulo de módulo: se reconoce porque dibuja líneas y
-       la capa de módulo se queda vacía. */
-    const ok = id === 'optotipos' ? (pinta.lineas > 0 && pinta.estimulo === 0)
+       la capa de módulo NO SE VE. No se cuentan sus hijos: al volver de otro
+       test la capa se queda oculta con el último estímulo dentro —inerte,
+       medido: getAnimations() da 0 y nada se mueve— y contar hijos acusaba a
+       la vuelta a optotipos de no dibujar. Lo que importa es que el paciente
+       no vea nada del test anterior. */
+    const ok = id === 'optotipos' ? (pinta.lineas > 0 && !pinta.capaVisible)
                                   : (rot.test(nombre) && pinta.estimulo > 0);
     (ok ? alcanzados : fallados).push(id + (ok ? '' : ' («' + nombre.slice(0, 22) + '», '
       + pinta.estimulo + ' elementos, ' + pinta.lineas + ' líneas)'));
@@ -270,6 +275,116 @@ export default async function pruebaPanel({ navegador, url }) {
       : (!solapes.lanzador ? 'el lanzador no estaba a la vista: la prueba no mide nada'
          : solapes.cuantos < 2 ? 'solo ' + solapes.cuantos + ' controles fijos: no hay con quién comparar'
          : solapes.cuantos + ' controles fijos a la vista, ninguno se pisa'));
+
+  /* ── 11 · Los números llevan a los ocho test ──────────────────────────
+     Sin móvil, el teclado tiene que llegar a todo. Los ocho test en el orden
+     del menú, y el 0 para dejar la pantalla sin estímulo entre uno y otro. */
+  await pc.keyboard.press('Escape');
+  await pc.waitForTimeout(250);
+  const porNumero = [], falladosNum = [];
+  for (let n = 1; n <= 8; n++) {
+    await pc.keyboard.press(String(n));
+    await pc.waitForTimeout(450);
+    const v = await pc.evaluate(V => ({
+      rot: (document.getElementById('modulo-nombre') || {}).textContent || '',
+      estimulo: document.getElementById('modulo-area').children.length,
+      capaVisible: document.getElementById('modulo-area').checkVisibility(V),
+      lineas: document.querySelectorAll('#lines-container > div').length }), VIS);
+    const [id, rot] = MODULOS[n - 1];
+    const ok = id === 'optotipos' ? (v.lineas > 0 && !v.capaVisible)
+                                  : (rot.test(v.rot) && v.estimulo > 0);
+    (ok ? porNumero : falladosNum).push(n + '→' + id + (ok ? '' : ' («' + v.rot.slice(0, 20)
+      + '», capa ' + (v.capaVisible ? 'A LA VISTA' : 'oculta') + ', ' + v.lineas + ' líneas)'));
+  }
+  m.comprobar('las teclas 1 a 8 llevan a los ocho test, en el orden del menú',
+    porNumero.length === 8,
+    porNumero.length === 8 ? 'los ocho' : 'fallan ' + falladosNum.join(' · '));
+
+  await pc.keyboard.press('0');
+  await pc.waitForTimeout(450);
+  const cero = await pc.evaluate(() => ({
+    estimulo: document.getElementById('modulo-area').children.length,
+    ocultos: document.getElementById('lines-container').classList.contains('oculto'),
+    rot: (document.getElementById('modulo-nombre') || {}).textContent || '' }));
+  m.comprobar('y el 0 deja la pantalla sin estímulo',
+    cero.estimulo === 0 && /sin est|menú|menu/i.test(cero.rot),
+    `estímulo ${cero.estimulo} · «${cero.rot.slice(0, 40)}»`);
+
+  /* ── 12 · Una tecla, un significado ────────────────────────────────────
+     Dentro del Pelli el 3 podría querer decir «fila 3» en vez de «test 3», y
+     esa ambigüedad es justo lo que no puede pasar: la misma tecla tiene que
+     hacer lo mismo en todas partes, como la N y la P. Se deja sujeto para que
+     nadie lo «arregle» más tarde en el otro sentido. */
+  await pc.keyboard.press('2');
+  await pc.waitForTimeout(450);
+  const filaAntes = await pc.evaluate(() =>
+    (document.getElementById('modulo-nombre') || {}).textContent || '');
+  await pc.keyboard.press('4');
+  await pc.waitForTimeout(450);
+  const tras4 = await pc.evaluate(() =>
+    (document.getElementById('modulo-nombre') || {}).textContent || '');
+  m.comprobar('un número significa lo mismo dentro de un test que fuera: el test, no la fila',
+    /Pelli/.test(filaAntes) && /Schober/.test(tras4),
+    `en «${filaAntes.slice(0, 18)}» la tecla 4 llevó a «${tras4.slice(0, 18)}»`);
+
+  /* ── 13 · Las flechas mueven lo que cada test ordena ──────────────────
+     «Cambiar de pantalla con las flechas» solo existía en optotipos. En los
+     demás las flechas no hacían nada, así que sin móvil no había forma de
+     pasar de lámina ni de subir una fila. Cada test tiene un eje ordenado y
+     es el que mueven: pantalla, fila, lámina, anillos, luz, figura. */
+  const eje = [
+    ['optotipos', 1, /pantalla|20\/|0\.\d/i],
+    ['contraste', 2, /log CS|fila/i],
+    ['schober',   4, /anillos/i],
+    ['color',     5, /l[áa]mina/i],
+    ['amsler',    6, /sobre/i],
+    ['relax',     7, /% de blanco/i],
+    ['infantil',  8, /·/]
+  ];
+  const mueven = [], quietos = [];
+  const estadoVisible = () => pc.evaluate(() => {
+    const r = (document.getElementById('modulo-nombre') || {}).textContent || '';
+    const l = [...document.querySelectorAll('#lines-container > div')]
+      .map(e => e.textContent.trim()).join('|');
+    return r + '##' + l;
+  });
+  for (const [id, tecla] of eje) {
+    await pc.keyboard.press(String(tecla));
+    await pc.waitForTimeout(450);
+    const a = await estadoVisible();
+    await pc.keyboard.press('ArrowDown');
+    await pc.waitForTimeout(450);
+    const b = await estadoVisible();
+    (a !== b ? mueven : quietos).push(id);
+  }
+  m.comprobar('la flecha abajo mueve el eje ordenado de cada test, no solo en optotipos',
+    quietos.length === 0,
+    quietos.length ? 'no se mueven: ' + quietos.join(', ')
+                   : mueven.length + ' test responden a ↑↓');
+
+  /* Y la de arriba deshace lo que hizo la de abajo. */
+  await pc.keyboard.press('5');
+  await pc.waitForTimeout(450);
+  const c0 = await estadoVisible();
+  await pc.keyboard.press('ArrowDown');
+  await pc.waitForTimeout(400);
+  await pc.keyboard.press('ArrowUp');
+  await pc.waitForTimeout(400);
+  const c1 = await estadoVisible();
+  m.comprobar('y la de arriba vuelve al mismo sitio', c0 === c1,
+    c0 === c1 ? 'ida y vuelta al mismo estado' : 'no volvió: «' + c1.slice(0, 44) + '»');
+
+  /* ── 14 · Y los atajos están anunciados ───────────────────────────────
+     Un atajo que no está en el panel de la «?» no existe: nadie lo va a
+     descubrir pulsando teclas al azar delante de un paciente. */
+  const anuncio = await pc.evaluate(() => {
+    const p = document.getElementById('shortcuts-panel');
+    return p ? p.textContent.replace(/\s+/g, ' ') : '';
+  });
+  m.comprobar('el panel de atajos anuncia los números, las flechas y la P',
+    /1\s*[-–—a]\s*8|1\.\.8|1 a 8/.test(anuncio) && /\bP\b/.test(anuncio)
+      && /\bN\b/.test(anuncio) && /0/.test(anuncio),
+    '«' + anuncio.slice(0, 150) + '»');
 
   m.comprobar('sin errores de consola en todo el recorrido', errores.length === 0,
     errores.length ? errores.slice(0, 3).join(' | ') : 'ninguno');

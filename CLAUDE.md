@@ -171,6 +171,43 @@ El flujo es elegir y cerrar.
 La distancia de la sala **no** se toca desde aquí: se declara una vez, en la
 configuración inicial, como en todos los demás sitios.
 
+### El teclado, en todos los test
+
+Sin móvil el teclado tiene que llegar a todo, y hasta la PR #10 solo llegaba a
+optotipos: en los otros siete las flechas no hacían nada.
+
+**Los números `1`–`8` son los ocho test**, en el orden del menú, con el `0`
+para dejar la pantalla sin estímulo. Valen en **cualquier** módulo, igual que la
+`N` y la `P`: una tecla, un significado. Dentro del Pelli el `3` podría querer
+decir «fila 3», y esa ambigüedad es justo lo que no puede pasar — hay una
+comprobación que lo sujeta para que nadie lo «arregle» más tarde en el otro
+sentido.
+
+**Las flechas mueven lo que cada test ordena:**
+
+| | |
+|---|---|
+| `↑ ↓` | lo que el test **ordena**: pantalla, fila de contraste, lámina, anillos, luz, figura. `↓` avanza |
+| `← →` | **remezclar**, o la otra elección cuando la hay: caracteres nuevos, letras nuevas, puntos nuevos, velocidad |
+
+Con una excepción, y es la que cualquiera espera: en el relax la luz es una
+**magnitud**, no una lista, así que `↓` la baja y `↑` la sube. Un nivel al que
+la flecha abajo le SUBE el valor está mal hecho.
+
+Worth no tiene eje ordenado — el filtro es un conmutador — así que ahí las
+flechas no hacen nada. Mejor que la tecla no haga nada que hacer algo que no se
+espera.
+
+La tabla vive en `EJES_FLECHA` y de ella sale **también** el rótulo que el panel
+enseña, así que no puede decir una cosa y hacer otra. Y un atajo que no está
+anunciado no existe: los números van delante de cada test en el desplegable, el
+eje de las flechas en el propio panel, y todo en el panel de la `?`.
+
+**Al cerrar el panel, el foco tiene que SALIR de él.** Si se queda dentro de un
+control ya escondido, la guarda «el teclado es del panel» se cumple para
+siempre y el teclado queda muerto con el panel cerrado: ni números, ni flechas,
+ni `N`.
+
 ## Cortar el estímulo
 
 La pantalla del paciente se puede dejar en negro **sin salir del test**, desde

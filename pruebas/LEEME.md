@@ -5,7 +5,7 @@ npm test
 ```
 
 Levanta el servidor en un puerto libre, abre Chromium, empareja una pantalla
-con un mando **de verdad** por el código de sala, y pasa 170 comprobaciones en
+con un mando **de verdad** por el código de sala, y pasa 176 comprobaciones en
 unos tres minutos.
 
 - `0` — todo pasa
@@ -57,6 +57,7 @@ al medir píxeles dibujados:
 | `sin-mando.mjs`   | La pantalla sola, sin móvil — incluida la tecla `N`, que la corta: los ocho módulos son alcanzables solo desde el mando, así que todo el armazón podría romper el uso más común sin que ninguna prueba de módulos lo notara. |
 | `arranque.mjs`    | El recorrido de un equipo nuevo: la configuración se abre sola, pide la distancia y la medida de la pantalla, muestra el QR, y un móvil que sigue ESE código llega a los ocho módulos. Nace de medir ese camino y encontrarlo roto: el QR vivía en un panel que arranca oculto, así que la suite clínica entera era invisible al abrir la app por primera vez. |
 | `panel.mjs`       | El panel del PC, en una pantalla SIN móvil emparejado: que no asome al arrancar —esta pantalla la mira el paciente—, que abrirlo no mueva ni un píxel de lo dibujado, que desde su desplegable se llegue a los ocho módulos, y que ofrezca las 30 familias de comando que ofrece el mando. Más el mínimo de ratón, el orden de tabulación y que su lanzador no se monte sobre otro control. |
+| (`panel.mjs`)     | Y el teclado en los ocho test: que `1`–`8` lleven a los ocho y el `0` deje la pantalla sin estímulo, que un número signifique lo mismo dentro de un test que fuera —el test, no la fila—, que `↑↓` muevan el eje ordenado de cada uno y `↑` deshaga lo que hizo `↓`, y que los atajos estén anunciados en el panel de la `?`. |
 | `caidas.mjs`      | Lo que pasa cuando la conexión se cae a media prueba — el suceso más probable de todos, porque un móvil se bloquea la pantalla a los 30 s. Lo que no puede pasar: que la pantalla del paciente se quede en blanco, que el móvil vuelva a otro módulo del que está la pantalla, o que los comandos dejen de llegar sin decirlo. |
 | `calibracion.mjs` | Cuánto se puede confiar en el milímetro, y si alguien lo dice donde se lee. Siembra una calibración de tarjeta **de otra pantalla** —lo que deja un portátil desconectado del monitor de la consulta— y exige que el mando lo diga, porque dentro de un módulo la barra del PC está plegada y el pie escondido. |
 
@@ -204,6 +205,7 @@ en `public/index.html` y comprobando que la ejecución se pone roja:
 | el panel del PC empujando la maqueta | `abrir el panel no mueve ni un píxel del estímulo` |
 | el lanzador del panel en la esquina del botón `?` | `el lanzador del panel no se monta sobre ningún otro control` — «panel-pc-abrir pisa shortcuts-toggle» |
 | el despachador sacado del bloque del socket | el contador de errores de consola: «socket is not defined» al cambiar de optotipo desde el panel |
+| el foco atrapado en el panel cerrado | `las teclas 1 a 8 llevan a los ocho test` — no llegaba ni al primero: la guarda «el teclado es del panel» se cumplía para siempre |
 
 La sonda del color se estrenó con uno de esos fallos y conviene que quede
 escrito: agrupaba por cromaticidad TODOS los píxeles pintados, papel de la

@@ -46,24 +46,6 @@
         }
 
         /* Barra de calibración con grid de 3 columnas */
-        #calibration-bar {
-            background: #252525;
-            border-bottom: 1px solid #333;
-            padding: 8px 12px;
-            display: grid;
-            grid-template-columns: 1fr auto 1fr;
-            align-items: center;
-            gap: 12px;
-            z-index: 100;
-            font-size: 10px;
-            transition: all 0.3s ease;
-            /* Hace falta un máximo para que la animación de plegado funcione,
-               pero 140px recortaba los botones cuando el selector de modo
-               envuelve en ventanas estrechas. */
-            max-height: 40vh;
-            overflow: hidden;
-        }
-        #calibration-bar.collapsed { max-height:0; padding:0; opacity:0; border-bottom:none; }
 
         /* Columna izquierda: inputs y botón CALIBRAR */
         .left-group {
@@ -75,13 +57,6 @@
         }
         .cal-group { display:flex; align-items:center; gap:4px; }
         .cal-sep { width:1px; height:18px; background:#444; margin:0 4px; }
-        #calibration-bar label { color:#999; font-size:9px; text-transform:uppercase; letter-spacing:0.5px; }
-        #calibration-bar input {
-            background:#1a1a1a; border:1px solid #444; color:#fff; padding:5px 8px;
-            border-radius:6px; font-size:10px; font-family:monospace; text-align:center; width:62px;
-            transition: border-color 0.2s;
-        }
-        #calibration-bar input:focus { border-color:#3498db; outline:none; }
         .btn-sm {
             background: #2980b9; color:#fff; border:none; padding:6px 12px; border-radius:6px;
             cursor:pointer; font-size:10px; font-weight:600; white-space:nowrap;
@@ -211,9 +186,6 @@
            su estímulo físico contra state.testDistanceM, así que el campo se
            queda a la vista. Solo se esconde en los módulos que fijan ellos la
            distancia (Amsler y color, a 1 m), donde la de sala no interviene. */
-        #calibration-bar.modo-modulo .mode-selector { display:none; }
-        #calibration-bar.dist-fija .cal-group,
-        #calibration-bar.dist-fija .cal-sep { display:none; }
 
         /* ═══ MOVIMIENTOS DE FIJACIÓN INFANTIL ═══
            El recorrido y el rebote se mueven en vw/vh a propósito: lo que atrae
@@ -629,6 +601,40 @@
         /* El emparejamiento, plegado: hace falta una vez por sala y después
            estorba. El código de sala queda a la vista en el título, que es lo
            que se dicta por teléfono. */
+        .pp-rotulo {
+            font-family: var(--ui); font-size: 10.5px; letter-spacing: 1.4px;
+            color: #6e6e6e; line-height: 1.5; margin-bottom: 4px;
+        }
+        .pp-rotulo:empty, .pp-info:empty { display: none; }
+        .pp-info {
+            font-family: var(--num); font-size: 9.5px; color: #5a5a5a;
+            margin-bottom: 12px; line-height: 1.5;
+        }
+
+        .pp-sala { margin-top: 18px; padding-top: 14px; border-top: 1px solid #222; }
+        .pp-dist { display: flex; align-items: center; gap: 8px; }
+        .pp-dist button {
+            width: 44px; height: 44px; flex-shrink: 0; cursor: pointer;
+            background: #1a1a1a; color: #ddd; border: 1px solid #2f2f2f;
+            border-radius: 9px; font-size: 18px; line-height: 1;
+        }
+        .pp-dist button:hover { background: #232323; border-color: #454545; }
+        .pp-dist-et {
+            font-size: 11px; color: #8a8a8a; flex-shrink: 0;
+        }
+        #pp-dist {
+            flex-grow: 1; min-width: 0; min-height: 44px; padding: 8px 10px;
+            background: #1a1a1a; color: #fff; border: 1px solid #333;
+            border-radius: 9px; font-family: var(--num); font-size: 17px;
+            text-align: center;
+        }
+        #pp-dist:focus { border-color: #f39c12; outline: none; }
+        .pp-dist-u { font-family: var(--num); font-size: 12px; color: #8a8a8a; flex-shrink: 0; }
+        .pp-dist-nota {
+            font-size: 10.5px; line-height: 1.5; color: #7a7a7a; margin-top: 7px;
+        }
+        .pp-dist-nota.fija { color: #a8895f; }
+
         .pp-mando { margin-top: 16px; }
         .pp-mando > summary {
             list-style: none; cursor: pointer; display: flex; align-items: center;
@@ -720,11 +726,38 @@
             <select id="panel-modulo"></select>
         </div>
         <div class="pp-geo" id="panel-geo" role="status" aria-live="polite"></div>
+        <!-- El rótulo que el operador lee y la cifra de la escala: estaban en
+             la barra de arriba, a la vista del paciente. Aquí siguen
+             actualizándose siempre, con el panel abierto o cerrado. -->
+        <div class="pp-rotulo"><span id="modulo-nombre"></span></div>
+        <div class="pp-info"><span id="info-span"></span></div>
         <div id="panel-cuerpo"></div>
         <button type="button" id="panel-corte" class="pp-corte" data-cmd="Corte">
             <span class="pp-corte-et">Pantalla en negro</span>
             <span class="pp-corte-val">el test sigue puesto &middot; N</span>
         </button>
+        <!-- LA SALA. Abajo y agrupado a propósito: arriba va lo que se toca en
+             cada test, aquí lo que se declara una vez por sala. La distancia es
+             editable — se pide sola la primera vez, en la configuración
+             inicial, y después se corrige aquí sin volver a pasar por el
+             diálogo — y cada cambio se ve al instante en la cifra que el test
+             declara, que es lo que hay que mirar para saber si la geometría y
+             el sitio donde está sentado el paciente siguen coincidiendo. -->
+        <div class="pp-sala">
+            <span class="pp-rot">La sala</span>
+            <div class="pp-dist">
+                <button type="button" id="pp-dist-menos" title="Acercar 0,5 m"
+                    aria-label="Acercar medio metro">&minus;</button>
+                <label for="pp-dist" class="pp-dist-et">Distancia</label>
+                <input type="number" id="pp-dist" min="0.5" max="20" step="0.5"
+                    inputmode="decimal" aria-label="Distancia de la sala en metros">
+                <span class="pp-dist-u">m</span>
+                <button type="button" id="pp-dist-mas" title="Alejar 0,5 m"
+                    aria-label="Alejar medio metro">+</button>
+            </div>
+            <div class="pp-dist-nota" id="pp-dist-nota"></div>
+        </div>
+
         <details class="pp-mando">
             <summary><span>Conectar el m&oacute;vil</span><span class="pp-cod"
                 id="panel-cod">&hellip;</span></summary>
@@ -751,38 +784,16 @@
         <div class="pp-pie" id="panel-estado"></div>
     </aside>
 
-    <div id="calibration-bar">
-        <!-- Columna izquierda: lo único que hay que decirle al sistema -->
-        <div class="left-group">
-            <!-- La distancia se VE aquí y se declara en la configuración inicial.
-                 Era un campo editable en cualquier momento, y eso invita al error
-                 que este sistema existe para evitar: que la geometría y el sitio
-                 donde está sentado el paciente dejen de coincidir a mitad de una
-                 prueba, sin que nada lo delate. La distancia es una propiedad de
-                 la SALA, no un mando por test. -->
-            <div class="cal-group">
-                <label>Distancia</label>
-                <span id="dist-sala" class="cal-fijo">6</span>
-                <span class="cal-unit">m</span>
-            </div>
-            <div class="cal-sep"></div>
-            <button class="btn-sm" id="btn-card-cal" title="Configuración inicial: distancia y medida de la pantalla (C)">⚙ CONFIGURACIÓN</button>
-        </div>
+    <!-- Aquí estaba la barra de calibración: distancia, ⚙ CONFIGURACIÓN, el
+         botón ▲, el rótulo del módulo y la cifra de px/mm. Se ha ido entera al
+         panel de control (tecla P), agrupada por lo que es: arriba lo que se
+         toca en cada test, abajo LA SALA — la distancia y la medida de la
+         pantalla, que se declaran una vez.
 
-        <!-- Columna central: botón toggle + info -->
-        <div class="center-group">
-            <button class="btn-sm toggle-btn" id="btn-toggle-cal">▲</button>
-            <span id="modulo-nombre"></span>
-            <span id="info-span"></span>
-        </div>
-
-        <!-- Aquí vivían siete chips: los cuatro optotipos, «Fondo claro»,
-             «Resaltar» e «Individual». Se han ido al panel de control (tecla P),
-             que los tiene todos con su rótulo y su estado, y además los ocho
-             test — que desde esta barra nunca se alcanzaron. Dos sitios para la
-             misma orden es como se separan dos interfaces; y estos, encima,
-             estaban a la vista del paciente todo el rato. -->
-    </div>
+         La barra estaba a la vista del paciente todo el rato y encima ocupaba
+         alto de pantalla, que es lo que este sistema gasta en el estímulo. El
+         corte ya no depende de ella para explicarse: lo dice en la propia
+         pantalla, tenue y abajo. -->
 
     <div id="test-area">
         <div class="bichromatic-half" id="half-r"></div>
@@ -938,7 +949,7 @@
                    La forma sigue la manzana del juego: hombros altos y redondos, una
                    V honda entre los dos —que el trazo convierte en un hueco interior
                    con punta, que es lo que se reconoce— y una muesca pequeña abajo. */
-                apple: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 60"><path fill="none" stroke="#000" stroke-width="7.5" stroke-linejoin="round" stroke-linecap="round" d="M30,17 C26,7 21,3 17.5,5 C10,8 4.8,18 4.8,30 C4.8,42 13,55 20.5,54.2 C24,53.8 27,50 30,49.5 C33,50 36,53.8 39.5,54.2 C47,55 55.2,42 55.2,30 C55.2,18 50,8 42.5,5 C39,3 34,7 30,17 Z"/></svg>`
+                apple: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 63 60"><path fill="none" stroke="#000" stroke-width="7.5" stroke-linejoin="round" stroke-linecap="round" d="M31.5,18 C28,6 21,4.2 19,3.75 C11,3.75 3.75,11 3.75,19.5 C3.75,30 8,44 14,51 C17,54.5 20,55.3 23.5,55.3 C27,55.3 29.5,51 31.5,51 C33.5,51 36,55.3 39.5,55.3 C43,55.3 46,54.5 49,51 C55,44 59.25,30 59.25,19.5 C59.25,11 52,3.75 44,3.75 C42,4.2 35,6 31.5,18 Z"/></svg>`
             };
             for (let [k,v] of Object.entries(LEA_SVGS)) registerOptotype('P_'+k, v);
 
@@ -2073,7 +2084,6 @@
                 testDistance:$('test-distance'), distSala:$('dist-sala'), monitorSize:$('monitor-size'),
                 qrConfig:$('qr-config'), pairCodeConfig:$('pair-code-config'),
                 qrPanel:$('qr-panel'), panelCod:$('panel-cod'),
-                btnToggle:$('btn-toggle-cal'),
                 btnCardCal:$('btn-card-cal'), cardCal:$('card-cal'), cardShape:$('card-shape'),
                 cardHandle:$('card-handle'), cardReadout:$('card-readout'),
                 cardLabel:$('card-label'), cardRefs:$('card-refs'),
@@ -2082,7 +2092,7 @@
                 calStatus:$('cal-status-footer'), remoteStatus:$('remote-status'),
                 pairCodeLabel:$('pair-code-label'), shortcutsPanel:$('shortcuts-panel'),
                 shortcutsToggle:$('shortcuts-toggle'),
-                testArea:$('test-area'), calBar:$('calibration-bar'),
+                testArea:$('test-area'),
                 qrContainer: document.getElementById('qr-container'),
             };
 
@@ -2487,8 +2497,6 @@
                 const esOpto = m.id === 'optotipos';
                 d.linesContainer.classList.toggle('oculto', !esOpto);
                 d.moduloArea.classList.toggle('oculto', esOpto);
-                d.calBar.classList.toggle('modo-modulo', !esOpto);
-                d.calBar.classList.toggle('dist-fija', !esOpto && m.distFija != null);
                 document.body.classList.toggle('en-modulo', !esOpto);
                 /* El fondo bicromático es del optotipo: dejarlo puesto en otro
                    módulo pintaría media rejilla de Amsler sobre rojo y media
@@ -2501,8 +2509,6 @@
                    en cada comando del mando, y forzar la clase en todos los
                    repintados deshacía el ▲/▼ que acababa de pulsar el operador. */
                 if (m.id !== moduloPintado) {
-                    d.calBar.classList.toggle('collapsed', !esOpto);
-                    d.btnToggle.textContent = esOpto ? '▲' : '▼';
                     moduloPintado = m.id;
                 }
                 /* ── El corte de estímulo ──
@@ -2521,7 +2527,18 @@
                     d.linesContainer.classList.add('oculto');
                     d.moduloArea.classList.remove('oculto');
                     d.moduloArea.style.background = '#000000';
-                    d.moduloArea.innerHTML = '';
+                    /* La explicación va AQUÍ, en la pantalla, y no en una barra
+                       de arriba: esa barra ya no existe. La regla es que el
+                       paciente nunca se quede delante de un negro sin una
+                       palabra, y el rótulo del operador vive ahora en el panel
+                       —que puede estar cerrado—. Tenue y abajo: dice lo que hace
+                       falta sin volver a ser un estímulo. */
+                    d.moduloArea.innerHTML =
+                        '<div class="corte-aviso" style="position:absolute;left:0;right:0;bottom:26px;'
+                      + 'text-align:center;font-family:var(--ui);font-size:12px;'
+                      + 'letter-spacing:2px;color:#2b2b2b;">EST\u00cdMULO CORTADO'
+                      + '<span style="color:#1f1f1f;"> \u00b7 ' + esc(m.titulo.toUpperCase())
+                      + ' SIGUE PUESTO</span></div>';
                     d.testArea.classList.remove('bichromatic');
                     d.moduloNombre.textContent = 'estímulo CORTADO · ' + m.titulo + ' sigue puesto';
                     /* Y SE SIGUE EMITIENDO EL ESPEJO. Este return salía antes del
@@ -3230,10 +3247,11 @@
                 applyCalibration();   // la distancia declarada arriba también cuenta por esta vía
             }
 
-            function toggleCalPanel(){
-                const collapsed=d.calBar.classList.toggle('collapsed');
-                d.btnToggle.textContent=collapsed?'▼':'▲';
-            }
+            /* La barra que esto replegaba ya no existe. `H` sigue valiendo y
+               hace lo único que queda que tenga sentido: abrir y cerrar el
+               panel, igual que `P`. Una tecla anunciada que no hace nada es
+               peor que una tecla que no existe. */
+            function toggleCalPanel(){ togglePanelPC(); }
 
             let qrGenerated = false;
             let shortcutsTimer = null;
@@ -3289,7 +3307,6 @@
             /* Sin listener de 'change': la distancia se aplica al guardar la
                configuración inicial, no en cuanto alguien teclea en el campo. */
             d.monitorSize.addEventListener('change',applyCalibration);
-            d.btnToggle.addEventListener('click',toggleCalPanel);
             /* El cartel del móvil abre el panel donde está el QR. Si ya está
                abierto no lo cierra: pulsarlo buscando el código y que desaparezca
                sería exactamente lo contrario de lo que se pide. */
@@ -3297,7 +3314,11 @@
                 if (d.shortcutsPanel.classList.contains('hidden')) toggleShortcuts();
             });
             d.shortcutsToggle.addEventListener('click',toggleShortcuts);
-            d.btnCardCal.addEventListener('click',openCardCal);
+            /* El botón ⚙ CONFIGURACIÓN vivía en la barra, que ya no existe: su
+               sitio es el panel (#panel-conf, cableado allí). La tecla C sigue
+               abriéndola. Dejar el listener aquí reventaba el arranque entero
+               —«addEventListener of null»— y con él el emparejamiento. */
+            if (d.btnCardCal) d.btnCardCal.addEventListener('click', openCardCal);
             d.cardRefs.querySelectorAll('button').forEach(b =>
                 b.addEventListener('click', () => setCardRef(b.dataset.ref)));
             $('card-save').addEventListener('click',saveCardCal);
@@ -3731,7 +3752,7 @@
                     const o = dt;
                     return ppOps('Optotipo', [
                             { id:'letters', nombre:'Letras', sub:'Sloan' },
-                            { id:'numbers', nombre:'Números', sub:'del 1 al 9' },
+                            { id:'numbers', nombre:'Números', sub:'0 y 2 a 9' },
                             { id:'pediatric', nombre:'LEA', sub:'símbolos' },
                             { id:'e_directional', nombre:'E', sub:'direccional' }
                         ], o.mode, 'Mode:')
@@ -3849,6 +3870,18 @@
                       + '<option value="menu" data-cmd="Modulo:menu">0 · Sin estímulo · entre test y test</option>';
                 }
                 if (sel && sel.value !== dt.modulo) sel.value = dt.modulo;
+                const campoDist = document.getElementById('pp-dist');
+                if (campoDist && document.activeElement !== campoDist) {
+                    campoDist.value = dt.cal.testDistanceM;
+                }
+                const fija = dt.cal.distanciaModulo !== dt.cal.testDistanceM;
+                const nota = document.getElementById('pp-dist-nota');
+                nota.className = 'pp-dist-nota' + (fija ? ' fija' : '');
+                nota.textContent = fija
+                    ? 'Este test se toma a ' + dt.cal.distanciaModulo + ' m y no usa la '
+                      + 'distancia de la sala: el paciente se acerca.'
+                    : 'Es una propiedad de la sala, no de cada test. Al cambiarla se '
+                      + 'rehace la geometría: mire la cifra de arriba.';
                 document.getElementById('panel-estado').innerHTML =
                     esc((dt.cal.resolucion || '') + ' · ' + dt.cal.pulgadas + '″ · '
                       + (dt.cal.cssPxPerMM || 0).toFixed(3).replace('.', ',') + ' px/mm')
@@ -3905,6 +3938,43 @@
                    declara. Un campo de distancia dentro del panel invitaría a
                    cambiarla a mitad de una prueba, que es exactamente el error
                    que este sistema existe para evitar. */
+                /* LA DISTANCIA, EDITABLE. Se pide sola la primera vez —la
+                   configuración inicial se abre al arrancar sin calibrar— y
+                   después se corrige aquí sin volver a pasar por el diálogo.
+
+                   Lo que se conserva del criterio viejo es lo que de verdad
+                   importaba: que un cambio NO sea invisible. Al cambiarla se
+                   rehace la geometría y se repinta, así que la cifra que el test
+                   declara —la que dice si el estímulo cabe y cuánto mide— cambia
+                   delante de quien la toca. El riesgo no era editarla: era
+                   editarla sin que nada lo delatara.
+
+                   Los tres módulos de cerca traen su distancia fija y no la
+                   usan; ahí el campo lo dice en vez de mentir. */
+                const ponerDistancia = v => {
+                    const dm = Math.round(Math.min(20, Math.max(0.5, v)) * 2) / 2;
+                    if (dm === state.testDistanceM) return;
+                    state.testDistanceM = dm;
+                    if (d.testDistance) d.testDistance.value = dm;   // la configuración inicial
+                    resolveCalibration();
+                    state.lineChars = {};
+                    renderScreen();
+                    saveToStorage();
+                    panelPCFirma = null;
+                    pintarPanelPC();
+                };
+                const campo = document.getElementById('pp-dist');
+                campo.addEventListener('change', () => ponerDistancia(parseFloat(campo.value)));
+                /* Con el foco en el campo las flechas son suyas —lo dice la
+                   guarda del teclado— así que aquí mueven la distancia. */
+                campo.addEventListener('keydown', e => {
+                    if (e.key === 'Enter') { campo.blur(); e.preventDefault(); }
+                });
+                document.getElementById('pp-dist-menos').addEventListener('click',
+                    () => ponerDistancia(state.testDistanceM - 0.5));
+                document.getElementById('pp-dist-mas').addEventListener('click',
+                    () => ponerDistancia(state.testDistanceM + 0.5));
+
                 document.getElementById('panel-ventana').addEventListener('click', () => {
                     /* Con el código de sala en la URL el mando se empareja solo:
                        el mismo camino que sigue el móvil al escanear el QR, así

@@ -45,10 +45,24 @@ pantalla, a la distancia de la sala. Los defectos más caros han sido invisibles
 en el DOM — la rejilla de Amsler tenía sus cuatro `<line>` con las coordenadas
 correctas y en pantalla le faltaban dos lados. Por eso se mide lo dibujado.
 
-**La distancia de la sala se declara UNA VEZ**, en la configuración inicial, y
-en ningún otro sitio se cambia. Es una propiedad de la sala, no un mando por
-test: poder cambiarla a mitad de una prueba invita a que la geometría y el
-sitio donde está sentado el paciente dejen de coincidir sin que nada lo delate.
+**La distancia de la sala se PIDE una vez y se corrige en el panel.** La
+configuración inicial se abre sola la primera vez —sin calibrar— y no vuelve a
+plantarse; después la distancia se edita en el panel del PC, en el grupo «La
+sala».
+
+Esta regla ha cambiado tres veces y conviene saber qué se conserva. Primero
+hubo dos pasos de ±0,5 m en el mando; después se quitaron enteros, con el
+criterio de que la distancia es una propiedad de la SALA y no un mando por
+test; y ahora vuelve a ser editable, porque tenerla solo detrás del diálogo
+obligaba a pasar por él para corregir un número.
+
+**Lo que se conserva es lo único que de verdad importaba: que un cambio no sea
+invisible.** Editarla nunca fue el riesgo; el riesgo era editarla sin que la
+geometría lo dijera. Al cambiarla se rehace la escala y se repinta, así que la
+cifra que el test declara cambia delante de quien la toca, y hay una
+comprobación que lo exige: al acercar medio metro, el 20/20 tiene que medir
+menos en la misma proporción. **El mando del móvil sigue sin tocarla**, y eso
+también está sujeto.
 
 **Un módulo no ofrece opciones imposibles.** Si ninguna cabe a la distancia de
 la sala, o no hay opción que dar, o hay que dar una que sí. Worth ofrecía
@@ -142,6 +156,27 @@ los dos un trazo casi vertical que no aporta nada que reconocer. `NUMBERS` va de
 Hay una comprobación que barre las pantallas y las mezclas para que el conjunto
 sea ese, y otra que lee la **tinta del centro del 0 dibujado** con otro dígito de
 la misma línea como control.
+
+## Los símbolos LEA
+
+Los cuatro son contornos del mismo grosor de trazo — 7,5 de 60, que es el
+detalle que la prueba mide — y eso manda sobre parecerse a un dibujo concreto.
+
+**La manzana está medida contra la referencia, no puesta a ojo.** De la imagen
+que dio quien usa esto se extrajo el perfil del contorno columna a columna y se
+persiguieron cinco cifras; la elección salió de una rejilla por mínimo error:
+
+| | referencia | dibujada |
+|---|---|---|
+| aspecto (ancho/alto) | 1,052 | 1,067 |
+| escotadura de arriba, exterior | 14,0 % del alto | 14,7 % |
+| techo del hueco interior | 38,6 % | 36,9 % |
+| escotadura de abajo | 6,0 % | 5,3 % |
+| altura del ancho máximo | 32,1 % | 31,1 % |
+
+Es **simétrica a propósito**: la referencia está trazada a mano y su asimetría
+es temblor, no diseño. El `viewBox` es 63×60 porque la manzana es más ancha que
+alta y el alto es lo que fija los 5′ de arco.
 
 ## El mando
 
@@ -241,6 +276,24 @@ eje de las flechas en el propio panel, y todo en el panel de la `?`.
 control ya escondido, la guarda «el teclado es del panel» se cumple para
 siempre y el teclado queda muerto con el panel cerrado: ni números, ni flechas,
 ni `N`.
+
+### La barra de arriba ya no existe
+
+Llevaba la distancia, ⚙ CONFIGURACIÓN, el botón ▲, el rótulo del módulo y la
+cifra de px/mm, y estaba a la vista del paciente todo el rato gastando alto de
+pantalla — que es lo que este sistema gasta en el estímulo. Todo se ha ido al
+panel, **agrupado por lo que es**: arriba lo que se toca en cada test, abajo
+«La sala» — la distancia y la medida de la pantalla, que se declaran una vez —
+y al final el emparejamiento.
+
+**El corte se explica ahora en la propia pantalla**, tenue y abajo
+(`.corte-aviso`). Antes lo decía esa barra; sin ella, el paciente se habría
+quedado delante de un negro sin una palabra, que es la regla que este proyecto
+no se salta. El rótulo del operador (`#modulo-nombre`) vive en el panel, que
+puede estar cerrado, así que no sirve para esto.
+
+Y la `H`, que replegaba la barra, abre y cierra el panel: una tecla anunciada
+que no hace nada es peor que una tecla que no existe.
 
 ### Lo que el panel se llevó de la barra
 

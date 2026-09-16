@@ -58,13 +58,14 @@ export default async function pruebaSinMando({ navegador, url }) {
   const cortada = await pc.evaluate(() => ({
     lineas: document.querySelectorAll('#lines-container > div').length,
     lineasOcultas: document.getElementById('lines-container').classList.contains('oculto'),
-    estimulo: document.getElementById('modulo-area').children.length,
+    estimulos: document.getElementById('modulo-area').querySelectorAll(':scope > *:not(.corte-aviso)').length,
+    texto: (document.getElementById('modulo-area').textContent || '').replace(/\s+/g, ' ').trim(),
     nombre: (document.getElementById('modulo-nombre') || {}).textContent || ''
   }));
   m.comprobar('la tecla N corta el estímulo en la pantalla sola',
-    cortada.lineasOcultas && cortada.estimulo === 0 && /CORTAD/i.test(cortada.nombre),
+    cortada.lineasOcultas && cortada.estimulos === 0 && /CORTAD/i.test(cortada.nombre),
     `optotipos ${cortada.lineasOcultas ? 'ocultos' : 'A LA VISTA (' + cortada.lineas + ' líneas)'}`
-    + ` · estímulo ${cortada.estimulo} · «${cortada.nombre.slice(0, 40)}»`);
+    + ` · estímulo ${cortada.estimulos} · «${cortada.nombre.slice(0, 40)}»`);
 
   await pc.keyboard.press('n'); await pc.waitForTimeout(400);
   const reanudada = await estado();

@@ -135,7 +135,7 @@ export default async function pruebaPanel({ navegador, url }) {
   for (const [id, rot] of MODULOS) {
     const nombre = await abrirModulo(id);
     const pinta = await pc.evaluate(V => ({
-      estimulo: document.getElementById('modulo-area').children.length,
+      estimulos: document.getElementById('modulo-area').querySelectorAll(':scope > *:not(.corte-aviso)').length,
       capaVisible: document.getElementById('modulo-area').checkVisibility(V),
       lineas: document.querySelectorAll('#lines-container > div').length }), VIS);
     /* Optotipos no tiene rótulo de módulo: se reconoce porque dibuja líneas y
@@ -145,9 +145,9 @@ export default async function pruebaPanel({ navegador, url }) {
        la vuelta a optotipos de no dibujar. Lo que importa es que el paciente
        no vea nada del test anterior. */
     const ok = id === 'optotipos' ? (pinta.lineas > 0 && !pinta.capaVisible)
-                                  : (rot.test(nombre) && pinta.estimulo > 0);
+                                  : (rot.test(nombre) && pinta.estimulos > 0);
     (ok ? alcanzados : fallados).push(id + (ok ? '' : ' («' + nombre.slice(0, 22) + '», '
-      + pinta.estimulo + ' elementos, ' + pinta.lineas + ' líneas)'));
+      + pinta.estimulos + ' elementos, ' + pinta.lineas + ' líneas)'));
   }
   m.comprobar('desde el panel se llega a los ocho módulos, sin móvil',
     alcanzados.length === 8,
@@ -187,12 +187,13 @@ export default async function pruebaPanel({ navegador, url }) {
   const hayCorte = await pulsar('#panel-pc [data-cmd="Corte"]');
   await pc.waitForTimeout(450);
   const cortada = await pc.evaluate(() => ({
-    estimulo: document.getElementById('modulo-area').children.length,
+    estimulos: document.getElementById('modulo-area').querySelectorAll(':scope > *:not(.corte-aviso)').length,
+    texto: (document.getElementById('modulo-area').textContent || '').replace(/\s+/g, ' ').trim(),
     ocultos: document.getElementById('lines-container').classList.contains('oculto'),
     nombre: (document.getElementById('modulo-nombre') || {}).textContent || '' }));
   m.comprobar('y el panel corta el estímulo sin salir del test',
-    hayCorte && cortada.estimulo === 0 && /CORTAD/i.test(cortada.nombre),
-    hayCorte ? `estímulo ${cortada.estimulo} · «${cortada.nombre.slice(0, 40)}»`
+    hayCorte && cortada.estimulos === 0 && /CORTAD/i.test(cortada.nombre),
+    hayCorte ? `estímulo ${cortada.estimulos} · «${cortada.nombre.slice(0, 40)}»`
              : 'el panel no ofrece cortar el estímulo');
   if (hayCorte) { await pulsar('#panel-pc [data-cmd="Corte"]'); await pc.waitForTimeout(450); }
 
@@ -374,12 +375,12 @@ export default async function pruebaPanel({ navegador, url }) {
     await pc.waitForTimeout(450);
     const v = await pc.evaluate(V => ({
       rot: (document.getElementById('modulo-nombre') || {}).textContent || '',
-      estimulo: document.getElementById('modulo-area').children.length,
+      estimulos: document.getElementById('modulo-area').querySelectorAll(':scope > *:not(.corte-aviso)').length,
       capaVisible: document.getElementById('modulo-area').checkVisibility(V),
       lineas: document.querySelectorAll('#lines-container > div').length }), VIS);
     const [id, rot] = MODULOS[n - 1];
     const ok = id === 'optotipos' ? (v.lineas > 0 && !v.capaVisible)
-                                  : (rot.test(v.rot) && v.estimulo > 0);
+                                  : (rot.test(v.rot) && v.estimulos > 0);
     (ok ? porNumero : falladosNum).push(n + '→' + id + (ok ? '' : ' («' + v.rot.slice(0, 20)
       + '», capa ' + (v.capaVisible ? 'A LA VISTA' : 'oculta') + ', ' + v.lineas + ' líneas)'));
   }
@@ -390,12 +391,13 @@ export default async function pruebaPanel({ navegador, url }) {
   await pc.keyboard.press('0');
   await pc.waitForTimeout(450);
   const cero = await pc.evaluate(() => ({
-    estimulo: document.getElementById('modulo-area').children.length,
+    estimulos: document.getElementById('modulo-area').querySelectorAll(':scope > *:not(.corte-aviso)').length,
+    texto: (document.getElementById('modulo-area').textContent || '').replace(/\s+/g, ' ').trim(),
     ocultos: document.getElementById('lines-container').classList.contains('oculto'),
     rot: (document.getElementById('modulo-nombre') || {}).textContent || '' }));
   m.comprobar('y el 0 deja la pantalla sin estímulo',
-    cero.estimulo === 0 && /sin est|menú|menu/i.test(cero.rot),
-    `estímulo ${cero.estimulo} · «${cero.rot.slice(0, 40)}»`);
+    cero.estimulos === 0 && /sin est|menú|menu/i.test(cero.rot),
+    `estímulo ${cero.estimulos} · «${cero.rot.slice(0, 40)}»`);
 
   /* ── 12 · Una tecla, un significado ────────────────────────────────────
      Dentro del Pelli el 3 podría querer decir «fila 3» en vez de «test 3», y
@@ -544,6 +546,19 @@ export default async function pruebaPanel({ navegador, url }) {
     + `${aria.acciones} acciones, ${aria.sobran} marcadas de más · el naranja y el aria `
     + (aria.coinciden ? 'coinciden' : 'NO coinciden')
     + ` · la geometría, aria-live «${aria.vivo}»`);
+
+  /* ── 17 · La configuración se pide UNA vez ────────────────────────────
+     La distancia es editable en el panel y el diálogo de configuración se abre
+     solo al arrancar sin calibrar. Si volviera a plantarse en cada arranque,
+     el panel no habría servido de nada. Aquí se puede recargar sin romper
+     nada: esta suite tiene su propia página y no hay móvil emparejado. */
+  await pc.reload();
+  await pc.evaluate(() => document.fonts.ready);
+  await pc.waitForTimeout(1700);
+  const otraVez = await pc.evaluate(() =>
+    !document.getElementById('card-cal').classList.contains('hidden'));
+  m.comprobar('la configuración inicial solo se pide la primera vez',
+    !otraVez, otraVez ? 'volvió a plantarse al recargar' : 'no volvió a salir');
 
   m.comprobar('sin errores de consola en todo el recorrido', errores.length === 0,
     errores.length ? errores.slice(0, 3).join(' | ') : 'ninguno');

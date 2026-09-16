@@ -180,3 +180,25 @@ export async function elegirModo(pagina, modo) {
   await pagina.keyboard.press('Escape');
   await pagina.waitForTimeout(250);
 }
+
+/* El corte deja la pantalla en negro pero NO muda: pinta una línea tenue que
+   dice que el estímulo está cortado y qué test sigue puesto. Antes eso vivía en
+   la barra de arriba, y la barra ya no existe — el paciente se habría quedado
+   delante de un negro sin una palabra, que es la regla que este proyecto no se
+   salta. Así que «no dibuja nada» pasa a ser lo que de verdad importa: NINGÚN
+   ESTÍMULO —ni svg, ni canvas, ni img, ni el mosaico— y la explicación puesta.
+   Contar hijos daba 1 y acusaba al corte de seguir dibujando. */
+export function estadoCorte(pagina) {
+  return pagina.evaluate(() => {
+    const ma = document.getElementById('modulo-area');
+    const lc = document.getElementById('lines-container');
+    return {
+      estimulos: ma.querySelectorAll('svg, canvas, img, .estimulo').length,
+      hijos: ma.children.length,
+      texto: (ma.textContent || '').replace(/\s+/g, ' ').trim(),
+      optotiposOcultos: lc.classList.contains('oculto'),
+      optotipos: lc.querySelectorAll(':scope > div').length,
+      nombre: (document.getElementById('modulo-nombre') || {}).textContent || ''
+    };
+  });
+}

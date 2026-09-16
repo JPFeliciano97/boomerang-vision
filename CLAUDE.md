@@ -137,6 +137,40 @@ poder leer pero que se lee una vez; el del color medía 208 px de los 1.447 del
 panel. El **título sigue delante** —la advertencia no se esconde— y el
 desarrollo se abre al tocarlo.
 
+## El panel del PC
+
+Los ocho módulos nacieron alcanzables **solo desde el móvil**. El panel del PC
+(`#panel-pc` en `public/index.html`, tecla `P`, `Esc` para cerrar) abre el otro
+camino: un consultorio con un PC, un teclado y un ratón.
+
+**No reimplementa nada.** Se pinta con `construirEspejo()` —el mismo objeto que
+se le manda al móvil— y despacha por `aplicarComando()` —el mismo vocabulario
+de comandos—. Las dos funciones se extrajeron para esto: antes el espejo se
+construía dentro del envío y el despachador vivía dentro del
+`socket.on('comando')`, así que un panel local habría tenido que reimplementar
+los dos. Dos rutas para la misma orden es como se separan dos interfaces que
+deben hacer lo mismo. Hay una comprobación que compara los `data-cmd` del panel
+contra las 30 familias de comando del mando.
+
+Lo que sí es distinto, y debe serlo, es la presentación: el móvil es un pulgar a
+30 cm y esto es un ratón. Grupos de 2 a 4 opciones como botones, todos a la
+vista; lo que no cabe —nueve figuras, siete láminas, cinco filas— plegado en un
+desplegable.
+
+**Se superpone y no re-maqueta.** Si el panel empujara la maqueta, el estímulo
+cambiaría de tamaño al abrirlo y la geometría dejaría de ser la declarada sin
+que nada lo delate. Una comprobación mide la caja de lo dibujado con el panel
+abierto y cerrado y exige que no se mueva **ni un píxel**.
+
+**Nace cerrado, y dice que está abierto.** Esta pantalla es la que mira el
+paciente: un panel que asome al arrancar le enseña los controles, y mientras
+está abierto le tapa parte de la cartilla. Con un solo monitor eso no tiene
+arreglo, así que se dice en la cabecera del propio panel en vez de disimularlo.
+El flujo es elegir y cerrar.
+
+La distancia de la sala **no** se toca desde aquí: se declara una vez, en la
+configuración inicial, como en todos los demás sitios.
+
 ## Cortar el estímulo
 
 La pantalla del paciente se puede dejar en negro **sin salir del test**, desde

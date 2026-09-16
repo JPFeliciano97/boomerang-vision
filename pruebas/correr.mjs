@@ -21,6 +21,7 @@ import pruebaSinMando from './sin-mando.mjs';
 import pruebaCalibracion from './calibracion.mjs';
 import pruebaArranque from './arranque.mjs';
 import pruebaCaidas from './caidas.mjs';
+import pruebaPanel from './panel.mjs';
 
 const VERDE = '\x1b[32m', ROJO = '\x1b[31m', GRIS = '\x1b[90m', FIN = '\x1b[0m';
 const color = process.stdout.isTTY && !process.env.NO_COLOR;
@@ -88,7 +89,8 @@ try {
     ['sin mando',   pruebaSinMando,    { navegador, url: servidor.url }],
     ['calibración', pruebaCalibracion, { navegador, url: servidor.url }],
     ['arranque',    pruebaArranque,    { navegador, url: servidor.url }],
-    ['caídas',      pruebaCaidas,      { navegador, url: servidor.url }]
+    ['caídas',      pruebaCaidas,      { navegador, url: servidor.url }],
+    ['panel del PC', pruebaPanel,      { navegador, url: servidor.url }]
   ];
 
   const enParalelo = Promise.all(aLaVez.map(([n, p, a]) => correr(n, p, a)));
@@ -110,11 +112,11 @@ try {
   });
 
   let total = 0, fallos = 0;
-  /* Las ocho suites más el recuento de errores de consola: nueve marcadores.
+  /* Las nueve suites más el recuento de errores de consola: diez marcadores.
      Si falta alguno es que el bucle de arriba no llegó a añadirlo, y eso no
      puede terminar en verde. */
-  if (marcadores.length !== 9) {
-    console.error(c('\nfaltan marcadores: ' + marcadores.length + ' de 9', ROJO));
+  if (marcadores.length !== 10) {
+    console.error(c('\nfaltan marcadores: ' + marcadores.length + ' de 10', ROJO));
     fallos++;
   }
   for (const m of marcadores) {

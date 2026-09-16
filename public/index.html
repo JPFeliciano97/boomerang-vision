@@ -446,9 +446,231 @@
             font-family:monospace; font-size:20px; font-weight:700; color:#fff;
             letter-spacing:4px; text-align:center; margin-top:8px;
         }
+
+        /* ═══════════ PANEL DE CONTROL DEL PC ═══════════
+           El mismo vocabulario visual que el mando del móvil —es el mismo
+           producto— pero maquetado para ratón: cajón lateral, desplegables
+           donde la lista es larga, y foco visible porque aquí sí hay teclado.
+
+           `visibility` y no `display`: hace falta que la transición se vea, y
+           `visibility: hidden` es además la señal que `checkVisibility()` lee,
+           así que «cerrado» significa lo mismo para el navegador y para la
+           prueba. */
+        #panel-pc {
+            position: fixed; top: 0; right: 0; z-index: 900;
+            width: 400px; max-width: 100vw; height: 100vh;
+            box-sizing: border-box; padding: 0 18px 20px;
+            overflow-y: auto; overscroll-behavior-y: contain;
+            background: #101010; border-left: 1px solid #2a2a2a;
+            box-shadow: -18px 0 46px rgba(0,0,0,0.6);
+            font-family: var(--ui); color: #e8e8e8;
+            visibility: hidden; transform: translateX(100%);
+            transition: transform .22s ease, visibility .22s;
+        }
+        body.panel-abierto #panel-pc { visibility: visible; transform: none; }
+        #panel-pc::-webkit-scrollbar { width: 9px; }
+        #panel-pc::-webkit-scrollbar-thumb { background: #2e2e2e; border-radius: 5px; }
+
+        /* El lanzador no está a la vista del paciente: aparece cuando alguien
+           mueve el ratón, igual que el cursor, y se va solo. El atajo de
+           teclado funciona siempre. */
+        /* Abajo a la IZQUIERDA: la esquina de la derecha ya la tienen el
+           botón de atajos (`?`) y su panel, y ahí el lanzador quedaba medio
+           debajo del otro. Además el cajón se abre por la derecha, así que a
+           la izquierda nunca queda tapado. */
+        #panel-pc-abrir {
+            position: fixed; bottom: 46px; left: 18px; z-index: 899;
+            display: flex; align-items: center; gap: 9px;
+            min-height: 40px; padding: 0 14px;
+            background: #1a1a1a; color: #cfcfcf;
+            border: 1px solid #333; border-radius: 22px; cursor: pointer;
+            font-family: var(--ui); font-size: 12.5px; letter-spacing: 0.4px;
+            opacity: 0; pointer-events: none; transition: opacity .25s ease;
+        }
+        body.raton-vivo #panel-pc-abrir { opacity: 0.82; pointer-events: auto; }
+        body.raton-vivo #panel-pc-abrir:hover { opacity: 1; background: #232323; border-color: #454545; }
+        body.panel-abierto #panel-pc-abrir { opacity: 0 !important; pointer-events: none; }
+        #panel-pc-abrir .tecla {
+            font-family: var(--num); font-size: 10.5px; color: #8a8a8a;
+            border: 1px solid #3a3a3a; border-radius: 4px; padding: 2px 6px;
+        }
+
+        .pp-cabecera {
+            position: sticky; top: 0; z-index: 2; background: #101010;
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 15px 0 11px; border-bottom: 1px solid #222; margin-bottom: 12px;
+        }
+        .pp-marca {
+            font-family: 'OpticianSans', 'Arial Black', Impact, sans-serif;
+            font-size: 13px; letter-spacing: 2.4px; color: #bbb;
+        }
+        #panel-pc-cerrar {
+            width: 32px; height: 32px; flex-shrink: 0;
+            background: #1c1c1c; color: #9a9a9a; border: 1px solid #2f2f2f;
+            border-radius: 8px; cursor: pointer; font-size: 13px; line-height: 1;
+        }
+        #panel-pc-cerrar:hover { background: #262626; color: #ddd; }
+
+        .pp-mirando {
+            font-size: 11px; line-height: 1.5; color: #a8895f;
+            background: rgba(243,156,18,0.07); border: 1px solid rgba(243,156,18,0.28);
+            border-radius: 8px; padding: 9px 11px; margin-bottom: 14px;
+        }
+        .pp-mirando b { color: #c9a870; }
+
+        .pp-rot {
+            display: block; font-size: 9.5px; text-transform: uppercase;
+            letter-spacing: 1px; color: #6e6e6e; margin: 0 0 6px 2px;
+        }
+        .pp-grupo { margin-bottom: 13px; }
+        .pp-grupo + .pp-grupo { margin-top: 0; }
+        #panel-pc select {
+            width: 100%; min-height: 42px; padding: 9px 11px;
+            background: #1a1a1a; color: #eee; border: 1px solid #333;
+            border-radius: 9px; font-family: var(--ui); font-size: 13.5px; cursor: pointer;
+        }
+        #panel-pc select:hover { border-color: #454545; }
+
+        .pp-geo {
+            font-family: var(--num); font-size: 10.5px; line-height: 1.6;
+            color: #7a7a7a; padding: 9px 11px; margin-bottom: 14px;
+            background: #151515; border: 1px solid #242424; border-radius: 8px;
+        }
+        .pp-geo:empty { display: none; }
+        .pp-geo .lim { color: #c9a870; }
+
+        /* Los grupos de 2–4 opciones van como botones: se ven todos a la vez y
+           se pulsan en un gesto. Solo se pliega en desplegable lo que no cabe
+           —las nueve figuras, las siete láminas— para que el panel no crezca
+           más que la pantalla. */
+        .pp-ops { display: flex; gap: 7px; flex-wrap: wrap; }
+        .pp-ops button {
+            flex: 1 1 0; min-width: 84px; min-height: 44px;
+            padding: 8px 10px; cursor: pointer; text-align: center;
+            background: #1a1a1a; color: #ccc;
+            border: 1px solid #2f2f2f; border-radius: 9px;
+            font-family: var(--ui); font-size: 12.5px; line-height: 1.25;
+        }
+        .pp-ops button:hover { background: #232323; border-color: #454545; color: #eee; }
+        .pp-ops button.puesto {
+            background: #f39c12; border-color: #f39c12; color: #111; font-weight: 700;
+        }
+        .pp-ops button .sub {
+            display: block; font-size: 9.5px; color: #7d7d7d; margin-top: 2px; font-weight: 400;
+        }
+        .pp-ops button.puesto .sub { color: rgba(0,0,0,0.6); }
+
+        .pp-fila { display: flex; gap: 7px; }
+        .pp-fila button {
+            flex: 1 1 0; min-height: 44px; cursor: pointer;
+            background: #1a1a1a; color: #ccc; border: 1px solid #2f2f2f;
+            border-radius: 9px; font-family: var(--ui); font-size: 12.5px;
+        }
+        .pp-fila button:hover { background: #232323; border-color: #454545; color: #eee; }
+
+        .pp-conmut {
+            width: 100%; min-height: 46px; margin-top: 9px; cursor: pointer;
+            display: flex; align-items: center; justify-content: space-between;
+            gap: 10px; padding: 10px 13px;
+            background: #1a1a1a; color: #ddd; border: 1px solid #2f2f2f; border-radius: 9px;
+            font-family: var(--ui); font-size: 13px; text-align: left;
+        }
+        .pp-conmut:hover { background: #232323; border-color: #454545; }
+        .pp-conmut .val {
+            font-family: var(--num); font-size: 11px; color: #f0b26b; flex-shrink: 0;
+        }
+
+        #panel-pc input[type=range] {
+            width: 100%; height: 34px; margin: 4px 0 0; cursor: pointer; accent-color: #f39c12;
+        }
+
+        .pp-corte {
+            width: 100%; min-height: 52px; margin-top: 16px; cursor: pointer;
+            display: flex; align-items: center; justify-content: space-between;
+            gap: 10px; padding: 11px 14px;
+            background: #161616; color: #ddd;
+            border: 1px solid #333; border-radius: 10px;
+            font-family: var(--ui); text-align: left;
+        }
+        .pp-corte:hover { background: #202020; border-color: #4a4a4a; }
+        .pp-corte-et { font-size: 13.5px; font-weight: 600; letter-spacing: 0.4px; }
+        .pp-corte-val { font-family: var(--num); font-size: 10px; color: #7a7a7a; flex-shrink: 0; }
+        body.corte-puesto .pp-corte {
+            background: rgba(243,156,18,0.12); border-color: #f39c12; color: #f0b26b;
+        }
+
+        .pp-teclas {
+            margin-top: 14px; padding: 9px 11px; border-radius: 8px;
+            background: #151515; border: 1px solid #242424;
+            font-family: var(--num); font-size: 10px; line-height: 1.7; color: #7a7a7a;
+        }
+        .pp-teclas b {
+            color: #cfcfcf; background: #222; border: 1px solid #383838;
+            border-radius: 4px; padding: 1px 5px; font-weight: 400;
+        }
+
+        .pp-pie {
+            margin-top: 16px; padding-top: 12px; border-top: 1px solid #222;
+            font-family: var(--num); font-size: 10px; line-height: 1.7; color: #6a6a6a;
+        }
+        .pp-pie .aviso { color: #c9a870; }
+
+        /* Aquí sí hay teclado, así que el foco tiene que verse. */
+        #panel-pc :focus-visible, #panel-pc-abrir:focus-visible {
+            outline: 2px solid #f39c12; outline-offset: 2px;
+        }
+
+        /* En un portátil de 1366×768 el cajón se queda con el 29 % del ancho;
+           por debajo de eso ocupa todo y se usa como una pantalla de móvil. */
+        @media (max-width: 720px) {
+            #panel-pc { width: 100vw; border-left: none; }
+        }
     </style>
 </head>
 <body>
+    <!-- ═══════════ PANEL DE CONTROL DEL PC ═══════════
+         Los ocho módulos eran alcanzables SOLO desde el móvil. Este panel abre
+         el otro camino: un consultorio con un PC, un teclado y un ratón.
+
+         Dos decisiones que no son de gusto:
+
+         · SE SUPERPONE, no re-maqueta. Si el panel empujara la maqueta, el
+           estímulo cambiaría de tamaño al abrirlo y la geometría dejaría de
+           ser la declarada sin que nada lo delate. Hay una comprobación que
+           mide la caja de lo dibujado con el panel abierto y cerrado y exige
+           que no se mueva ni un píxel.
+
+         · NACE CERRADO, y lo dice cuando está abierto. Esta pantalla es la que
+           mira el paciente: un panel que asome al arrancar le enseña los
+           controles, y mientras está abierto le tapa parte de la cartilla. Eso
+           no se puede esconder, así que se dice.
+
+         La distancia de la sala NO se toca desde aquí: se declara una vez, en
+         la configuración inicial, y en ningún otro sitio. -->
+    <button id="panel-pc-abrir" type="button" title="Controles (P)">
+        <span class="txt">Controles</span><span class="tecla">P</span>
+    </button>
+    <aside id="panel-pc" aria-label="Panel de control">
+        <div class="pp-cabecera">
+            <div class="pp-marca">BOOMERANG VISION</div>
+            <button type="button" id="panel-pc-cerrar" title="Cerrar (Esc)">&#10005;</button>
+        </div>
+        <div class="pp-mirando">
+            El paciente est&aacute; viendo este panel &middot; <b>Esc</b> lo cierra
+        </div>
+        <div class="pp-grupo">
+            <label class="pp-rot" for="panel-modulo">Test</label>
+            <select id="panel-modulo"></select>
+        </div>
+        <div class="pp-geo" id="panel-geo"></div>
+        <div id="panel-cuerpo"></div>
+        <button type="button" id="panel-corte" class="pp-corte" data-cmd="Corte">
+            <span class="pp-corte-et">Pantalla en negro</span>
+            <span class="pp-corte-val">el test sigue puesto &middot; N</span>
+        </button>
+        <div class="pp-pie" id="panel-estado"></div>
+    </aside>
+
     <div id="calibration-bar">
         <!-- Columna izquierda: lo único que hay que decirle al sistema -->
         <div class="left-group">
@@ -569,8 +791,8 @@
 
     <button id="shortcuts-toggle" title="Mostrar atajos">?</button>
     <div id="shortcuts-panel" class="hidden">
-        <div><kbd>↑</kbd><kbd>↓</kbd> Navegar pantallas</div>
-        <div><kbd>←</kbd><kbd>→</kbd> Nuevos caracteres</div>
+        <div><kbd>↑</kbd><kbd>↓</kbd> Pantalla, fila, lámina, anillos, luz, figura</div>
+        <div><kbd>←</kbd><kbd>→</kbd> Remezclar, o la otra elección del test</div>
         <div><kbd>B</kbd> Bicromático</div>
         <div><kbd>R</kbd> Resaltar línea</div>
         <div><kbd>U</kbd> Modo 1 carácter</div>
@@ -578,6 +800,8 @@
         <div><kbd>H</kbd> Ocultar panel</div>
         <div><kbd>M</kbd> Volver a optotipos</div>
         <div><kbd>N</kbd> Cortar el estímulo</div>
+        <div><kbd>P</kbd> Panel de control</div>
+        <div><kbd>1</kbd>–<kbd>8</kbd> Los ocho test &nbsp;<kbd>0</kbd> sin estímulo</div>
         <div><kbd>?</kbd> Este menú</div>
         <div style="margin-top:10px; font-size:9px; color:#aaa;">Escanea para control remoto:</div>
         <div id="qr-container"></div>
@@ -2294,8 +2518,12 @@
                 return (g && g.screenIndex === state.currentScreenIdx) ? g.lineIndex : -1;
             }
 
-            function emitirEspejo(){
-                if (!(window.remoteSocket && window.remoteSocket.connected && state.remoteJoined)) return;
+            /* El espejo se CONSTRUYE aparte de enviarse, porque tiene dos
+               destinos: el móvil, por socket, y el panel del PC, que lo lee
+               aquí mismo. Es la misma verdad para los dos — un panel que se
+               pintara con sus propios datos podría decir «5 anillos» mientras
+               la pantalla dibuja 7, y nadie lo notaría hasta la consulta. */
+            function construirEspejo(){
                 const m = moduloActual();
                 const datos = {
                     modulo: m.id,
@@ -2518,7 +2746,15 @@
                         areaPct: g ? g.areaPct : 0
                     };
                 }
-                window.remoteSocket.emit('screenUpdate', datos);
+                return datos;
+            }
+
+            function emitirEspejo(){
+                /* El panel del PC se repinta SIEMPRE, con móvil o sin él: es el
+                   camino del consultorio que solo tiene un PC. */
+                pintarPanelPC();
+                if (!(window.remoteSocket && window.remoteSocket.connected && state.remoteJoined)) return;
+                window.remoteSocket.emit('screenUpdate', construirEspejo());
             }
 
             // Un módulo declarado pero sin construir lo dice en la pantalla, en
@@ -2994,7 +3230,28 @@
                     e.preventDefault();
                     return;
                 }
+                /* Con el foco dentro del panel el teclado es del panel: las
+                   flechas mueven su desplegable, no las pantallas de detrás. La
+                   P y la Escape siguen valiendo, que son las de salir. */
+                const pp = document.getElementById('panel-pc');
+                if (pp && pp.contains(document.activeElement)
+                    && !['Escape','p','P'].includes(e.key)) return;
                 if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) e.preventDefault();
+                /* Los números: los ocho test y el 0 para dejarla sin estímulo.
+                   Antes de la lista blanca de abajo, porque valen en cualquier
+                   módulo y no solo en optotipos. */
+                if(/^[0-9]$/.test(e.key) && !e.ctrlKey && !e.metaKey){
+                    const k = +e.key;
+                    if (k === 0) entrarModulo('menu');
+                    else if (k <= MODULOS.length) entrarModulo(MODULOS[k - 1].id);
+                    return;
+                }
+                /* Y las flechas, en los test que tienen un eje que mover. */
+                if(state.modulo !== 'optotipos'
+                   && ['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)){
+                    flechaModulo(e.key);
+                    return;
+                }
                 /* Fuera del módulo de optotipos solo siguen vivos los atajos que
                    valen en cualquiera: calibrar, la barra, los atajos, salir y
                    cortar el estímulo. El resto navegaría una pantalla que nadie
@@ -3006,7 +3263,7 @@
                    sala— no hacía nada, y el panel de atajos la anuncia sin
                    condiciones. */
                 if (state.modulo !== 'optotipos'
-                    && !['c','C','h','H','?','Escape','m','M','n','N'].includes(e.key)) return;
+                    && !['c','C','h','H','?','Escape','m','M','n','N','p','P'].includes(e.key)) return;
                 if(e.key==='m'||e.key==='M'){ if(!e.ctrlKey&&!e.metaKey) entrarModulo('optotipos'); }
                 else if(e.key==='ArrowUp'){
                     if (state.highlightMode) moveHighlight(-1);
@@ -3027,7 +3284,13 @@
                    justo lo que se hace cuando alguien entra en la sala. */
                 else if(e.key==='n'||e.key==='N'){ if(!e.ctrlKey&&!e.metaKey) cortarEstimulo(); }
                 else if(e.key==='?') toggleShortcuts();
-                else if(e.key==='Escape'){ if(!d.shortcutsPanel.classList.contains('hidden')) toggleShortcuts(); }
+                /* P de panel: la única forma de entrar a los ocho módulos sin
+                   móvil. Vale en cualquier módulo, como la N. */
+                else if(e.key==='p'||e.key==='P'){ if(!e.ctrlKey&&!e.metaKey) togglePanelPC(); }
+                else if(e.key==='Escape'){
+                    if (panelPCAbierto) cerrarPanelPC();
+                    else if(!d.shortcutsPanel.classList.contains('hidden')) toggleShortcuts();
+                }
             });
 
             d.testArea.addEventListener('mousemove',()=>{
@@ -3071,7 +3334,20 @@
                 });
                 socket.on('peers', (n) => updateRemoteStatus(n));
                 socket.on('disconnect', () => { state.remoteJoined = false; updateRemoteStatus(0); });
-                socket.on('comando', (cmd) => {
+                socket.on('comando', aplicarComando);
+                socket.on('requestScreenUpdate', () => { renderScreen(); });
+                } catch (e) {
+                    console.warn('No se pudo iniciar el control remoto:', e);
+                }
+            })();
+
+            /* ═══════════ UN SOLO DESPACHADOR ═══════════
+               Lo que llega del móvil por socket y lo que pulsa el panel del PC
+               entran por aquí, con el mismo vocabulario. Estaba metido dentro
+               del `socket.on('comando')`, así que el panel habría tenido que
+               reimplementarlo — dos rutas para la misma orden es exactamente
+               como se separan dos interfaces que deben hacer lo mismo. */
+            function aplicarComando(cmd){
                     if (cmd === 'Corte') {
                         /* Vale en cualquier módulo, optotipos incluido: la
                            pantalla del paciente es una sola y taparla no
@@ -3098,7 +3374,14 @@
                         if (state.modulo !== 'optotipos') return;
                         const modo = cmd.split(':')[1];
                         setMode(modo);
-                        socket.emit('modo', modo);
+                        /* `window.remoteSocket` y no `socket`: este despachador
+                           salió del IIFE del control remoto para que lo use
+                           también el panel del PC, y ahí `socket` no existe.
+                           Sin móvil no hay a quién avisar, así que se comprueba
+                           antes — el panel tiene que funcionar con la red caída. */
+                        if (window.remoteSocket && window.remoteSocket.connected) {
+                            window.remoteSocket.emit('modo', modo);
+                        }
                     } else if (state.modulo !== 'optotipos') {
                         // las flechas y los atajos del optotipo no significan
                         // nada en otro módulo: mejor ignorarlos que navegar a
@@ -3111,11 +3394,372 @@
                         });
                         document.dispatchEvent(keyEvent);
                     }
-                });
-                socket.on('requestScreenUpdate', () => { renderScreen(); });
-                } catch (e) {
-                    console.warn('No se pudo iniciar el control remoto:', e);
+            }
+
+
+            /* ═══════════════════════════════════════════════════════════════
+               EL PANEL DE CONTROL DEL PC
+
+               Los ocho módulos nacieron alcanzables solo desde el móvil. Este
+               panel abre el camino del consultorio que tiene un PC y nada más.
+
+               No reimplementa nada: se pinta con `construirEspejo()` —el mismo
+               objeto que se le manda al móvil— y despacha por
+               `aplicarComando()` —el mismo vocabulario que manda el móvil—. Así
+               el panel no puede decir «5 anillos» mientras la pantalla dibuja
+               7, porque los dos leen la misma frase.
+
+               La presentación sí es otra, y debe serlo: el móvil es un pulgar a
+               30 cm y esto es un ratón con un teclado. Grupos de 2 a 4
+               opciones como botones, todos a la vista; lo que no cabe —nueve
+               figuras, siete láminas— plegado en un desplegable.
+               ═══════════════════════════════════════════════════════════════ */
+            /* ═══════════ LAS FLECHAS Y LOS NÚMEROS, EN TODOS LOS TEST ═══════════
+               Sin móvil el teclado tiene que llegar a todo, y hasta ahora solo
+               llegaba a optotipos: en los otros siete las flechas no hacían
+               nada, así que no había forma de pasar de lámina ni de subir una
+               fila con el PC solo.
+
+               La regla, y es una sola para que quepa en la cabeza:
+
+                 ↑ ↓  mueven lo que el test ORDENA — la pantalla, la fila de
+                      contraste, la lámina, los anillos, la figura. ↓ avanza.
+                 ← →  remezclan, o mueven la OTRA elección cuando la hay —
+                      caracteres nuevos, letras nuevas, puntos nuevos, la
+                      velocidad de la figura.
+
+               Con una excepción que nadie va a tropezar: en el relax la luz es
+               una magnitud, no una lista, así que ↓ baja la luz y ↑ la sube.
+               Un nivel al que la flecha abajo le SUBE el valor está mal hecho.
+
+               Y los números 1 a 8 son los ocho test, en el orden del menú, con
+               el 0 para dejar la pantalla sin estímulo. Valen en CUALQUIER
+               módulo, igual que la N y la P: una tecla, un significado. Dentro
+               del Pelli el 3 podría querer decir «fila 3», y esa ambigüedad es
+               justo lo que no puede pasar — hay una comprobación que lo sujeta
+               para que nadie lo «arregle» más tarde en el otro sentido. */
+            function vecinoDe(lista, actual, paso){
+                if (!lista || !lista.length) return null;
+                const i = lista.findIndex(x => String(x.id) === String(actual));
+                const j = Math.min(lista.length - 1, Math.max(0, (i < 0 ? 0 : i) + paso));
+                return j === i ? null : lista[j].id;
+            }
+
+            /* Lo que las flechas mueven en cada test, para que el panel pueda
+               anunciarlo sin que haya dos verdades. */
+            const EJES_FLECHA = {
+                optotipos: { vert: 'pantalla', horiz: 'remezclar los caracteres' },
+                contraste: { vert: 'fila de contraste', horiz: 'letras nuevas' },
+                worth:     { vert: null, horiz: null },
+                schober:   { vert: 'anillos visibles', horiz: null },
+                color:     { vert: 'lámina', horiz: 'remezclar los puntos' },
+                amsler:    { vert: 'lámina', horiz: null },
+                relax:     { vert: 'luz', horiz: null },
+                infantil:  { vert: 'figura', horiz: 'velocidad' }
+            };
+
+            function flechaModulo(tecla){
+                const vertical = tecla === 'ArrowUp' || tecla === 'ArrowDown';
+                const paso = (tecla === 'ArrowDown' || tecla === 'ArrowRight') ? 1 : -1;
+                const dt = construirEspejo();
+                const id = dt.modulo;
+                if (id === 'contraste') {
+                    if (vertical) aplicarComando(paso > 0 ? 'P:fila:abajo' : 'P:fila:arriba');
+                    else aplicarComando('P:nuevas');
+                    return;
                 }
+                if (id === 'color') {
+                    if (vertical) aplicarComando(paso > 0 ? 'C:lam:sig' : 'C:lam:ant');
+                    else aplicarComando('C:nueva');
+                    return;
+                }
+                if (id === 'schober' && vertical) {
+                    const v = vecinoDe((dt.schober || {}).opciones, (dt.schober || {}).anillosPedidos, paso);
+                    if (v != null) aplicarComando('S:anillos:' + v);
+                    return;
+                }
+                if (id === 'amsler' && vertical) {
+                    const v = vecinoDe((dt.amsler || {}).laminas, (dt.amsler || {}).lamina, paso);
+                    if (v != null) aplicarComando('A:lamina:' + v);
+                    return;
+                }
+                if (id === 'relax' && vertical) {
+                    const r = dt.relax || {};
+                    /* La luz es un nivel: ↓ baja y ↑ sube, como cualquiera
+                       esperaría de un mando de volumen. */
+                    const v = Math.min(r.luzMax, Math.max(r.luzMin, r.luz + paso * r.luzPaso));
+                    if (v !== r.luz) aplicarComando('R:luz:' + v);
+                    return;
+                }
+                if (id === 'infantil') {
+                    const i = dt.infantil || {};
+                    const v = vertical ? vecinoDe(i.figuras, i.figura, paso)
+                                       : vecinoDe(i.velocidades, i.velocidad, paso);
+                    if (v != null) aplicarComando((vertical ? 'I:fig:' : 'I:vel:') + v);
+                    return;
+                }
+                /* Worth no tiene eje ordenado: el filtro es un conmutador y va
+                   en su botón, no en una flecha. Mejor que la tecla no haga
+                   nada que hacer algo que no se espera. */
+            }
+
+            let panelPCAbierto = false;
+            let panelPCFirma = null;
+            let panelPCArrastrando = false;
+
+            function esc(t){ return String(t).replace(/[&<>"]/g, c =>
+                ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' })[c]); }
+
+            /* Un grupo de opciones como botones. `cmd` es la familia y cada
+               opción añade su id, que es exactamente lo que manda el móvil. */
+            function ppOps(rot, ops, puesto, cmd){
+                if (!ops || !ops.length) return '';
+                return '<div class="pp-grupo"><span class="pp-rot">' + esc(rot) + '</span>'
+                    + '<div class="pp-ops">' + ops.map(o =>
+                        '<button type="button" data-cmd="' + esc(cmd + o.id) + '"'
+                      + (o.id === puesto ? ' class="puesto"' : '') + '>'
+                      + esc(o.nombre || o.label)
+                      + (o.sub || o.nota ? '<span class="sub">' + esc(o.sub || o.nota) + '</span>' : '')
+                      + '</button>').join('') + '</div></div>';
+            }
+
+            /* Lo mismo, plegado, para cuando la lista no cabe en el cajón. */
+            function ppSelect(rot, id, ops, puesto, cmd){
+                if (!ops || !ops.length) return '';
+                return '<div class="pp-grupo"><label class="pp-rot" for="' + id + '">' + esc(rot) + '</label>'
+                    + '<select id="' + id + '">' + ops.map(o =>
+                        '<option value="' + esc(o.id) + '" data-cmd="' + esc(cmd + o.id) + '"'
+                      + (String(o.id) === String(puesto) ? ' selected' : '') + '>'
+                      + esc(o.nombre || o.label) + (o.sub ? ' · ' + esc(o.sub) : '')
+                      + '</option>').join('') + '</select></div>';
+            }
+
+            function ppConmut(et, val, cmd){
+                return '<button type="button" class="pp-conmut" data-cmd="' + esc(cmd) + '">'
+                    + '<span>' + esc(et) + '</span><span class="val">' + esc(val) + '</span></button>';
+            }
+
+            function ppFila(botones){
+                return '<div class="pp-grupo"><div class="pp-fila">' + botones.map(b =>
+                    '<button type="button" data-cmd="' + esc(b.cmd) + '">' + esc(b.et) + '</button>')
+                    .join('') + '</div></div>';
+            }
+
+            /* El cuerpo del panel, módulo a módulo. Cada bloque lee del espejo
+               y no del estado: si el espejo no lo cuenta, el móvil tampoco lo
+               sabe, y entonces es el espejo lo que hay que ampliar. */
+            function ppCuerpo(dt){
+                const id = dt.modulo;
+                if (id === 'menu') return '<div class="pp-geo">Sin est&iacute;mulo. '
+                    + 'Elija un test arriba.</div>';
+                if (id === 'optotipos') {
+                    const o = dt;
+                    return ppOps('Optotipo', [
+                            { id:'letters', nombre:'Letras', sub:'Sloan' },
+                            { id:'numbers', nombre:'Números', sub:'del 1 al 9' },
+                            { id:'pediatric', nombre:'LEA', sub:'símbolos' },
+                            { id:'tumbling', nombre:'E', sub:'direccional' }
+                        ], o.mode, 'Mode:')
+                      + '<div class="pp-grupo"><span class="pp-rot">Pantalla '
+                      + (o.pantalla || 1) + ' de ' + (o.pantallas || 1) + '</span>'
+                      + '<div class="pp-fila">'
+                      + '<button type="button" data-cmd="ArrowUp">↑ anterior</button>'
+                      + '<button type="button" data-cmd="ArrowDown">siguiente ↓</button>'
+                      + '</div></div>'
+                      + ppFila([{ cmd:'ArrowLeft', et:'↻ Remezclar los caracteres' }])
+                      + ppConmut('Bicromático', o.bichromatic ? 'puesto' : 'no', 'KeyB')
+                      + ppConmut('Resaltar una línea', o.highlightMode ? 'puesto' : 'no', 'KeyR')
+                      + ppConmut('Un solo carácter', o.singleCharMode ? 'puesto' : 'no', 'KeyU');
+                }
+                if (id === 'contraste') {
+                    const p = dt.pelli || {};
+                    return ppSelect('Fila', 'pp-pelli-fila',
+                            (p.niveles || []).map(n => ({ id:n.n, nombre:'Fila ' + n.n,
+                                sub: n.log + ' log CS · ' + n.pct + ' %' })),
+                            p.fila, 'P:fila:')
+                      + '<div class="pp-grupo"><div class="pp-fila">'
+                      + '<button type="button" data-cmd="P:fila:arriba">↑ más contraste</button>'
+                      + '<button type="button" data-cmd="P:fila:abajo">menos ↓</button>'
+                      + '</div></div>'
+                      + ppFila([{ cmd:'P:nuevas', et:'↻ Letras nuevas' }]);
+                }
+                if (id === 'worth') {
+                    const w = dt.worth || {};
+                    return ppConmut('Filtro rojo en', w.ojoRojo || '—', 'W:ojo')
+                      + '<div class="pp-geo">' + (w.lectura || []).map(l =>
+                          esc(l.ve) + ' → ' + esc(l.significa)).join('<br>') + '</div>';
+                }
+                if (id === 'schober') {
+                    const sc = dt.schober || {};
+                    return ppOps('Anillos visibles', sc.opciones, sc.anillosPedidos, 'S:anillos:')
+                      + ppConmut('Filtro rojo en', sc.ojoRojo || '—', 'S:ojo')
+                      + ppConmut('Invertir los colores', sc.invertido ? 'cruz verde' : 'cruz roja', 'S:inv')
+                      + '<div class="pp-geo">' + esc(sc.derivacion || '') + '</div>';
+                }
+                if (id === 'color') {
+                    const co = dt.color || {};
+                    return ppOps('Juego de láminas', co.juegos, co.juego, 'C:juego:')
+                      + ppSelect('Lámina', 'pp-color-lam',
+                            (co.laminas || []).map((l, i) => ({ id:i + 1,
+                                nombre:'Lámina ' + (i + 1), sub:l.que })),
+                            co.lamina, 'C:lam:')
+                      + '<div class="pp-grupo"><div class="pp-fila">'
+                      + '<button type="button" data-cmd="C:lam:ant">‹ anterior</button>'
+                      + '<button type="button" data-cmd="C:lam:sig">siguiente ›</button>'
+                      + '</div></div>'
+                      + ppConmut('Respuesta correcta', co.mostrarResp ? String(co.resp) : 'oculta', 'C:resp')
+                      + ppFila([{ cmd:'C:nueva', et:'↻ Remezclar los puntos' }]);
+                }
+                if (id === 'amsler') {
+                    const a = dt.amsler || {};
+                    return ppOps('Lámina', a.laminas, a.lamina, 'A:lamina:')
+                      + ppConmut('Ojo en examen', a.ojo || '—', 'A:ojo')
+                      + ppConmut('Diagonales', a.diagonales ? 'puestas' : 'no', 'A:diag');
+                }
+                if (id === 'relax') {
+                    const r = dt.relax || {};
+                    return ppOps('Estímulo', r.tipos, r.tipo, 'R:tipo:')
+                      + '<div class="pp-grupo"><span class="pp-rot">Luz '
+                      + (r.luz || 0) + ' %</span>'
+                      + '<input type="range" id="pp-relax-luz" data-cmd="R:luz:' + (r.luz || 0) + '"'
+                      + ' min="' + (r.luzMin || 5) + '" max="' + (r.luzMax || 100) + '"'
+                      + ' step="' + (r.luzPaso || 5) + '" value="' + (r.luz || 0) + '"></div>';
+                }
+                if (id === 'infantil') {
+                    const i = dt.infantil || {};
+                    return ppSelect('Figura', 'pp-inf-fig', i.figuras, i.figura, 'I:fig:')
+                      + ppOps('Movimiento', i.movimientos, i.movimiento, 'I:mov:')
+                      + ppOps('Velocidad', (i.velocidades || []).map(v => ({ id:v.id,
+                            nombre:v.nombre, sub:v.seg + ' s' })), i.velocidad, 'I:vel:')
+                      + ppConmut('Congelar en el centro', i.congelado ? 'quieta' : 'en movimiento', 'I:congelar');
+                }
+                return '<div class="pp-geo">Este módulo todavía no está construido.</div>';
+            }
+
+            /* La cifra que el módulo declara: la misma que el rótulo de la
+               pantalla, para que el panel no invente una segunda geometría. */
+            function ppGeo(dt){
+                const g = dt.pelli || dt.worth || dt.schober || dt.color
+                       || dt.relax || dt.infantil || dt.amsler;
+                if (!g) return dt.modulo === 'optotipos'
+                    ? 'Optotipos · ' + (dt.pantallas || 0) + ' pantallas' : '';
+                const t = (d.moduloNombre.textContent || '').split(' · ').slice(1).join(' · ');
+                return t || '';
+            }
+
+            /* Lo que las flechas mueven AQUÍ, escrito aquí. Sale de la misma
+               tabla que las mueve, así que no puede decir una cosa y hacer
+               otra. */
+            function ppFlechas(id){
+                const e = EJES_FLECHA[id];
+                if (!e || (!e.vert && !e.horiz)) return '';
+                const f = [];
+                if (e.vert) f.push('<b>↑↓</b> ' + esc(e.vert));
+                if (e.horiz) f.push('<b>←→</b> ' + esc(e.horiz));
+                return '<div class="pp-teclas">' + f.join(' &nbsp;·&nbsp; ')
+                    + ' &nbsp;·&nbsp; <b>1–8</b> otro test</div>';
+            }
+
+            function pintarPanelPC(){
+                const pp = document.getElementById('panel-pc');
+                if (!pp) return;
+                const dt = construirEspejo();
+                document.body.classList.toggle('corte-puesto', !!dt.corte);
+                /* El desplegable de test se pinta una vez: sus opciones no
+                   cambian, y rehacerlo cerraría la lista abierta. */
+                const sel = document.getElementById('panel-modulo');
+                if (sel && !sel.options.length) {
+                    /* El número delante: es donde se descubre el atajo. Un
+                       atajo que no está escrito al lado de lo que hace no
+                       existe — nadie lo va a encontrar pulsando teclas. */
+                    sel.innerHTML = (dt.modulos || []).map((x, i) =>
+                        '<option value="' + esc(x.id) + '" data-cmd="Modulo:' + esc(x.id) + '">'
+                      + (i + 1) + ' · ' + esc(x.titulo) + ' · ' + esc(x.grupo) + '</option>').join('')
+                      + '<option value="menu" data-cmd="Modulo:menu">0 · Sin estímulo · entre test y test</option>';
+                }
+                if (sel && sel.value !== dt.modulo) sel.value = dt.modulo;
+                document.getElementById('panel-estado').innerHTML =
+                    esc((dt.cal.resolucion || '') + ' · ' + dt.cal.pulgadas + '″ · '
+                      + (dt.cal.cssPxPerMM || 0).toFixed(3).replace('.', ',') + ' px/mm')
+                  + '<br>' + esc('Distancia de la sala ' + dt.cal.testDistanceM + ' m'
+                      + (dt.cal.distanciaModulo !== dt.cal.testDistanceM
+                         ? ' · este test a ' + dt.cal.distanciaModulo + ' m' : ''))
+                  + (dt.cal.obsoleta ? '<br><span class="aviso">La medida es de OTRA pantalla</span>' : '')
+                  + (!dt.cal.calibrado ? '<br><span class="aviso">Sin calibrar · tecla C</span>' : '');
+                /* Solo se rehace el cuerpo cuando cambia algo: un repintado en
+                   cada fotograma se llevaría el foco del teclado y el arrastre
+                   del deslizador por delante. */
+                if (panelPCArrastrando) return;
+                const firma = dt.modulo + '|' + JSON.stringify(dt[dt.modulo] || '')
+                            + '|' + [dt.mode, dt.pantalla, dt.bichromatic, dt.highlightMode,
+                                     dt.singleCharMode].join(',');
+                if (firma === panelPCFirma) return;
+                panelPCFirma = firma;
+                const foco = document.activeElement;
+                const marca = foco && pp.contains(foco)
+                    ? (foco.dataset && foco.dataset.cmd ? '[data-cmd="' + foco.dataset.cmd + '"]'
+                       : (foco.id ? '#' + foco.id : null)) : null;
+                document.getElementById('panel-geo').textContent = ppGeo(dt);
+                document.getElementById('panel-cuerpo').innerHTML = ppCuerpo(dt)
+                    + ppFlechas(dt.modulo);
+                if (marca) { const v = pp.querySelector(marca); if (v) v.focus(); }
+            }
+
+            function abrirPanelPC(){
+                document.body.classList.add('panel-abierto');
+                panelPCAbierto = true;
+                panelPCFirma = null;         // que se repinte al abrirse
+                pintarPanelPC();
+            }
+            function cerrarPanelPC(){
+                /* El foco tiene que SALIR del panel. Si se queda dentro de un
+                   control ya escondido, la guarda «el teclado es del panel» se
+                   cumple para siempre y el teclado queda muerto con el panel
+                   cerrado: ni números, ni flechas, ni N. Lo cazó la prueba de
+                   los números, que no llegaba ni al primero. */
+                const a = document.activeElement;
+                const pp = document.getElementById('panel-pc');
+                if (a && pp && pp.contains(a) && a.blur) a.blur();
+                document.body.classList.remove('panel-abierto');
+                panelPCAbierto = false;
+            }
+            function togglePanelPC(){ panelPCAbierto ? cerrarPanelPC() : abrirPanelPC(); }
+
+            (function cablearPanelPC(){
+                const pp = document.getElementById('panel-pc');
+                if (!pp) return;
+                document.getElementById('panel-pc-abrir').addEventListener('click', abrirPanelPC);
+                document.getElementById('panel-pc-cerrar').addEventListener('click', cerrarPanelPC);
+                /* Delegación: el cuerpo se rehace entero en cada cambio, así que
+                   enganchar botón a botón dejaría oyentes colgando. */
+                pp.addEventListener('click', e => {
+                    const b = e.target.closest('button[data-cmd]');
+                    if (!b) return;
+                    aplicarComando(b.dataset.cmd);
+                });
+                pp.addEventListener('change', e => {
+                    const o = e.target.selectedOptions && e.target.selectedOptions[0];
+                    if (o && o.dataset.cmd) aplicarComando(o.dataset.cmd);
+                });
+                pp.addEventListener('input', e => {
+                    if (e.target.id === 'pp-relax-luz') aplicarComando('R:luz:' + e.target.value);
+                });
+                /* Mientras el dedo o el ratón está en el deslizador no se
+                   repinta: rehacer el control a media pasada lo suelta. */
+                pp.addEventListener('pointerdown', e => {
+                    if (e.target.tagName === 'INPUT') panelPCArrastrando = true;
+                });
+                document.addEventListener('pointerup', () => {
+                    if (panelPCArrastrando) { panelPCArrastrando = false; pintarPanelPC(); }
+                });
+                /* El lanzador aparece con el ratón y se va solo, igual que el
+                   cursor: el paciente no tiene que ver un botón flotando. */
+                let apagar;
+                document.addEventListener('mousemove', () => {
+                    document.body.classList.add('raton-vivo');
+                    clearTimeout(apagar);
+                    apagar = setTimeout(() => document.body.classList.remove('raton-vivo'), 2600);
+                });
             })();
 
             function init(){

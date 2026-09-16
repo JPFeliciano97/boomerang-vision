@@ -137,6 +137,77 @@ poder leer pero que se lee una vez; el del color medía 208 px de los 1.447 del
 panel. El **título sigue delante** —la advertencia no se esconde— y el
 desarrollo se abre al tocarlo.
 
+## El panel del PC
+
+Los ocho módulos nacieron alcanzables **solo desde el móvil**. El panel del PC
+(`#panel-pc` en `public/index.html`, tecla `P`, `Esc` para cerrar) abre el otro
+camino: un consultorio con un PC, un teclado y un ratón.
+
+**No reimplementa nada.** Se pinta con `construirEspejo()` —el mismo objeto que
+se le manda al móvil— y despacha por `aplicarComando()` —el mismo vocabulario
+de comandos—. Las dos funciones se extrajeron para esto: antes el espejo se
+construía dentro del envío y el despachador vivía dentro del
+`socket.on('comando')`, así que un panel local habría tenido que reimplementar
+los dos. Dos rutas para la misma orden es como se separan dos interfaces que
+deben hacer lo mismo. Hay una comprobación que compara los `data-cmd` del panel
+contra las 30 familias de comando del mando.
+
+Lo que sí es distinto, y debe serlo, es la presentación: el móvil es un pulgar a
+30 cm y esto es un ratón. Grupos de 2 a 4 opciones como botones, todos a la
+vista; lo que no cabe —nueve figuras, siete láminas, cinco filas— plegado en un
+desplegable.
+
+**Se superpone y no re-maqueta.** Si el panel empujara la maqueta, el estímulo
+cambiaría de tamaño al abrirlo y la geometría dejaría de ser la declarada sin
+que nada lo delate. Una comprobación mide la caja de lo dibujado con el panel
+abierto y cerrado y exige que no se mueva **ni un píxel**.
+
+**Nace cerrado, y dice que está abierto.** Esta pantalla es la que mira el
+paciente: un panel que asome al arrancar le enseña los controles, y mientras
+está abierto le tapa parte de la cartilla. Con un solo monitor eso no tiene
+arreglo, así que se dice en la cabecera del propio panel en vez de disimularlo.
+El flujo es elegir y cerrar.
+
+La distancia de la sala **no** se toca desde aquí: se declara una vez, en la
+configuración inicial, como en todos los demás sitios.
+
+### El teclado, en todos los test
+
+Sin móvil el teclado tiene que llegar a todo, y hasta la PR #10 solo llegaba a
+optotipos: en los otros siete las flechas no hacían nada.
+
+**Los números `1`–`8` son los ocho test**, en el orden del menú, con el `0`
+para dejar la pantalla sin estímulo. Valen en **cualquier** módulo, igual que la
+`N` y la `P`: una tecla, un significado. Dentro del Pelli el `3` podría querer
+decir «fila 3», y esa ambigüedad es justo lo que no puede pasar — hay una
+comprobación que lo sujeta para que nadie lo «arregle» más tarde en el otro
+sentido.
+
+**Las flechas mueven lo que cada test ordena:**
+
+| | |
+|---|---|
+| `↑ ↓` | lo que el test **ordena**: pantalla, fila de contraste, lámina, anillos, luz, figura. `↓` avanza |
+| `← →` | **remezclar**, o la otra elección cuando la hay: caracteres nuevos, letras nuevas, puntos nuevos, velocidad |
+
+Con una excepción, y es la que cualquiera espera: en el relax la luz es una
+**magnitud**, no una lista, así que `↓` la baja y `↑` la sube. Un nivel al que
+la flecha abajo le SUBE el valor está mal hecho.
+
+Worth no tiene eje ordenado — el filtro es un conmutador — así que ahí las
+flechas no hacen nada. Mejor que la tecla no haga nada que hacer algo que no se
+espera.
+
+La tabla vive en `EJES_FLECHA` y de ella sale **también** el rótulo que el panel
+enseña, así que no puede decir una cosa y hacer otra. Y un atajo que no está
+anunciado no existe: los números van delante de cada test en el desplegable, el
+eje de las flechas en el propio panel, y todo en el panel de la `?`.
+
+**Al cerrar el panel, el foco tiene que SALIR de él.** Si se queda dentro de un
+control ya escondido, la guarda «el teclado es del panel» se cumple para
+siempre y el teclado queda muerto con el panel cerrado: ni números, ni flechas,
+ni `N`.
+
 ## Cortar el estímulo
 
 La pantalla del paciente se puede dejar en negro **sin salir del test**, desde

@@ -79,6 +79,10 @@ export default async function pruebaPanel({ navegador, url }) {
   await pc.click('#card-cancel').catch(() => {});
 
   /* ── 1 · Al arrancar, el paciente no ve un panel ─────────────────────── */
+  const panelAbierto = () => pc.evaluate(V => {
+    const p = document.getElementById('panel-pc');
+    return !!(p && p.checkVisibility(V));
+  }, VIS);
   const visible = () => pc.evaluate(V => {
     const p = document.getElementById('panel-pc');
     return !!(p && p.checkVisibility(V));
@@ -275,6 +279,76 @@ export default async function pruebaPanel({ navegador, url }) {
       : (!solapes.lanzador ? 'el lanzador no estaba a la vista: la prueba no mide nada'
          : solapes.cuantos < 2 ? 'solo ' + solapes.cuantos + ' controles fijos: no hay con quién comparar'
          : solapes.cuantos + ' controles fijos a la vista, ninguno se pisa'));
+
+  /* ── 10b · Los cuatro optotipos DIBUJAN ────────────────────────────────
+     La comprobación del contrato solo miraba que el panel tuviera un mando de
+     la familia `Mode:`, no que el modo que pide exista. Y no existía: el panel
+     mandaba `Mode:tumbling` cuando el identificador es `e_directional`, así
+     que `getPoolItems()` devolvía una lista vacía y la E direccional salía en
+     blanco — la pantalla del paciente vacía, sin una palabra. Un mando que la
+     pantalla no entiende es peor que un mando que falta. */
+  await pc.keyboard.press('1');
+  await pc.waitForTimeout(400);
+  /* `await`: sin él el `if` mira una Promesa, que es siempre cierta, y el
+     panel se quedaba cerrado con la prueba midiendo botones invisibles. */
+  if (!(await panelAbierto())) { await pc.keyboard.press('p'); await pc.waitForTimeout(300); }
+  const modos = [];
+  for (const [cmd, clase] of [['Mode:letters','texto'], ['Mode:numbers','texto'],
+                              ['Mode:pediatric','imagen'], ['Mode:e_directional','imagen']]) {
+    const hay = await pulsar('#panel-pc [data-cmd="' + cmd + '"]');
+    await pc.waitForTimeout(500);
+    const v = await pc.evaluate(() => {
+      const fila = document.querySelector('#lines-container .optotype-row');
+      const imgs = [...(fila ? fila.querySelectorAll('img') : [])];
+      return { hijos: fila ? fila.children.length : 0,
+               imgs: imgs.length,
+               vacias: imgs.filter(i => !i.src || i.naturalWidth === 0).length,
+               texto: (fila ? fila.textContent : '').trim().length };
+    });
+    const ok = hay && v.hijos > 0 && v.vacias === 0
+      && (clase === 'texto' ? v.texto > 0 : v.imgs > 0);
+    modos.push((ok ? '' : '✗ ') + cmd.slice(5) + (ok ? ''
+      : ' (' + v.hijos + ' hijos, ' + v.imgs + ' imgs, ' + v.vacias + ' sin cargar, '
+        + v.texto + ' letras)'));
+  }
+  m.comprobar('los cuatro modos de optotipo dibujan algo desde el panel',
+    !modos.some(x => x.startsWith('✗')), modos.join(' · '));
+
+  /* ── 10c · Y los mandos que van por tecla sintética también llegan ─────
+     Bicromático, resaltar y un solo carácter no viajan como comando propio:
+     el despachador reparte un KeyboardEvent. Al pulsarlos EN EL PANEL el foco
+     se queda en el botón, y la guarda «con el foco en el panel el teclado es
+     del panel» se los comía: los tres botones no hacían nada, y las flechas
+     de pantalla tampoco. Es el mismo defecto que dejaba el teclado muerto al
+     cerrar el panel, por la otra punta. */
+  /* La huella tiene que cubrir los cuatro. El bicromático NO toca
+     #lines-container —pone una clase en #test-area y enseña las dos mitades—
+     así que mirar solo el contenedor de líneas lo daba por muerto estando
+     vivo. Y la flecha abajo se mide desde la pantalla 1: en la última está
+     topada y no mover nada es lo correcto. */
+  const huella = () => pc.evaluate(() => JSON.stringify({
+    html: document.getElementById('lines-container').innerHTML.length,
+    area: (document.getElementById('test-area') || {}).className || '',
+    mitades: [...document.querySelectorAll('.bichromatic-half')]
+      .filter(e => e.checkVisibility({ visibilityProperty: true })).length,
+    resaltada: document.querySelectorAll('#lines-container .line-highlight,'
+      + ' #lines-container [class*=highlight]').length,
+    lineas: document.querySelectorAll('#lines-container > div').length }));
+  const conmuta = [];
+  /* A la pantalla 1, para que la flecha abajo tenga sitio donde ir. */
+  for (let i = 0; i < 8; i++) { await pc.keyboard.press('ArrowUp'); await pc.waitForTimeout(90); }
+  for (const [cmd, nombre] of [['KeyR','resaltar'], ['KeyU','un solo carácter'],
+                               ['KeyB','bicromático'], ['ArrowDown','pantalla siguiente']]) {
+    const a = await huella();
+    const hay = await pulsar('#panel-pc [data-cmd="' + cmd + '"]');
+    await pc.waitForTimeout(500);
+    const b = await huella();
+    conmuta.push((hay && a !== b ? '' : '✗ ') + nombre);
+    if (hay && cmd !== 'ArrowDown') await pulsar('#panel-pc [data-cmd="' + cmd + '"]');
+    await pc.waitForTimeout(300);
+  }
+  m.comprobar('y los conmutadores y las flechas del panel cambian la pantalla',
+    !conmuta.some(x => x.startsWith('✗')), conmuta.join(' · '));
 
   /* ── 11 · Los números llevan a los ocho test ──────────────────────────
      Sin móvil, el teclado tiene que llegar a todo. Los ocho test en el orden

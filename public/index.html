@@ -1930,7 +1930,7 @@
             }
 
             const LETTERS = ['A','C','D','E','H','K','N','O','R','S','V','Z'];
-            const NUMBERS = ['1','2','3','4','5','6','7','8','9'];   // sin el 0: ver pruebas/optotipos.mjs
+            const NUMBERS = ['0','2','3','4','5','6','7','8','9'];  // el 0 sí, el 1 no: ver pruebas/optotipos.mjs
 
             // decimal = la fracción exacta (20/x), no el redondeo a dos cifras:
             // de ahí sale el tamaño físico, y 0.13 en vez de 0.1333 lo falseaba un 2.5%.
@@ -2040,8 +2040,6 @@
                optotipo y no el ancho de cada glifo, que es lo que mantiene el
                ritmo uniforme que pide la norma. */
             const SS01_METRICAS = {
-                '0': { ratio: 0.5, left: 0.075, right: 0.075 },
-                '1': { ratio: 0.5, left: 0.075, right: 0.075 },
                 '2': { ratio: 0.5, left: 0.075, right: 0.075 },
                 '3': { ratio: 0.5, left: 0.065, right: 0.065 },
                 '4': { ratio: 0.5, left: 0.050, right: 0.050 },
@@ -2069,6 +2067,7 @@
             let CHAR_METRICS = {};
             let metricsCanvas = null;
             function charMetrics(ch){
+                if (sinSS01(ch) && BASE_METRICAS[ch]) return BASE_METRICAS[ch];
                 if (usaSS01() && SS01_METRICAS[ch]) return SS01_METRICAS[ch];
                 if (CHAR_METRICS[ch]) return CHAR_METRICS[ch];
                 const fallback = { ratio: CAP_HEIGHT_RATIO, left: 0, right: 0 };
@@ -2263,13 +2262,38 @@
                descuentan con márgenes negativos, así las separaciones de la
                norma se aplican tal cual sobre la tinta y no sobre el cuadratín.
                Lo comparten el optotipo y el Pelli-Robson. */
+            /* El 0 se dibuja SIN ss01, y es el único. La barra diagonal que lo
+               hace indistinguible de un 8 a la distancia de la sala la pone
+               `ss01`, no el glifo: medido pintándolo en el DOM con los dos
+               juegos y leyendo la tinta del centro — base 0 % (óvalo hueco),
+               ss01 100 % (barra). El glifo base mide 0,520 em de tinta en vez
+               de 0,500, y eso NO cuesta nada: el tamaño se calcula como
+               `h_css / ratio`, así que un ratio mayor da una fuente más pequeña
+               que dibuja exactamente el alto pedido. Por eso el 0 no está en
+               SS01_METRICAS — su ratio se mide del glifo que de verdad se
+               pinta. Hay una comprobación que lee la tinta del centro del 0
+               dibujado, con el 8 como control. */
+            function sinSS01(ch){ return ch === '0'; }
+
+            /* Y sus medidas también van en tabla. Medirlas en vivo con
+               `measureText` no vale: `actualBoundingBox*` sale del rasterizado
+               y da 0,520 / 0,535 / 0,532 según el tamaño de la sonda — con eso
+               el alto dibujado se iba 0,016 px de la línea y la comprobación de
+               uniformidad lo cazó. Estas cifras se midieron de los PÍXELES
+               PINTADOS a 300 y 600 px, y salen idénticas en los dos:
+                 alto de tinta 0,520 em · bordes 0,065 a cada lado
+                 (ancho de tinta 0,470 · avance 0,600) */
+            const BASE_METRICAS = {
+                '0': { ratio: 0.52, left: 0.065, right: 0.065 }
+            };
+
             function spanOptotipo(ch, h_css, conSS01, color){
                 const span = document.createElement('span');
                 span.className = 'optotype-text';
                 span.textContent = ch;
                 const cm = charMetrics(ch);
                 const fs = h_css / cm.ratio;
-                if (conSS01) span.style.fontFeatureSettings = "'ss01'";
+                if (conSS01 && !sinSS01(ch)) span.style.fontFeatureSettings = "'ss01'";
                 span.style.fontSize = fs + 'px';
                 span.style.lineHeight = String(cm.ratio);            // alto de caja = tinta
                 span.style.marginLeft = (-cm.left * fs) + 'px';      // descontar el hueco
@@ -2562,7 +2586,7 @@
                             rot: ch.rot || 0,
                             uri: ch.type === 'img' ? SVG_CACHE[ch.key] : null,
                             aspect: ch.type === 'img' ? (SVG_ASPECT[ch.key] || 1) : 1,
-                            ss01: usaSS01()
+                            ss01: usaSS01() && !sinSS01(ch.char || '')
                         }))
                     }));
                     datos.mode = state.mode;
@@ -3265,18 +3289,11 @@
                 if (state.modulo !== 'optotipos'
                     && !['c','C','h','H','?','Escape','m','M','n','N','p','P'].includes(e.key)) return;
                 if(e.key==='m'||e.key==='M'){ if(!e.ctrlKey&&!e.metaKey) entrarModulo('optotipos'); }
-                else if(e.key==='ArrowUp'){
-                    if (state.highlightMode) moveHighlight(-1);
-                    else navigateToScreen(state.currentScreenIdx-1);
-                }
-                else if(e.key==='ArrowDown'){
-                    if (state.highlightMode) moveHighlight(1);
-                    else navigateToScreen(state.currentScreenIdx+1);
-                }
-                else if(e.key==='ArrowLeft'||e.key==='ArrowRight') shuffleCurrentScreen();
-                else if(e.key==='b'||e.key==='B'){ if(!e.ctrlKey&&!e.metaKey) toggleBichromatic(); }
-                else if(e.key==='r'||e.key==='R'){ if(!e.ctrlKey&&!e.metaKey) toggleHighlightMode(); }
-                else if(e.key==='u'||e.key==='U'){ if(!e.ctrlKey&&!e.metaKey) toggleSingleCharMode(); }
+                else if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key))
+                    atajoOptotipos(e.key);
+                else if((e.key==='b'||e.key==='B') && !e.ctrlKey && !e.metaKey) atajoOptotipos('KeyB');
+                else if((e.key==='r'||e.key==='R') && !e.ctrlKey && !e.metaKey) atajoOptotipos('KeyR');
+                else if((e.key==='u'||e.key==='U') && !e.ctrlKey && !e.metaKey) atajoOptotipos('KeyU');
                 else if(e.key==='c'||e.key==='C'){ if(!e.ctrlKey&&!e.metaKey) openCardCal(); }
                 else if(e.key==='h'||e.key==='H'){ if(!e.ctrlKey&&!e.metaKey) toggleCalPanel(); }
                 /* N de negro. La pantalla tiene que poder cortarse sin el móvil:
@@ -3388,11 +3405,7 @@
                         // ciegas una pantalla que no se está viendo
                         return;
                     } else {
-                        const keyEvent = new KeyboardEvent('keydown', {
-                            key: cmd.startsWith('Key') ? cmd.slice(3) : cmd,
-                            code: cmd, bubbles: true
-                        });
-                        document.dispatchEvent(keyEvent);
+                        atajoOptotipos(cmd);
                     }
             }
 
@@ -3457,6 +3470,34 @@
                 relax:     { vert: 'luz', horiz: null },
                 infantil:  { vert: 'figura', horiz: 'velocidad' }
             };
+
+            /* Los atajos que solo valen en optotipos, en un sitio: los usa el
+               teclado y los usa el panel. Antes el panel los mandaba como un
+               KeyboardEvent sintético repartido en `document`, y al pulsarlos
+               EN EL PANEL el foco se quedaba en el botón — con lo que la guarda
+               «con el foco en el panel el teclado es del panel» se los comía.
+               Resultado: bicromático, resaltar, un solo carácter y las flechas
+               de pantalla no hacían NADA desde el panel. Un mando que viaja
+               disfrazado de tecla acaba topándose con las reglas del teclado. */
+            function atajoOptotipos(que){
+                if (state.modulo !== 'optotipos') return false;
+                switch (que) {
+                    case 'ArrowUp':
+                        if (state.highlightMode) moveHighlight(-1);
+                        else navigateToScreen(state.currentScreenIdx - 1);
+                        return true;
+                    case 'ArrowDown':
+                        if (state.highlightMode) moveHighlight(1);
+                        else navigateToScreen(state.currentScreenIdx + 1);
+                        return true;
+                    case 'ArrowLeft': case 'ArrowRight':
+                        shuffleCurrentScreen(); return true;
+                    case 'KeyB': toggleBichromatic(); return true;
+                    case 'KeyR': toggleHighlightMode(); return true;
+                    case 'KeyU': toggleSingleCharMode(); return true;
+                }
+                return false;
+            }
 
             function flechaModulo(tecla){
                 const vertical = tecla === 'ArrowUp' || tecla === 'ArrowDown';
@@ -3558,7 +3599,7 @@
                             { id:'letters', nombre:'Letras', sub:'Sloan' },
                             { id:'numbers', nombre:'Números', sub:'del 1 al 9' },
                             { id:'pediatric', nombre:'LEA', sub:'símbolos' },
-                            { id:'tumbling', nombre:'E', sub:'direccional' }
+                            { id:'e_directional', nombre:'E', sub:'direccional' }
                         ], o.mode, 'Mode:')
                       + '<div class="pp-grupo"><span class="pp-rot">Pantalla '
                       + (o.pantalla || 1) + ' de ' + (o.pantallas || 1) + '</span>'

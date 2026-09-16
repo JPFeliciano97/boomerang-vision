@@ -742,6 +742,189 @@ export default async function pruebaGeometria({ pc, tel, abrir }) {
       bien, medidas.map(x => x.pedida + '% → declara ' + x.declarada + '% · alfa ' + x.alfa).join(' | '));
   }
 
+  /* ── Fijación infantil: cada figura se mueve por su cuenta ──────────────
+     El movimiento elegido (rebote, giro, recorrido, latido) mueve la figura
+     ENTERA por la pantalla. Lo que se mide aquí es lo otro: que cada figura
+     tenga además un gesto propio —la mariposa batiendo las alas, la llama del
+     cohete, el pez moviendo la cola—, que no sean el mismo gesto repetido
+     nueve veces, y las dos cosas que ese gesto no puede romper:
+
+       · CONGELAR tiene que pararlo también. Congelar existe para que el niño
+         mire a un punto fijo en el instante de la medida; una figura que sigue
+         agitándose por dentro no está congelada, y el rótulo diría una cosa y
+         la pantalla otra.
+       · El gesto no puede sacar la figura de su tamaño declarado. El estímulo
+         se declara en grados de arco y se dibuja en un cuadro de ese tamaño;
+         un ala que se estira más allá del cuadro mide más de lo que el test
+         dice medir. Se mide la TINTA dibujada en varios instantes, no el DOM:
+         un `scale` en un `<g>` no se ve en ninguna coordenada del SVG.
+
+     Las animaciones se leen con `getAnimations()`, que dice lo que el
+     navegador está animando de verdad — no si el CSS existe. */
+  await abrir('Fijación infantil');
+  await tel.waitForTimeout(400);
+
+  const figurasMando = await tel.evaluate(() =>
+    [...document.querySelectorAll('#inf-figuras button')]
+      .map(b => (b.querySelector('.n') || {}).textContent || ''));
+
+  /* Los gestos que el navegador anima DENTRO del cuadro de la figura, por
+     nombre de animación: los de la figura entera viven en el `<svg>` y no
+     cuentan, porque son el movimiento elegido y no el gesto. */
+  const gestosDeAhora = () => pc.evaluate(() => {
+    const svg = document.querySelector('#modulo-area svg');
+    if (!svg) return null;
+    const dentro = [...svg.querySelectorAll('*')]
+      .flatMap(e => e.getAnimations().map(a => a.animationName || ''))
+      .filter(Boolean);
+    const fuera = svg.getAnimations().map(a => a.animationName || '').filter(Boolean);
+    return { dentro: [...new Set(dentro)].sort(), fuera };
+  });
+
+  /* La tinta se mide POR FASES, no esperando al reloj. Se paran las
+     animaciones y se les pone el `currentTime` a doce puntos de su ciclo: así
+     se ven los dos extremos de cada gesto siempre, y no «los instantes que
+     tocaron». Con el muestreo por espera la primera versión de esto medía una
+     sola figura —la última que quedaba elegida— y el parpadeo de la carita,
+     que dura un 16 % del ciclo, se le escapaba casi siempre.
+
+     También se para el movimiento de la figura ENTERA, solo para medir: si no,
+     lo medido sería el recorrido por la pantalla y no el gesto. */
+  const FASES = 12;
+  const prepararFases = () => pc.evaluate(() => {
+    const svg = document.querySelector('#modulo-area svg');
+    if (!svg) return null;
+    svg.style.animation = 'none';
+    const anims = [...svg.querySelectorAll('*')].flatMap(e => e.getAnimations());
+    anims.forEach(a => a.pause());
+    window.__bvAnims = anims;
+    const r = svg.getBoundingClientRect();
+    const mx = Math.round(r.height * 0.3);
+    return { lado: Math.round(r.width), mx, cuantas: anims.length,
+             clip: { x: Math.max(0, Math.round(r.x) - mx), y: Math.max(0, Math.round(r.y) - mx),
+                     width: Math.round(r.width) + 2 * mx, height: Math.round(r.height) + 2 * mx } };
+  });
+  const ponerFase = f => pc.evaluate(fr => {
+    for (const a of (window.__bvAnims || [])) {
+      const d = a.effect.getComputedTiming().duration;
+      if (typeof d === 'number' && isFinite(d)) a.currentTime = fr * d;
+    }
+  }, f);
+  const tintaAhora = async clip => {
+    const png = await pc.screenshot({ clip });
+    return pc.evaluate(async b64 => {
+      const img = new Image(); img.src = 'data:image/png;base64,' + b64; await img.decode();
+      const cv = document.createElement('canvas');
+      cv.width = img.width; cv.height = img.height;
+      const g2 = cv.getContext('2d'); g2.drawImage(img, 0, 0);
+      const d = g2.getImageData(0, 0, cv.width, cv.height).data;
+      // El fondo del módulo es #0a0a0a: tinta es todo lo que se distinga de él.
+      let arr = 1e9, aba = -1, izq = 1e9, der = -1, n = 0;
+      for (let y = 0; y < cv.height; y++) for (let x = 0; x < cv.width; x++) {
+        const k = (y * cv.width + x) * 4;
+        if ((d[k] + d[k + 1] + d[k + 2]) / 3 > 40) {
+          n++;
+          if (y < arr) arr = y; if (y > aba) aba = y;
+          if (x < izq) izq = x; if (x > der) der = x;
+        }
+      }
+      if (aba < 0) return null;
+      /* Y una firma de TODOS los píxeles, no solo de la tinta. El parpadeo de
+         la carita son dos óvalos oscuros que se cierran DENTRO de la cara: la
+         silueta no cambia ni un píxel y el recuento de tinta tampoco, así que
+         con solo contar tinta la comprobación acusaba a la carita de estar
+         quieta cuando parpadeaba delante de ella. */
+      let h = 2166136261;
+      for (let k = 0; k < d.length; k += 4) {
+        h = (h ^ d[k]) * 16777619 | 0;
+        h = (h ^ d[k + 1]) * 16777619 | 0;
+        h = (h ^ d[k + 2]) * 16777619 | 0;
+      }
+      return { n, h, izq, arr, der, aba, ancho: der - izq + 1, alto: aba - arr + 1 };
+    }, png.toString('base64'));
+  };
+
+  const porFigura = [];
+  for (let i = 0; i < figurasMando.length; i++) {
+    await tel.locator('#inf-figuras button').nth(i).click();
+    await tel.waitForTimeout(420);
+    const g = await gestosDeAhora();
+    const caja = await prepararFases();
+    const marcos = [];
+    if (caja) {
+      for (let f = 0; f < FASES; f++) {
+        await ponerFase(f / FASES);
+        marcos.push(await tintaAhora(caja.clip));
+      }
+    }
+    const buenos = marcos.filter(Boolean);
+    /* El `<svg>` RECORTA lo que se sale de su cuadro, así que un gesto que se
+       pasa no aparece fuera: aparece pegado al borde y con la parte de fuera
+       cortada — un ala a medias, que es peor que un ala quieta. Así que lo que
+       se busca es tinta TOCANDO el borde del cuadro declarado. Las nueve
+       figuras se dibujan con holgura dentro de su viewBox, así que tocarlo es
+       siempre señal de recorte. */
+    const b0 = caja ? caja.mx : 0, b1 = caja ? caja.mx + caja.lado - 1 : 0;
+    const escapan = buenos.filter(t => t.izq <= b0 || t.arr <= b0
+                                    || t.der >= b1 || t.aba >= b1).length;
+    const tintas = new Set(buenos.map(t => t.h));
+    porFigura.push({
+      nombre: figurasMando[i], gestos: g ? g.dentro : [],
+      lado: caja ? caja.lado : 0,
+      maxLado: buenos.length ? Math.max(...buenos.map(t => Math.max(t.ancho, t.alto))) : 0,
+      fases: buenos.length, escapan, cambia: tintas.size > 1
+    });
+  }
+
+  const sinGesto = porFigura.filter(f => f.gestos.length === 0).map(f => f.nombre);
+  const firmas = porFigura.map(f => f.gestos.join('+'));
+  const distintos = new Set(firmas.filter(Boolean)).size;
+  m.comprobar('cada figura infantil tiene un gesto propio, y no el mismo nueve veces',
+    figurasMando.length === 9 && sinGesto.length === 0 && distintos === 9,
+    figurasMando.length !== 9 ? figurasMando.length + ' figuras en el mando, no 9'
+      : sinGesto.length ? 'quietas por dentro: ' + sinGesto.join(', ')
+      : distintos + ' gestos distintos de ' + firmas.length + ' figuras · '
+        + porFigura.map(f => f.nombre + ': ' + f.gestos.join('+')).join(' | '));
+
+  /* Que ANIME no basta: una animación de algo que no se dibuja pasaría igual.
+     Lo que se exige es que la tinta cambie de una fase a otra. */
+  const quietas = porFigura.filter(f => !f.cambia).map(f => f.nombre);
+  m.comprobar('y el gesto mueve tinta de verdad, no solo una propiedad',
+    porFigura.length === 9 && quietas.length === 0,
+    quietas.length ? 'la pantalla no cambia con: ' + quietas.join(', ')
+      : porFigura.length + ' figuras, todas cambian a lo largo de su ciclo');
+
+  const escapadas = porFigura.filter(f => f.escapan > 0 || f.maxLado > f.lado + 2);
+  const cortas = porFigura.filter(f => f.fases < FASES);
+  m.comprobar('y ninguna se sale del cuadro que el test declara, ni se recorta',
+    porFigura.length === 9 && escapadas.length === 0 && cortas.length === 0,
+    cortas.length ? 'no se pudo medir ' + cortas.map(f => f.nombre).join(', ')
+      : escapadas.length ? escapadas.map(f => f.nombre + ' toca el borde: ' + f.maxLado
+          + ' px en un cuadro de ' + f.lado + ' en ' + f.escapan + ' de ' + FASES
+          + ' fases').join(' · ')
+      : `cuadro ${porFigura[0].lado} px · máximo dibujado `
+        + Math.max(...porFigura.map(f => f.maxLado)) + ' px ('
+        + porFigura.reduce((a, b) => b.maxLado > a.maxLado ? b : a).nombre
+        + ') en ' + FASES + ' fases de cada una');
+
+  /* Congelar: NADA animándose, ni la figura entera ni sus partes. Va DESPUÉS
+     de las fases, porque medirlas deja las animaciones en pausa y un repintado
+     las rehace: elegir figura vuelve a dejarlo todo vivo. */
+  await tel.locator('#inf-figuras button').first().click();
+  await tel.waitForTimeout(420);
+  await tel.click('#inf-congelar');
+  await tel.waitForTimeout(600);
+  const congelado = await gestosDeAhora();
+  m.comprobar('congelar para también el gesto de dentro de la figura',
+    !!congelado && congelado.dentro.length === 0 && congelado.fuera.length === 0,
+    !congelado ? 'no hay figura dibujada'
+      : (congelado.dentro.length || congelado.fuera.length)
+        ? 'sigue animándose: dentro [' + congelado.dentro.join(', ') + '] fuera ['
+          + congelado.fuera.join(', ') + ']'
+        : 'nada se mueve');
+  await tel.click('#inf-congelar');
+  await tel.waitForTimeout(600);
+
   // ── Schober: la invariancia de invertir colores y cambiar de ojo ─────────
   await abrir('Schober');
   const leerTabla = () => tel.evaluate(() =>

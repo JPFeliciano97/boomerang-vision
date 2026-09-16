@@ -150,8 +150,8 @@ export default async function pruebaOptotipos({ pc }) {
     await pc.waitForTimeout(200);
   }
   const conjunto = [...digitos].sort().join('');
-  m.comprobar('el juego de números trae el 0 y no trae el 1',
-    digitos.has('0') && !digitos.has('1') && digitos.size >= 8,
+  m.comprobar('el cero del juego de números es la O de las letras, no el 0',
+    digitos.has('O') && !digitos.has('0') && !digitos.has('1') && digitos.size >= 8,
     `dibujados: ${conjunto || '(ninguno)'}`);
 
   /* Y el 0 DIBUJADO no lleva barra. Se mide la tinta del centro del glifo en
@@ -176,10 +176,17 @@ export default async function pruebaOptotipos({ pc }) {
   for (let i = 0; i < 30; i++) {
     const hallado = await pc.evaluate(() => {
       const ls = [...document.querySelectorAll('#lines-container > div')];
+      /* El control no puede ser cualquier dígito. El 4 tiene el centro HUECO
+         igual que la O —medido: 0 % de tinta, lo mismo que la O—, así que como
+         control no dice nada, y esta comprobación pasaba o fallaba según qué
+         dígito tocara al lado: verde con el 2, el 5 y el 8, roja con el 4.
+         La lista son los tres MEDIDOS por encima del 85 %; los demás no se han
+         medido y no se suponen. Con 30 mezclas sale uno enseguida. */
+      const CRUZAN = ['8', '5', '2'];
       for (let k = 0; k < ls.length; k++) {
         const t = [...ls[k].querySelectorAll('.optotype-text')].map(e => e.textContent);
-        const otro = t.find(c => c !== '0');
-        if (t.includes('0') && otro) return { linea: k, control: otro };
+        const otro = t.find(c => CRUZAN.includes(c));
+        if (t.includes('O') && otro) return { linea: k, control: otro };
       }
       return null;
     });
@@ -227,15 +234,15 @@ export default async function pruebaOptotipos({ pc }) {
       return { alto: aba - arr + 1, centro: +(tinta / Math.max(1, n) * 100).toFixed(1) };
     }, png.toString('base64'));
   };
-  const c0 = linea >= 0 ? await centroDe('0') : null;
+  const c0 = linea >= 0 ? await centroDe('O') : null;
   const c8 = linea >= 0 ? await centroDe(control) : null;
-  m.comprobar('y el 0 dibujado no lleva barra: su centro está hueco y el de al lado no',
+  m.comprobar('y el cero dibujado no lleva barra: su centro está hueco y el de al lado no',
     c0 && c8 && c0.centro === 0 && c8.centro > 40
       && Math.abs(c0.alto - c8.alto) <= Math.max(1, c8.alto * 0.02),
-    c0 && c8 ? `centro del 0 ${c0.centro} % (alto ${c0.alto} px) · centro del ${control}`
+    c0 && c8 ? `centro de la O ${c0.centro} % (alto ${c0.alto} px) · centro del ${control}`
              + ` ${c8.centro} % (alto ${c8.alto} px)`
-             : linea < 0 ? 'no salió el 0 con otro dígito al lado en 30 mezclas'
-             : 'no se pudo medir el ' + (c0 ? control : '0'));
+             : linea < 0 ? 'no salió la O con otro dígito al lado en 30 mezclas'
+             : 'no se pudo medir el ' + (c0 ? control : 'cero'));
   await elegirModo(pc, 'letters');
   await pc.waitForTimeout(300);
 

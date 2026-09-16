@@ -1583,6 +1583,10 @@
                 b.innerHTML = '<svg width="34" height="34" viewBox="0 0 60 60">' + f.svg + '</svg>'
                             + '<span class="n"></span>';
                 b.querySelector('.n').textContent = f.nombre;
+                /* La miniatura está quieta a propósito —nueve siluetas
+                   agitándose en un móvil son ruido—, así que el gesto que hará
+                   en la pantalla se dice en el título del botón. */
+                if (f.gesto) b.title = f.nombre + ' — ' + f.gesto;
                 b.addEventListener('click', () => enviar('I:fig:' + f.id));
                 figs.appendChild(b);
             });

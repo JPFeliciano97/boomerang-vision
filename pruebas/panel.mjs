@@ -126,8 +126,18 @@ export default async function pruebaPanel({ navegador, url }) {
                      .filter(Boolean).slice(0, 2).join(' · ')));
 
   /* ── 3 · Los ocho módulos, con el ratón solo ─────────────────────────── */
+  /* El desplegable vive DENTRO del panel, así que hay que abrirlo antes: con
+     el panel cerrado `selectOption` no encuentra nada y el `.catch(()=>{})`
+     que llevaba se comía el fallo en silencio — el módulo no cambiaba y la
+     comprobación de después medía el módulo anterior creyendo medir otro. Una
+     prueba que no puede fallar no comprueba nada. Así que se abre si hace
+     falta, y si el desplegable sigue sin estar, esto REVIENTA. */
   const abrirModulo = async id => {
-    await pc.selectOption('#panel-modulo', id).catch(() => {});
+    if (!(await panelAbierto())) {
+      await pc.keyboard.press('p');
+      await pc.waitForTimeout(300);
+    }
+    await pc.selectOption('#panel-modulo', id, { timeout: 4000 });
     await pc.waitForTimeout(450);
     return pc.evaluate(() => (document.getElementById('modulo-nombre') || {}).textContent || '');
   };
@@ -257,12 +267,16 @@ export default async function pruebaPanel({ navegador, url }) {
   const solapes = await pc.evaluate(V => {
     /* Lo que se PULSA, no todo lo que esté fijo: la primera versión metía
        #modulo-area —la capa del estímulo, que ocupa la pantalla entera— y
-       acusaba al lanzador de pisarla. Y el botón de atajos es un <div>, así
-       que hay que nombrarlo: buscando solo <button> se quedaba fuera justo el
-       control con el que el lanzador se solapaba de verdad. */
-    const fijos = [...document.querySelectorAll('button, select, input, a[href],'
-        + ' #shortcuts-toggle, #shortcuts-panel, #calibration-bar')]
-      .filter(e => getComputedStyle(e).position === 'fixed' && e.checkVisibility(V))
+       acusaba al lanzador de pisarla.
+
+       Y ya no se filtra por `position: fixed`. Los dos controles con los que el
+       lanzador chocaba —el botón «?» y la barra de arriba— eran fijos y ya no
+       existen, así que ese filtro dejaba UN SOLO control a la vista y la
+       comprobación no comparaba nada: pasaba en verde sin medir. Lo que importa
+       no es cómo esté posicionado el vecino sino que el lanzador no se le monte
+       encima, y el vecino que queda —el cartel del pie— va en el flujo. */
+    const fijos = [...document.querySelectorAll('button, select, input, a[href]')]
+      .filter(e => !e.closest('#panel-pc') && e.checkVisibility(V))
       .map(e => ({ q: e.id || e.className || e.tagName, r: e.getBoundingClientRect() }))
       .filter(x => x.r.width > 0 && x.r.height > 0);
     const pisa = (a, b) => !(a.right <= b.left || b.right <= a.left
@@ -278,8 +292,29 @@ export default async function pruebaPanel({ navegador, url }) {
     solapes.malos.length === 0 && solapes.lanzador && solapes.cuantos >= 2,
     solapes.malos.length ? solapes.malos.slice(0, 3).join(' · ')
       : (!solapes.lanzador ? 'el lanzador no estaba a la vista: la prueba no mide nada'
-         : solapes.cuantos < 2 ? 'solo ' + solapes.cuantos + ' controles fijos: no hay con quién comparar'
-         : solapes.cuantos + ' controles fijos a la vista, ninguno se pisa'));
+         : solapes.cuantos < 2 ? 'solo ' + solapes.cuantos + ' control: no hay con quién comparar'
+         : solapes.cuantos + ' controles a la vista, ninguno se pisa'));
+
+  /* ── 10a · Dentro de un módulo el pie se va ────────────────────────────
+     En un módulo la pantalla es el estímulo y nada más: el pie —la marca y el
+     cartel del mando— gasta alto y está a la vista del paciente, que es lo que
+     este sistema no hace. Lo escondía `body.en-modulo #footer { display:none }`
+     y esa regla se perdió al quitar de su lista el botón «?»: quedó un selector
+     colgando de una coma y el pie volvió a asomar en los siete módulos. */
+  await abrirModulo('schober');
+  await pc.keyboard.press('Escape');
+  await pc.waitForTimeout(300);
+  const pie = await pc.evaluate(V => {
+    const f = document.getElementById('footer');
+    const enMod = document.body.classList.contains('en-modulo');
+    return { enMod, visible: !!(f && f.checkVisibility(V)),
+             alto: f ? Math.round(f.getBoundingClientRect().height) : 0 };
+  }, VIS);
+  m.comprobar('dentro de un módulo el pie no le roba alto al estímulo',
+    pie.enMod && !pie.visible,
+    !pie.enMod ? 'la pantalla no se declaró «en módulo»: la prueba no mide nada'
+      : (pie.visible ? 'el pie sigue a la vista, ' + pie.alto + ' px'
+                     : 'escondido'));
 
   /* ── 10b · Los cuatro optotipos DIBUJAN ────────────────────────────────
      La comprobación del contrato solo miraba que el panel tuviera un mando de
@@ -461,14 +496,38 @@ export default async function pruebaPanel({ navegador, url }) {
   /* ── 14 · Y los atajos están anunciados ───────────────────────────────
      Un atajo que no está en el panel de la «?» no existe: nadie lo va a
      descubrir pulsando teclas al azar delante de un paciente. */
+  /* Los atajos están en el panel de control, plegados, y salen de la tabla
+     ATAJOS — no escritos a mano en otro sitio, que es como el mapa viejo se
+     quedó diciendo «Navegar pantallas» cuando las flechas ya movían seis
+     ejes. Se leen con el panel abierto. */
+  if (!(await panelAbierto())) { await pc.keyboard.press('p'); await pc.waitForTimeout(300); }
+  /* Las teclas se leen CELDA A CELDA, no de un `textContent` corrido. Con el
+     texto pegado —«…del testPabrir y cerrar este panel»— un `\bP\b` no
+     encuentra límite de palabra y la comprobación acusaba al panel de no
+     anunciar la P y la N, que sí anunciaba. La prueba estaba mal, no el panel. */
   const anuncio = await pc.evaluate(() => {
-    const p = document.getElementById('shortcuts-panel');
-    return p ? p.textContent.replace(/\s+/g, ' ') : '';
+    const p = document.getElementById('panel-atajos');
+    if (!p) return null;
+    return {
+      teclas: [...p.querySelectorAll('table.pp-teclas th')].map(e => e.textContent.trim()),
+      aqui: (p.querySelector('.pp-aqui') || {}).textContent || ''
+    };
   });
-  m.comprobar('el panel de atajos anuncia los números, las flechas y la P',
-    /1\s*[-–—a]\s*8|1\.\.8|1 a 8/.test(anuncio) && /\bP\b/.test(anuncio)
-      && /\bN\b/.test(anuncio) && /0/.test(anuncio),
-    '«' + anuncio.slice(0, 150) + '»');
+  const teclas = anuncio ? anuncio.teclas : [];
+  const anunciada = re => teclas.some(t => re.test(t));
+  const faltan = [
+    ['1 – 8',  /^1\s*[-–—a]\s*8$/],
+    ['0',      /^0$/],
+    ['↑ ↓',    /↑/],
+    ['← →',    /←/],
+    ['N',      /^N$/],
+    ['P',      /^P$/]
+  ].filter(([, re]) => !anunciada(re)).map(([k]) => k);
+  m.comprobar('el panel anuncia los números, las flechas y la P',
+    !!anuncio && faltan.length === 0 && /↑↓|←→/.test(anuncio.aqui),
+    !anuncio ? 'no hay bloque de atajos en el panel'
+      : (faltan.length ? 'no anuncia ' + faltan.join(', ')
+         : teclas.length + ' teclas · «' + anuncio.aqui.replace(/\s+/g, ' ').trim() + '»'));
 
   /* ── 15 · Y se puede sacar a otra ventana ─────────────────────────────
      Es el arreglo de lo único que el panel compromete: que tape parte de la

@@ -121,11 +121,11 @@ export async function emparejar(navegador, url, opciones = {}) {
   await pc.evaluate(() => document.fonts.ready);
   await pc.waitForTimeout(1400);
   await pc.click('#card-cancel').catch(() => {});      // el diálogo de calibración
-  await pc.click('#shortcuts-toggle');
-  await pc.waitForTimeout(500);
-  const codigo = (await pc.textContent('#pair-code-label') || '').trim();
-  await pc.keyboard.press('Escape');
-  await pc.waitForTimeout(300);
+  /* El código se lee del panel, que lo tiene siempre actualizado: no hace
+     falta abrir nada. Antes había que pulsar el botón «?» y leerlo de su
+     panel, y ese panel ya no existe. */
+  const codigo = (await pc.evaluate(() =>
+    (document.getElementById('panel-cod') || {}).textContent || '')).trim();
   if (!/^[A-Z0-9]{4,8}$/.test(codigo)) throw new Error('código de sala ilegible: ' + JSON.stringify(codigo));
 
   const ctxTel = await navegador.newContext({ viewport: { width: 412, height: 915 }, isMobile: true, hasTouch: true });

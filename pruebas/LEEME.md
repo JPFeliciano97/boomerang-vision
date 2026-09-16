@@ -5,7 +5,7 @@ npm test
 ```
 
 Levanta el servidor en un puerto libre, abre Chromium, empareja una pantalla
-con un mando **de verdad** por el código de sala, y pasa 182 comprobaciones en
+con un mando **de verdad** por el código de sala, y pasa 187 comprobaciones en
 unos tres minutos.
 
 - `0` — todo pasa
@@ -50,14 +50,14 @@ al medir píxeles dibujados:
 
 | | |
 |---|---|
-| `optotipos.mjs`   | Las 56 líneas de los cuatro modos y las seis pantallas: alto de tinta uniforme por línea y coincidente con el tamaño físico anunciado. Y el 20/20 a mano, que es la referencia de la que sale toda la escala. Más el juego de números, barrido en las seis pantallas y cuatro mezclas: **ninguna saca un 0**, que con `ss01` lleva barra diagonal y a 6 m es un 8. |
+| `optotipos.mjs`   | Las 56 líneas de los cuatro modos y las seis pantallas: alto de tinta uniforme por línea y coincidente con el tamaño físico anunciado. Y el 20/20 a mano, que es la referencia de la que sale toda la escala. Más el juego de números, barrido en las seis pantallas y cuatro mezclas: el cero es la **`O` de las letras** —el 0 de `ss01` lleva barra diagonal y a 6 m es un 8, y el del juego base no la lleva pero se lee como otra fuente entre dígitos cuadrados— y el **1 no va**. Y la tinta del centro de la O dibujada, con otro dígito de su línea como control. |
 | `modulos.mjs`     | El corte de estímulo: que deje la pantalla del paciente sin nada en LAS DOS capas y que al reanudar vuelva el mismo test con lo que estaba puesto. Los ocho módulos dibujan estímulo, sacan un solo panel, declaran su geometría y no desbordan a lo ancho en los tres tamaños de móvil (412×915, 360×640 y 915×412), con ningún control por debajo del mínimo táctil. Los tres de cerca traen su distancia fija y no ofrecen pasos, y el menú da el veredicto de cada test antes de entrar — con la cifra que cambia con la distancia de la sala. Y el mando como gesto: `device-width` sin ancho fijo, sin pellizco, y los tres avisos largos plegados con el título delante. Más la fuente, medida carácter a carácter en las dos páginas: ninguna letra pintada con una fuente que no la tiene. |
-| `geometria.mjs`   | Color: que cada lámina —cifra o figura— tenga puntos suficientes para leerse y un color distinto del fondo, midiendo el mosaico dibujado. La luz del relax, que lo que se pide sea lo que se dibuja. Amsler: los cuatro contornos con el grosor de las líneas interiores, la rejilla centrada, el paso en píxeles enteros del dispositivo, el cuadro a 1° de arco. Pelli: los grises calculados, que **ninguno quede pegado al blanco** —el defecto que dejaba dos filas invisibles— y que el techo dibujado sea 1,00 log CS, más los altos de tabla y el margen. Worth y Schober: que dibujen la **medida estándar** sin llenar la pantalla, que Worth no ofrezca tamaños imposibles, y que los anillos que se eligen sean los que se dibujan. Y la invariancia de Schober al invertir colores y cambiar de ojo. LEA: que los cuatro símbolos tengan el anillo del mismo grosor, midiendo con una transformada de distancia el p99 frente al p50 del trazo dibujado. |
+| `geometria.mjs`   | Color: que cada lámina —cifra o figura— tenga puntos suficientes para leerse y un color distinto del fondo, midiendo el mosaico dibujado. La luz del relax, que lo que se pide sea lo que se dibuja. Amsler: los cuatro contornos con el grosor de las líneas interiores, la rejilla centrada, el paso en píxeles enteros del dispositivo, el cuadro a 1° de arco. Pelli: los grises calculados, que **ninguno quede pegado al blanco** —el defecto que dejaba dos filas invisibles— y que el techo dibujado sea 1,00 log CS, más los altos de tabla y el margen. Worth y Schober: que dibujen la **medida estándar** sin llenar la pantalla, que Worth no ofrezca tamaños imposibles, y que los anillos que se eligen sean los que se dibujan. Y la invariancia de Schober al invertir colores y cambiar de ojo. LEA: que los cuatro símbolos tengan el anillo del mismo grosor, midiendo con una transformada de distancia el p99 frente al p50 del trazo dibujado. Fijación infantil: que cada una de las nueve figuras tenga su **gesto propio** y no el mismo nueve veces, que el gesto mueva tinta de verdad, que congelar lo pare también, y que ninguno se salga del cuadro declarado — medido en doce fases del ciclo, poniéndole el `currentTime` a las animaciones. |
 | `regresiones.mjs` | Los defectos que ya estuvieron en producción una vez: los tripletes de Pelli seguidos del alfabeto Sloan, la fila de contraste heredada del paciente anterior, la barra de calibración desplegándose sola, y la distancia de sala editable desde un test. |
 | `sin-mando.mjs`   | La pantalla sola, sin móvil — incluida la tecla `N`, que la corta: los ocho módulos son alcanzables solo desde el mando, así que todo el armazón podría romper el uso más común sin que ninguna prueba de módulos lo notara. |
 | `arranque.mjs`    | El recorrido de un equipo nuevo: la configuración se abre sola, pide la distancia y la medida de la pantalla, muestra el QR, y un móvil que sigue ESE código llega a los ocho módulos. Nace de medir ese camino y encontrarlo roto: el QR vivía en un panel que arranca oculto, así que la suite clínica entera era invisible al abrir la app por primera vez. |
 | `panel.mjs`       | El panel del PC, en una pantalla SIN móvil emparejado: que no asome al arrancar —esta pantalla la mira el paciente—, que abrirlo no mueva ni un píxel de lo dibujado, que desde su desplegable se llegue a los ocho módulos, y que ofrezca las 30 familias de comando que ofrece el mando. Más el mínimo de ratón, el orden de tabulación y que su lanzador no se monte sobre otro control. |
-| (`panel.mjs`)     | Y el teclado en los ocho test: que `1`–`8` lleven a los ocho y el `0` deje la pantalla sin estímulo, que un número signifique lo mismo dentro de un test que fuera —el test, no la fila—, que `↑↓` muevan el eje ordenado de cada uno y `↑` deshaga lo que hizo `↓`, y que los atajos estén anunciados en el panel de la `?`. |
+| (`panel.mjs`)     | Y el teclado en los ocho test: que `1`–`8` lleven a los ocho y el `0` deje la pantalla sin estímulo, que un número signifique lo mismo dentro de un test que fuera —el test, no la fila—, que `↑↓` muevan el eje ordenado de cada uno y `↑` deshaga lo que hizo `↓`, y que los atajos estén anunciados en el panel — el de la `?` ya no existe, y las teclas se leen celda a celda de la tabla `ATAJOS`. Más que el pie no asome dentro de un módulo. |
 | `caidas.mjs`      | Lo que pasa cuando la conexión se cae a media prueba — el suceso más probable de todos, porque un móvil se bloquea la pantalla a los 30 s. Lo que no puede pasar: que la pantalla del paciente se quede en blanco, que el móvil vuelva a otro módulo del que está la pantalla, o que los comandos dejen de llegar sin decirlo. |
 | `calibracion.mjs` | Cuánto se puede confiar en el milímetro, y si alguien lo dice donde se lee. Siembra una calibración de tarjeta **de otra pantalla** —lo que deja un portátil desconectado del monitor de la consulta— y exige que el mando lo diga, porque dentro de un módulo la barra del PC está plegada y el pie escondido. |
 
@@ -221,6 +221,11 @@ en `public/index.html` y comprobando que la ejecución se pone roja:
 | el panel abriéndose solo en cada repintado | `el panel no se abre solo tras siete pulsaciones` — hereda el defecto que tenía la barra de calibración |
 | la distancia sin efecto visible al cambiarla | `cambiarla mueve la geometría que el test declara` — al acercar medio metro, el 20/20 mide menos en la misma proporción |
 | la configuración inicial plantándose en cada arranque | `solo se pide la primera vez` |
+| el gesto de la figura sin colgar de `svg.inf-viva` | `congelar para también el gesto de dentro de la figura` — «sigue animándose: dentro [bv-g-pelota]» |
+| las alas de la mariposa a `scaleX(1.9)` | `ninguna se sale del cuadro que el test declara, ni se recorta` — tinta tocando el borde en 7 de 12 fases |
+| el recuento de tinta en vez de la firma de píxeles | `el gesto mueve tinta de verdad` — acusaba a la carita de estar quieta mientras parpadeaba: los ojos son dos óvalos DENTRO de la cara y la silueta no cambia ni un píxel |
+| `pintarEmparejamiento()` colgando de la configuración inicial | el corredor entero, con código 2: «código de sala ilegible: "…"» — el panel se queda con su marcador de posición en un equipo ya configurado |
+| `body.en-modulo #footer` con el selector colgando de una coma | `dentro de un módulo el pie no le roba alto al estímulo` — 31 px a la vista del paciente |
 
 La sonda del color se estrenó con uno de esos fallos y conviene que quede
 escrito: agrupaba por cromaticidad TODOS los píxeles pintados, papel de la
@@ -236,3 +241,27 @@ el total de 66 comprobaciones a 50 mientras el corredor decía «todas pasan»; 
 juicio por pico en vez de por área, que no veía un contorno recortado; y un
 recorte de la ventana de medida que rebanaba media línea exterior y acusaba una
 rejilla perfecta.
+
+Y sigue encontrándolos. Dos del mismo tipo, los dos en `panel.mjs`:
+
+- `abrirModulo()` elegía el módulo en el desplegable del panel **con el panel
+  cerrado**, y el `.catch(() => {})` que llevaba se comía el fallo: el módulo no
+  cambiaba y lo que venía después medía el módulo anterior creyendo medir otro.
+  Ahora abre el panel si hace falta y, si el desplegable sigue sin estar,
+  revienta.
+- La comprobación de que los atajos están anunciados leía un `textContent`
+  corrido y buscaba `\bP\b`. Con las celdas pegadas —«…del testPabrir y cerrar
+  este panel»— no hay límite de palabra, así que acusaba al panel de no anunciar
+  la `P` y la `N`, que sí anunciaba. Ahora se leen las celdas una por una.
+
+Y una más, del tipo «control que no controla nada»: la comprobación de que el
+cero dibujado no lleva barra compara el centro de la O con el de **otro dígito
+de su línea**, y cogía el primero que pillaba. El `4` tiene el centro tan hueco
+como la O —0 % de tinta los dos—, así que la comprobación se ponía verde o roja
+según qué dígito tocara al lado. Ahora el control sale de los tres medidos por
+encima del 85 %: el 2, el 5 y el 8.
+
+Y una de otro tipo: un `page.textContent()` sobre un elemento recién
+borrado **no falla, espera 30 s** y se lleva la suite por delante con un mensaje
+que no dice qué elemento era. Donde se lee un rótulo que podría haber cambiado
+de nombre, se lee con `evaluate` y se comprueba la cadena.

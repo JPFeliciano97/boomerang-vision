@@ -130,32 +130,37 @@ Se comprueba **midiendo**: el ancho de cada carácter pedido con la fuente frent
 al ancho pedido con una familia que no existe. Si miden lo mismo, el glifo lo
 puso la fuente de reserva.
 
-**El «0» va sin barra, y el «1» no va.** La barra diagonal que hace el cero
-indistinguible de un ocho la pone **`ss01`, no el glifo**: medido pintando el 0
-en el DOM con los dos juegos y leyendo la tinta del centro — base 0 % (óvalo
-limpio), ss01 100 % (la barra). Así que el 0 se dibuja con el glifo base y es el
-único que no lleva `ss01` (`sinSS01()`).
+**El cero de los números es la letra O, y el «1» no va.** La barra diagonal
+que hace el cero indistinguible de un ocho la pone **`ss01`, no el glifo**:
+medido pintando el 0 en el DOM con los dos juegos y leyendo la tinta del
+centro — base 0 % (óvalo limpio), ss01 100 % (la barra). Así que hubo una
+versión que dibujaba el 0 con el glifo base, fuera de `ss01`, y funcionaba:
+sin barra y con el alto exacto.
 
-Su alto de tinta es 0,520 em en vez de 0,500 y **eso no cuesta nada**:
-`spanOptotipo` calcula el tamaño como `h_css / ratio`, así que un ratio mayor da
-una fuente más pequeña que dibuja exactamente el alto pedido. Aquí hubo un error
-de razonamiento que conviene no repetir: se quitó el carácter entero por «un
-4 %, media línea de la escala», y la maquinaria ya compensaba.
+Lo que no funcionaba era **parecerse a los demás**. Con el resto de la cartilla
+en `ss01` —dígitos cuadrados, de esquinas rectas— un óvalo del juego base se
+lee como un carácter de otra fuente, y en consulta eso es justo lo que no se
+quiere. `NUMBERS` empieza por la **`O` de las letras**, que sí es `ss01`, tiene
+la barra de ningún sitio y el mismo dibujo que el 8 y el 0 de al lado. Con eso
+se fueron `sinSS01()` y `BASE_METRICAS`, que existían solo para el glifo base:
+**una sola excepción menos en toda la maquinaria**.
 
-Sus medidas van en `BASE_METRICAS`, tomadas de los **píxeles pintados** a 300 y
-600 px (0,520 de alto, 0,065 de borde a cada lado, idénticas en los dos).
-Medirlas en vivo no vale: `actualBoundingBox*` sale del rasterizado y da 0,520 /
-0,535 / 0,532 según el tamaño de la sonda, y con ese ruido el alto dibujado se
-iba 0,016 px.
+Conviene no repetir el error de razonamiento que hubo en medio: se quitó el
+carácter entero por «un 4 %, media línea de la escala», y la maquinaria ya
+compensaba —`spanOptotipo` calcula el tamaño como `h_css / ratio`, así que un
+alto de tinta mayor da una fuente más pequeña que dibuja exactamente el alto
+pedido—. Y medir las métricas en vivo tampoco valía: `actualBoundingBox*` sale
+del rasterizado y da 0,520 / 0,535 / 0,532 según el tamaño de la sonda.
 
 El que se va es el **1**: en `ss01` es una bandera inclinada sin base y en el
 juego base lleva serif de pie — dos dibujos distintos del mismo carácter, y en
 los dos un trazo casi vertical que no aporta nada que reconocer. `NUMBERS` va de
-0 y del 2 al 9.
+la O y del 2 al 9.
 
 Hay una comprobación que barre las pantallas y las mezclas para que el conjunto
-sea ese, y otra que lee la **tinta del centro del 0 dibujado** con otro dígito de
-la misma línea como control.
+sea ese, y otra que lee la **tinta del centro de la O dibujada** con otro dígito
+de la misma línea como control: el centro de la O sale al 0 % y el del vecino por
+encima del 85 %, con el mismo alto de tinta en los dos.
 
 ## Los símbolos LEA
 
@@ -305,7 +310,29 @@ pruebas eligen el modo con `elegirModo()` (`pruebas/ayuda.mjs`), que hace lo que
 hace una persona: abre el panel, pulsa y **cierra siempre** — una sonda de
 píxeles con el panel abierto mide el panel.
 
-El QR de emparejamiento vive ahora en el panel, plegado, con el código de sala a
+**Y el panel de la «?» tampoco existe.** Llevaba el mapa de teclas y el QR, y
+era un tercer sitio de donde sacar cosas: se cerraba solo a los siete segundos,
+se abría con un botón rotulado «Mostrar atajos» que no dice nada de un móvil, y
+mientras estaba ahí nadie movía el mapa de teclas — llegó a decir «Navegar
+pantallas» cuando las flechas ya movían seis ejes. Los atajos están ahora en el
+panel de control, plegados, y salen de la tabla **`ATAJOS`** más el eje de
+`EJES_FLECHA` del test en curso, así que no pueden decir una cosa y hacer otra.
+`?` y `H` abren el panel, igual que `P`.
+
+Al quitarlo se rompieron dos cosas, y las dos merecen recordarse:
+
+- `pintarEmparejamiento()` se quedó colgando de la configuración inicial, que
+  solo se abre la primera vez — así que en un equipo ya configurado el código de
+  sala se quedaba en su «…» para siempre y el QR sin dibujar. **Se pinta en el
+  arranque**: emparejar es el camino a los otros siete test y no puede depender
+  de haber pasado por ningún sitio.
+- La regla que esconde el pie dentro de un módulo (`body.en-modulo #footer`)
+  escondía también ese botón. Al quitarlo de la lista quedó un selector colgando
+  de una coma, el `display:none` se fue con él y **el pie volvió a asomar en los
+  siete módulos**, a la vista del paciente y gastando alto. Hay una comprobación
+  que lo mide.
+
+El QR de emparejamiento vive en el panel, plegado, con el código de sala a
 la vista en el título. Y hay un botón que abre **el mando en su propia ventana**,
 ya emparejado por el código en la URL: se arrastra al segundo monitor y la
 pantalla del paciente se queda limpia. Es el arreglo de lo único que el panel
@@ -325,6 +352,49 @@ un solo carácter y las flechas de pantalla no hacían nada. Están en
 **El estado se anuncia, no solo se pinta**: `aria-pressed` en todo lo que es
 selección o conmutador — y en nada que sea una acción, que no está «pulsada» —
 y `aria-live` en la línea de geometría, que cambia sola.
+
+## Las figuras de fijación infantil
+
+Nueve figuras y cuatro movimientos, **elegidos por separado**: la figura es lo
+que le interesa al niño y el movimiento es lo que se quiere medir, y atarlos
+—el rebote era siempre la pelota— dejaba sin la mariposa rebotando y obligaba a
+inventar un movimiento por cada figura nueva.
+
+Y cada figura tiene además su **gesto**, que mueve sus partes y no la figura
+entera: la mariposa bate las alas, el pez mueve la cola, la llama del cohete
+tiembla, la carita parpadea. Un niño de dos años mira lo que hace algo, y una
+silueta que solo se desplaza se agota antes.
+
+Tres reglas, y las tres están comprobadas midiendo:
+
+- **Cuelgan todas de `svg.inf-viva`**, la clase que la pantalla pone solo cuando
+  la figura no está congelada. Congelar quita la clase y con ella los nueve
+  gestos de una vez, sin tener que acordarse de apagarlos uno por uno. Congelado
+  es congelado: el rótulo dice que el niño mira a un punto fijo, y una figura
+  que sigue agitándose por dentro no lo es.
+- **La duración sale de `--inf-dur`**, que es la velocidad elegida en el mando,
+  así que «Lenta» es lenta también por dentro.
+- **Ninguna saca tinta del cuadro declarado.** El cuadro es el tamaño en grados
+  de arco, y el `<svg>` recorta: un gesto que se pasa no aparece fuera, aparece
+  **cortado** — un ala a medias, que es peor que un ala quieta. Se mide la tinta
+  dibujada en doce fases del ciclo, poniéndole el `currentTime` a las
+  animaciones en vez de esperar al reloj; con el muestreo por espera el parpadeo
+  de la carita, que dura un 16 % del ciclo, se escapaba casi siempre.
+
+Y que ANIME no basta: se exige que **la pantalla cambie** de una fase a otra. La
+primera versión contaba píxeles de tinta y acusaba a la carita de estar quieta
+mientras parpadeaba delante de ella — los ojos son dos óvalos oscuros DENTRO de
+la cara, así que la silueta no cambia ni un píxel. Se compara una firma de todos
+los píxeles.
+
+Las miniaturas del mando y del panel **no se animan**, a propósito: la regla pide
+`#modulo-area`, y nueve siluetas agitándose a la vez en un móvil son ruido. El
+gesto que hará la pantalla se dice en el título del botón y en el rótulo del
+módulo.
+
+Una figura nueva se calibra como las demás —se elige por el nombre, que un niño
+de cuatro años tiene que poder decir— y llega con su clase `g-…` y su regla. Si
+se olvida la regla, la comprobación la acusa de estar quieta por dentro.
 
 ## Cortar el estímulo
 

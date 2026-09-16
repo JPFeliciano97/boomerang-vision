@@ -199,6 +199,97 @@
             50%      { transform: scale(1.12); opacity: 1; }
         }
 
+        /* ═══ EL GESTO DE CADA FIGURA ═══
+           Lo de arriba mueve la figura ENTERA por la pantalla; esto mueve sus
+           partes: la mariposa bate las alas, el pez mueve la cola, la llama
+           del cohete tiembla. Un niño de dos años mira lo que se mueve, y una
+           silueta que solo se desplaza se agota antes que una que hace algo.
+
+           Tres reglas, y las tres están comprobadas:
+
+           · Cuelgan todas de `svg.inf-viva`, la clase que la pantalla pone
+             SOLO cuando la figura no está congelada. Congelar quita la clase y
+             con ella el gesto entero, sin tener que acordarse de apagar nueve
+             animaciones una por una. Congelado es congelado: el rótulo dice
+             que el niño mira a un punto fijo.
+           · Cada duración sale de `--inf-dur`, que es la velocidad elegida en
+             el mando. Así «Lenta» es lenta también por dentro, en vez de tener
+             la mariposa batiendo igual de rápido a las tres velocidades.
+           · Ninguna saca tinta del cuadro. El cuadro es el tamaño DECLARADO en
+             grados de arco: un ala que se estira más allá mide más de lo que
+             el test dice medir. Con `transform-box: view-box` (el que traen los
+             SVG) los porcentajes y las longitudes del `transform-origin` van en
+             unidades del viewBox de 60×60, así que los ejes se escriben donde
+             están de verdad: el hombro del ala, la raíz de la cola.
+
+           Los mismos SVG se dibujan en los botones del mando y del panel, y
+           allí NO se animan: la regla pide `#modulo-area`. Nueve miniaturas
+           agitándose a la vez en un móvil son ruido, no información. */
+        @keyframes bv-g-pelota   { 0%,100% { transform: scale(1, 1); }
+                                   50%     { transform: scale(1.06, 0.9); } }
+        @keyframes bv-g-carita   { 0%,84%,100% { transform: scaleY(1); }
+                                   92%         { transform: scaleY(0.08); } }
+        @keyframes bv-g-estrella { 0%,100% { transform: rotate(-9deg); opacity: 0.6; }
+                                   50%     { transform: rotate(9deg);  opacity: 1; } }
+        @keyframes bv-g-flor     { 0%,100% { transform: scale(0.86); }
+                                   50%     { transform: scale(1); } }
+        @keyframes bv-g-ala      { 0%,100% { transform: scaleX(1); }
+                                   50%     { transform: scaleX(0.34); } }
+        @keyframes bv-g-cola     { 0%,100% { transform: rotate(-13deg); }
+                                   50%     { transform: rotate(13deg); } }
+        @keyframes bv-g-oreja    { 0%,80%,100% { transform: rotate(0deg); }
+                                   90%         { transform: rotate(-11deg); } }
+        @keyframes bv-g-llama    { 0%,100% { transform: scaleY(0.7); opacity: 0.7; }
+                                   50%     { transform: scaleY(1);   opacity: 1; } }
+        @keyframes bv-g-aspas    { from { transform: rotate(0deg); }
+                                   to   { transform: rotate(360deg); } }
+
+        #modulo-area svg.inf-viva .g-pelota {
+            animation: bv-g-pelota calc(var(--inf-dur) * 0.5) ease-in-out infinite;
+            transform-origin: 30px 56px;            /* bota sobre su propia base */
+        }
+        #modulo-area svg.inf-viva .g-ojos {
+            animation: bv-g-carita calc(var(--inf-dur) * 2.4) ease-in-out infinite;
+            transform-origin: 30px 24px;
+        }
+        #modulo-area svg.inf-viva .g-estrella {
+            animation: bv-g-estrella calc(var(--inf-dur) * 1.1) ease-in-out infinite;
+            transform-origin: 30px 30px;            /* girar no cambia el radio */
+        }
+        #modulo-area svg.inf-viva .g-petalos {
+            animation: bv-g-flor calc(var(--inf-dur) * 1.3) ease-in-out infinite;
+            transform-origin: 30px 30px;
+        }
+        #modulo-area svg.inf-viva .g-ala-i {
+            animation: bv-g-ala calc(var(--inf-dur) * 0.42) ease-in-out infinite;
+            transform-origin: 30px 30px;            /* el hombro, no el borde */
+        }
+        #modulo-area svg.inf-viva .g-ala-d {
+            animation: bv-g-ala calc(var(--inf-dur) * 0.42) ease-in-out infinite;
+            transform-origin: 30px 30px;
+        }
+        #modulo-area svg.inf-viva .g-cola {
+            animation: bv-g-cola calc(var(--inf-dur) * 0.55) ease-in-out infinite;
+            transform-origin: 17px 30px;            /* la raíz de la cola */
+        }
+        #modulo-area svg.inf-viva .g-oreja-i {
+            animation: bv-g-oreja calc(var(--inf-dur) * 2.2) ease-in-out infinite;
+            transform-origin: 16px 22px;
+        }
+        #modulo-area svg.inf-viva .g-oreja-d {
+            animation: bv-g-oreja calc(var(--inf-dur) * 2.2) ease-in-out infinite;
+            animation-delay: calc(var(--inf-dur) * -1.1);   /* no las dos a la vez */
+            transform-origin: 44px 22px;
+        }
+        #modulo-area svg.inf-viva .g-llama {
+            animation: bv-g-llama calc(var(--inf-dur) * 0.28) ease-in-out infinite;
+            transform-origin: 30px 40px;            /* cuelga de la tobera */
+        }
+        #modulo-area svg.inf-viva .g-aspas {
+            animation: bv-g-aspas calc(var(--inf-dur) * 1.6) linear infinite;
+            transform-origin: 30px 30px;
+        }
+
         #test-area {
             flex:1; position:relative; cursor:none; overflow:hidden;
             background:#FFFFFF; transition:background 0.2s;
@@ -229,10 +320,14 @@
         /* En un módulo la pantalla es el estímulo y nada más. La barra se
            repliega con la misma clase que ya usaba el botón ▲, así que H sigue
            sirviendo para asomarla. */
-        body.en-modulo #footer,
-        body.en-modulo #shortcuts-toggle { display:none; }
-        /* El panel de atajos y el de calibración siguen por encima de la capa
-           (181 y 300 contra 90), así que ? y C funcionan igual desde el teclado. */
+        /* En un módulo la pantalla es el estímulo y nada más. Esta regla
+           escondía también el botón «?», que ya no existe; al quitarlo de la
+           lista quedó un selector colgando de una coma y el pie se llevó el
+           formato del rótulo de módulo en vez del display:none — volvió a
+           asomar en los siete módulos, a la vista del paciente y gastando
+           alto. Hay una comprobación que lo mide (pruebas/panel.mjs). */
+        body.en-modulo #footer { display:none; }
+
         #modulo-nombre {
             font-family: var(--ui);
             font-size:11px; letter-spacing:1.6px; color:#7a7a7a;
@@ -309,26 +404,6 @@
         .cal-status.estimated-text { color:#f39c12; }
         .cal-status.stale-text { color:#e67e22; font-weight:700; }
 
-        #shortcuts-panel {
-            position:fixed; bottom:80px; right:16px; z-index:180;
-            background:rgba(20,20,20,0.7); border:1px solid rgba(255,255,255,0.15);
-            border-radius:12px; padding:12px 16px; font-size:10px; font-family:monospace;
-            color:#ccc; line-height:1.8; backdrop-filter:blur(8px);
-            transition:opacity 0.3s; pointer-events:auto; text-align:left;
-        }
-        #shortcuts-panel.hidden { opacity:0; pointer-events:none; }
-        #shortcuts-panel kbd {
-            background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.25);
-            border-radius:4px; padding:1px 6px; font-size:9px; color:#fff; margin:0 2px;
-        }
-        #shortcuts-toggle {
-            position:fixed; bottom:50px; right:16px; z-index:181;
-            background:rgba(30,30,30,0.5); border:1px solid rgba(255,255,255,0.2);
-            color:#aaa; width:30px; height:30px; border-radius:50%; font-size:16px;
-            cursor:pointer; display:flex; align-items:center; justify-content:center;
-            transition:all 0.2s; backdrop-filter:blur(4px);
-        }
-        #shortcuts-toggle:hover { color:#fff; border-color:rgba(255,255,255,0.5); }
         /* ═══════════ CALIBRACIÓN CON TARJETA ═══════════ */
         #card-cal {
             position:fixed; inset:0; z-index:300;
@@ -635,6 +710,25 @@
         }
         .pp-dist-nota.fija { color: #a8895f; }
 
+        .pp-atajos { margin-top: 18px; }
+        .pp-aqui {
+            font-size: 10.5px; line-height: 1.6; color: #a8895f; margin-bottom: 9px;
+            padding-bottom: 8px; border-bottom: 1px solid #262626;
+        }
+        .pp-aqui b, .pp-teclas b {
+            font-family: var(--num); color: #cfcfcf; background: #222;
+            border: 1px solid #383838; border-radius: 4px; padding: 1px 5px;
+            font-weight: 400; font-size: 10px; white-space: nowrap;
+        }
+        table.pp-teclas { width: 100%; border-collapse: collapse; }
+        table.pp-teclas th {
+            text-align: left; vertical-align: top; padding: 3px 9px 3px 0;
+            white-space: nowrap; font-weight: 400;
+        }
+        table.pp-teclas td {
+            font-size: 10.5px; line-height: 1.5; color: #7a7a7a; padding: 3px 0;
+        }
+
         .pp-mando { margin-top: 16px; }
         .pp-mando > summary {
             list-style: none; cursor: pointer; display: flex; align-items: center;
@@ -736,6 +830,11 @@
             <span class="pp-corte-et">Pantalla en negro</span>
             <span class="pp-corte-val">el test sigue puesto &middot; N</span>
         </button>
+        <details class="pp-mando pp-atajos">
+            <summary><span>Atajos de teclado</span><span class="pp-cod">?</span></summary>
+            <div class="pp-mando-cuerpo" id="panel-atajos"></div>
+        </details>
+
         <!-- LA SALA. Abajo y agrupado a propósito: arriba va lo que se toca en
              cada test, aquí lo que se declara una vez por sala. La distancia es
              editable — se pide sola la primera vez, en la configuración
@@ -876,25 +975,12 @@
         </div>
     </div>
 
-    <button id="shortcuts-toggle" title="Mostrar atajos">?</button>
-    <div id="shortcuts-panel" class="hidden">
-        <div><kbd>↑</kbd><kbd>↓</kbd> Pantalla, fila, lámina, anillos, luz, figura</div>
-        <div><kbd>←</kbd><kbd>→</kbd> Remezclar, o la otra elección del test</div>
-        <div><kbd>B</kbd> Bicromático</div>
-        <div><kbd>R</kbd> Resaltar línea</div>
-        <div><kbd>U</kbd> Modo 1 carácter</div>
-        <div><kbd>C</kbd> Configuración inicial</div>
-        <div><kbd>H</kbd> Ocultar panel</div>
-        <div><kbd>M</kbd> Volver a optotipos</div>
-        <div><kbd>N</kbd> Cortar el estímulo</div>
-        <div><kbd>P</kbd> Panel de control</div>
-        <div><kbd>1</kbd>–<kbd>8</kbd> Los ocho test &nbsp;<kbd>0</kbd> sin estímulo</div>
-        <div><kbd>?</kbd> Este menú</div>
-        <div style="margin-top:10px; font-size:9px; color:#aaa;">Escanea para control remoto:</div>
-        <div id="qr-container"></div>
-        <div id="pair-code-label"></div>
-        <div style="font-size:9px; color:#777; text-align:center;">código de esta pantalla</div>
-    </div>
+    <!-- Aquí vivían el botón «?» y su panel de atajos, con el QR dentro. Los
+         atajos están ahora en el panel de control, plegados y generados de la
+         tabla ATAJOS — un mapa de teclas escrito a mano en otro sitio se queda
+         desfasado en cuanto una tecla cambia, y ya pasó: seguía diciendo
+         «Navegar pantallas» cuando las flechas ya movían seis ejes. El QR
+         también está allí. La `?` abre el panel, como la `P` y la `H`. -->
 
     <script>
         (() => {
@@ -1523,57 +1609,68 @@
                centro, y una figura descentrada se bambolearía. El mando las
                recibe en el espejo en vez de guardar su propia copia: tenerlas
                dos veces significaba que añadir una era editar dos ficheros y
-               acordarse de los dos. */
+               acordarse de los dos.
+
+               Cada figura trae además su GESTO: las partes que se mueven llevan
+               una clase `g-…` y la animación vive en el CSS, junto a los cuatro
+               movimientos. `gesto` es cómo se llama eso en el rótulo, porque un
+               estímulo que hace algo tiene que decir qué hace. Una figura nueva
+               se añade con su clase y su regla; si se olvida, la comprobación de
+               pruebas/geometria.mjs la acusa de estar quieta por dentro. */
             const INF_FIGURAS = [
-                { id: 'pelota', nombre: 'Pelota',
-                  svg: '<circle cx="30" cy="30" r="26" fill="#e8574c"/><circle cx="30" cy="30" r="9" fill="#fff"/>' },
-                { id: 'carita', nombre: 'Carita',
+                { id: 'pelota', nombre: 'Pelota', gesto: 'bota',
+                  svg: '<g class="g-pelota"><circle cx="30" cy="30" r="26" fill="#e8574c"/>'
+                           + '<circle cx="30" cy="30" r="9" fill="#fff"/></g>' },
+                { id: 'carita', nombre: 'Carita', gesto: 'parpadea',
                   svg: '<circle cx="30" cy="30" r="25" fill="#f0b26b"/>'
-                           + '<circle cx="22" cy="24" r="4" fill="#2a2a2a"/><circle cx="38" cy="24" r="4" fill="#2a2a2a"/>'
+                           + '<g class="g-ojos"><circle cx="22" cy="24" r="4" fill="#2a2a2a"/>'
+                           + '<circle cx="38" cy="24" r="4" fill="#2a2a2a"/></g>'
                            + '<path d="M20 38 Q30 47 40 38" stroke="#2a2a2a" stroke-width="3.5" fill="none" stroke-linecap="round"/>' },
-                { id: 'estrella', nombre: 'Estrella',
-                  svg: '<path d="M30 2l7.7 17.1L56 21.3l-13.1 12.2L46 52l-16-9.8L14 52l3.1-18.5L4 21.3l18.3-2.2z" fill="#7fb069"/>' },
-                { id: 'flor', nombre: 'Flor',
-                  svg: '<g fill="#e86ba0"><circle cx="30" cy="13" r="9.5"/><circle cx="44.7" cy="21.5" r="9.5"/>'
+                { id: 'estrella', nombre: 'Estrella', gesto: 'destella',
+                  svg: '<path class="g-estrella" d="M30 2l7.7 17.1L56 21.3l-13.1 12.2L46 52l-16-9.8L14 52l3.1-18.5L4 21.3l18.3-2.2z" fill="#7fb069"/>' },
+                { id: 'flor', nombre: 'Flor', gesto: 'abre los pétalos',
+                  svg: '<g class="g-petalos" fill="#e86ba0"><circle cx="30" cy="13" r="9.5"/><circle cx="44.7" cy="21.5" r="9.5"/>'
                            + '<circle cx="44.7" cy="38.5" r="9.5"/><circle cx="30" cy="47" r="9.5"/>'
                            + '<circle cx="15.3" cy="38.5" r="9.5"/><circle cx="15.3" cy="21.5" r="9.5"/></g>'
                            + '<circle cx="30" cy="30" r="10" fill="#e8c84c"/>' },
-                { id: 'mariposa', nombre: 'Mariposa',
-                  svg: '<path d="M28 20C18 6 4 10 6 22c1.6 9.4 14.4 9.6 22 6.4z" fill="#e8574c"/>'
-                           + '<path d="M32 20C42 6 56 10 54 22c-1.6 9.4-14.4 9.6-22 6.4z" fill="#e8574c"/>'
-                           + '<path d="M28 32c-9 6-18 12-12 20 5 6.4 13-3.6 13-13.6z" fill="#4f9bd9"/>'
-                           + '<path d="M32 32c9 6 18 12 12 20-5 6.4-13-3.6-13-13.6z" fill="#4f9bd9"/>'
+                { id: 'mariposa', nombre: 'Mariposa', gesto: 'bate las alas',
+                  svg: '<g class="g-ala-i"><path d="M28 20C18 6 4 10 6 22c1.6 9.4 14.4 9.6 22 6.4z" fill="#e8574c"/>'
+                           + '<path d="M28 32c-9 6-18 12-12 20 5 6.4 13-3.6 13-13.6z" fill="#4f9bd9"/></g>'
+                           + '<g class="g-ala-d"><path d="M32 20C42 6 56 10 54 22c-1.6 9.4-14.4 9.6-22 6.4z" fill="#e8574c"/>'
+                           + '<path d="M32 32c9 6 18 12 12 20-5 6.4-13-3.6-13-13.6z" fill="#4f9bd9"/></g>'
                            + '<ellipse cx="30" cy="31" rx="2.6" ry="14" fill="#f4ead8"/>'
                            + '<circle cx="30" cy="14" r="3.4" fill="#f4ead8"/>'
                            + '<path d="M29 11C26 6 22 5 20 6" stroke="#f4ead8" stroke-width="1.6" fill="none" stroke-linecap="round"/>'
                            + '<path d="M31 11C34 6 38 5 40 6" stroke="#f4ead8" stroke-width="1.6" fill="none" stroke-linecap="round"/>' },
-                { id: 'pez', nombre: 'Pez',
-                  svg: '<path d="M16 30c0-10 12-16 24-12 8 2.7 12 8 14 12-2 4-6 9.3-14 12-12 4-24-2-24-12z" fill="#4f9bd9"/>'
-                           + '<path d="M16 30L4 19l3 11-3 11z" fill="#2f7cb8"/>'
+                { id: 'pez', nombre: 'Pez', gesto: 'mueve la cola',
+                  svg: '<path class="g-cola" d="M16 30L4 19l3 11-3 11z" fill="#2f7cb8"/>'
+                           + '<path d="M16 30c0-10 12-16 24-12 8 2.7 12 8 14 12-2 4-6 9.3-14 12-12 4-24-2-24-12z" fill="#4f9bd9"/>'
                            + '<path d="M30 18.2c1-4.2 4-7.2 7-8.2-1 3.6-1 6.6 0 9z" fill="#2f7cb8"/>'
                            + '<circle cx="44" cy="27" r="3.4" fill="#fff"/>'
                            + '<circle cx="44.9" cy="27" r="1.6" fill="#1a1a1a"/>' },
-                { id: 'gato', nombre: 'Gato',
-                  svg: '<path d="M13 22L16 5l13 10z" fill="#f0b26b"/><path d="M47 22L44 5 31 15z" fill="#f0b26b"/>'
+                { id: 'gato', nombre: 'Gato', gesto: 'mueve las orejas',
+                  svg: '<path class="g-oreja-i" d="M13 22L16 5l13 10z" fill="#f0b26b"/>'
+                           + '<path class="g-oreja-d" d="M47 22L44 5 31 15z" fill="#f0b26b"/>'
                            + '<circle cx="30" cy="34" r="22" fill="#f0b26b"/>'
                            + '<circle cx="22" cy="31" r="3.2" fill="#2a2a2a"/>'
                            + '<circle cx="38" cy="31" r="3.2" fill="#2a2a2a"/><path d="M30 37l-3 3.2h6z" fill="#e8574c"/>'
                            + '<path d="M26.5 43Q30 46.4 33.5 43" stroke="#2a2a2a" stroke-width="2" fill="none" stroke-linecap="round"/>'
                            + '<g stroke="#2a2a2a" stroke-width="1.6" stroke-linecap="round"><path d="M12 37h8"/>'
                            + '<path d="M12 42.5h8"/><path d="M48 37h-8"/><path d="M48 42.5h-8"/></g>' },
-                { id: 'cohete', nombre: 'Cohete',
+                { id: 'cohete', nombre: 'Cohete', gesto: 'enciende la llama',
                   svg: '<path d="M30 3c8 9 11 19 11 29H19c0-10 3-20 11-29z" fill="#e9e9ea"/>'
                            + '<path d="M19 32L9.5 45l9.5-3.4z" fill="#e8574c"/>'
                            + '<path d="M41 32l9.5 13L41 41.6z" fill="#e8574c"/><path d="M19 32h22v4H19z" fill="#c9ccd2"/>'
                            + '<circle cx="30" cy="21" r="5.6" fill="#4f9bd9"/>'
-                           + '<path d="M24.5 40h11L30 57z" fill="#f0b26b"/><path d="M27 41h6l-3 10z" fill="#e8c84c"/>' },
-                { id: 'molinete', nombre: 'Molinete',
-                  svg: '<path d="M30 30L30 2A28 28 0 0 1 54 16Z" fill="#e8574c"/>'
+                           + '<g class="g-llama"><path d="M24.5 40h11L30 57z" fill="#f0b26b"/>'
+                           + '<path d="M27 41h6l-3 10z" fill="#e8c84c"/></g>' },
+                { id: 'molinete', nombre: 'Molinete', gesto: 'gira las aspas',
+                  svg: '<g class="g-aspas"><path d="M30 30L30 2A28 28 0 0 1 54 16Z" fill="#e8574c"/>'
                            + '<path d="M30 30L54 16A28 28 0 0 1 54 44Z" fill="#f0b26b"/>'
                            + '<path d="M30 30L54 44A28 28 0 0 1 30 58Z" fill="#7fb069"/>'
                            + '<path d="M30 30L30 58A28 28 0 0 1 6 44Z" fill="#4f9bd9"/>'
                            + '<path d="M30 30L6 44A28 28 0 0 1 6 16Z" fill="#9b6bbf"/>'
-                           + '<path d="M30 30L6 16A28 28 0 0 1 30 2Z" fill="#e8c84c"/>' }
+                           + '<path d="M30 30L6 16A28 28 0 0 1 30 2Z" fill="#e8c84c"/></g>' }
             ];
 
             function infGeometria(){
@@ -1601,10 +1698,18 @@
                 const anim = state.infCongelado ? 'none'
                     : `bv-${mov.id} ${dur} ${mov.id === 'giro' ? 'linear' : 'ease-in-out'} infinite`
                       + (mov.id === 'rebote' || mov.id === 'recorrido' ? ' alternate' : '');
+                /* `inf-viva` es lo que enciende el gesto de la figura, y
+                   congelado no la lleva: una sola clase apaga las nueve
+                   animaciones de dentro, en vez de tener que acordarse de
+                   apagarlas una por una cada vez que se añade una figura.
+                   `--inf-dur` lleva la velocidad elegida al CSS, así que
+                   «Lenta» es lenta también por dentro. */
                 d.moduloArea.innerHTML =
                     `<svg width="${g.px.toFixed(1)}" height="${g.px.toFixed(1)}" viewBox="0 0 60 60"
-                          style="animation:${anim}; transform-origin:50% 50%;">${fig.svg}</svg>`;
-                d.moduloNombre.textContent = `Fijación infantil · ${fig.nombre} · ${mov.nombre} · ${vel.nombre} · `
+                          class="${state.infCongelado ? '' : 'inf-viva'}"
+                          style="animation:${anim}; transform-origin:50% 50%; --inf-dur:${dur};">${fig.svg}</svg>`;
+                d.moduloNombre.textContent = `Fijación infantil · ${fig.nombre} (${fig.gesto}) · `
+                    + `${mov.nombre} · ${vel.nombre} · `
                     + `${g.grados.toFixed(2)}° = ${g.mm.toFixed(0)} mm a ${distanciaModulo()} m`
                     + (g.limitado ? ` (se pidió ${g.pedido}° y no cabe con recorrido)` : '')
                     + (state.infCongelado ? ' · CONGELADO en el centro' : '');
@@ -2031,7 +2136,7 @@
             }
 
             const LETTERS = ['A','C','D','E','H','K','N','O','R','S','V','Z'];
-            const NUMBERS = ['0','2','3','4','5','6','7','8','9'];  // el 0 sí, el 1 no: ver pruebas/optotipos.mjs
+            const NUMBERS = ['O','2','3','4','5','6','7','8','9'];  // el cero es la O: ver pruebas/optotipos.mjs
 
             // decimal = la fracción exacta (20/x), no el redondeo a dos cifras:
             // de ahí sale el tamaño físico, y 0.13 en vez de 0.1333 lo falseaba un 2.5%.
@@ -2090,10 +2195,7 @@
                 infoSpan:$('info-span'), linesContainer:$('lines-container'),
                 moduloArea:$('modulo-area'), moduloNombre:$('modulo-nombre'),
                 calStatus:$('cal-status-footer'), remoteStatus:$('remote-status'),
-                pairCodeLabel:$('pair-code-label'), shortcutsPanel:$('shortcuts-panel'),
-                shortcutsToggle:$('shortcuts-toggle'),
                 testArea:$('test-area'),
-                qrContainer: document.getElementById('qr-container'),
             };
 
             /* ═══════════ GEOMETRÍA DEL OPTOTIPO ═══════════
@@ -2166,7 +2268,6 @@
             let CHAR_METRICS = {};
             let metricsCanvas = null;
             function charMetrics(ch){
-                if (sinSS01(ch) && BASE_METRICAS[ch]) return BASE_METRICAS[ch];
                 if (usaSS01() && SS01_METRICAS[ch]) return SS01_METRICAS[ch];
                 if (CHAR_METRICS[ch]) return CHAR_METRICS[ch];
                 const fallback = { ratio: CAP_HEIGHT_RATIO, left: 0, right: 0 };
@@ -2361,30 +2462,19 @@
                descuentan con márgenes negativos, así las separaciones de la
                norma se aplican tal cual sobre la tinta y no sobre el cuadratín.
                Lo comparten el optotipo y el Pelli-Robson. */
-            /* El 0 se dibuja SIN ss01, y es el único. La barra diagonal que lo
-               hace indistinguible de un 8 a la distancia de la sala la pone
-               `ss01`, no el glifo: medido pintándolo en el DOM con los dos
-               juegos y leyendo la tinta del centro — base 0 % (óvalo hueco),
-               ss01 100 % (barra). El glifo base mide 0,520 em de tinta en vez
-               de 0,500, y eso NO cuesta nada: el tamaño se calcula como
-               `h_css / ratio`, así que un ratio mayor da una fuente más pequeña
-               que dibuja exactamente el alto pedido. Por eso el 0 no está en
-               SS01_METRICAS — su ratio se mide del glifo que de verdad se
-               pinta. Hay una comprobación que lee la tinta del centro del 0
-               dibujado, con el 8 como control. */
-            function sinSS01(ch){ return ch === '0'; }
+            /* EL CERO ES LA «O» DE LAS LETRAS, y con eso se fue un caso especial
+               entero. El 0 de esta fuente con `ss01` lleva barra diagonal —a la
+               distancia de la sala, un cero barrado y un ocho son el mismo
+               borrón— y sin `ss01` es un óvalo limpio pero estrecho, que entre
+               dígitos cuadrados y anchos se lee como de otro juego: era lo que
+               pasaba, y lo dijo quien lo usa mirando la cartilla.
 
-            /* Y sus medidas también van en tabla. Medirlas en vivo con
-               `measureText` no vale: `actualBoundingBox*` sale del rasterizado
-               y da 0,520 / 0,535 / 0,532 según el tamaño de la sonda — con eso
-               el alto dibujado se iba 0,016 px de la línea y la comprobación de
-               uniformidad lo cazó. Estas cifras se midieron de los PÍXELES
-               PINTADOS a 300 y 600 px, y salen idénticas en los dos:
-                 alto de tinta 0,520 em · bordes 0,065 a cada lado
-                 (ancho de tinta 0,470 · avance 0,600) */
-            const BASE_METRICAS = {
-                '0': { ratio: 0.52, left: 0.065, right: 0.065 }
-            };
+               La O resuelve las dos cosas a la vez: no tiene barra, tiene la
+               misma anchura y el mismo carácter que los demás dígitos, y mide
+               0,500 em como todo `ss01`. Así que ya no hace falta dibujar un
+               glifo fuera del juego, ni su tabla de medidas aparte, ni decirle
+               al mando que ese carácter va sin `ss01`. Menos maquinaria y menos
+               sitios donde equivocarse. */
 
             function spanOptotipo(ch, h_css, conSS01, color){
                 const span = document.createElement('span');
@@ -2392,7 +2482,7 @@
                 span.textContent = ch;
                 const cm = charMetrics(ch);
                 const fs = h_css / cm.ratio;
-                if (conSS01 && !sinSS01(ch)) span.style.fontFeatureSettings = "'ss01'";
+                if (conSS01) span.style.fontFeatureSettings = "'ss01'";
                 span.style.fontSize = fs + 'px';
                 span.style.lineHeight = String(cm.ratio);            // alto de caja = tinta
                 span.style.marginLeft = (-cm.left * fs) + 'px';      // descontar el hueco
@@ -2692,7 +2782,7 @@
                             rot: ch.rot || 0,
                             uri: ch.type === 'img' ? SVG_CACHE[ch.key] : null,
                             aspect: ch.type === 'img' ? (SVG_ASPECT[ch.key] || 1) : 1,
-                            ss01: usaSS01() && !sinSS01(ch.char || '')
+                            ss01: usaSS01()
                         }))
                     }));
                     datos.mode = state.mode;
@@ -3213,7 +3303,6 @@
             function openCardCal(){
                 cardOpen = true;
                 d.testDistance.value = state.testDistanceM;   // parte de lo vigente
-                pintarEmparejamiento();                       // el QR, aquí y ahora
                 cardWidthPx = clampCardWidth(Math.round((state.cssPxPerMM || 3.8) * activeRef().w));
                 d.cardCal.classList.remove('hidden');
                 renderCardShape();
@@ -3253,17 +3342,18 @@
                peor que una tecla que no existe. */
             function toggleCalPanel(){ togglePanelPC(); }
 
-            let qrGenerated = false;
-            let shortcutsTimer = null;
+            /* El QR y el código de sala, en los dos sitios que los piden: la
+               configuración inicial y el bloque plegado del panel.
 
-            /* El QR y el código de sala, en todos los sitios que los pidan.
-               Estaba dentro de toggleShortcuts() y por tanto solo existía si
-               alguien encontraba el botón «?» — rotulado «Mostrar atajos», que no
-               dice nada de un móvil. Como los otros siete módulos se alcanzan
-               SOLO desde el móvil, eso dejaba la suite clínica entera invisible
-               para quien abre la app por primera vez. */
+               Se pinta EN EL ARRANQUE, no al abrir nada. Vivía dentro del panel
+               de la «?» y solo existía si alguien encontraba ese botón; al
+               quitarlo se quedó colgando de la configuración inicial, que solo
+               se abre la primera vez — así que en un equipo ya configurado el
+               código de sala se quedaba en su «…» para siempre y el QR sin
+               dibujar. Emparejar es el camino a los otros siete test: no puede
+               depender de haber pasado por ningún sitio. */
             function pintarEmparejamiento(){
-                const cajas = [d.qrContainer, d.qrConfig, d.qrPanel].filter(Boolean);
+                const cajas = [d.qrConfig, d.qrPanel].filter(Boolean);
                 // location.origin, no una URL fija: si la pantalla corre en la
                 // red local, el móvil tiene que ir ahí y no a la instancia de la
                 // nube (donde manejaría otra pantalla).
@@ -3280,40 +3370,15 @@
                 for (const caja of cajas) {
                     if (svg) caja.innerHTML = svg; else caja.textContent = url;
                 }
-                for (const et of [d.pairCodeLabel, d.pairCodeConfig, d.panelCod]
-                                 .filter(Boolean)) {
+                for (const et of [d.pairCodeConfig, d.panelCod].filter(Boolean)) {
                     et.textContent = state.pairCode;
                 }
-                qrGenerated = true;
             }
-            function toggleShortcuts(){
-                const panel = d.shortcutsPanel;
-                const isHidden = panel.classList.contains('hidden');
-                if (isHidden) {
-                    panel.classList.remove('hidden');
-                    pintarEmparejamiento();
-                    if (shortcutsTimer) clearTimeout(shortcutsTimer);
-                    shortcutsTimer = setTimeout(() => {
-                        if (!d.shortcutsPanel.classList.contains('hidden')) {
-                            d.shortcutsPanel.classList.add('hidden');
-                        }
-                    }, 7000);
-                } else {
-                    panel.classList.add('hidden');
-                    if (shortcutsTimer) clearTimeout(shortcutsTimer);
-                }
-            }
+            /* La «?» abría un panel aparte con los atajos y el QR. Los dos viven
+               ahora en el panel de control, así que la tecla hace lo único que
+               queda que tenga sentido: abrirlo. Igual que `H`. */
+            function toggleShortcuts(){ togglePanelPC(); }
 
-            /* Sin listener de 'change': la distancia se aplica al guardar la
-               configuración inicial, no en cuanto alguien teclea en el campo. */
-            d.monitorSize.addEventListener('change',applyCalibration);
-            /* El cartel del móvil abre el panel donde está el QR. Si ya está
-               abierto no lo cierra: pulsarlo buscando el código y que desaparezca
-               sería exactamente lo contrario de lo que se pide. */
-            d.remoteStatus.addEventListener('click', () => {
-                if (d.shortcutsPanel.classList.contains('hidden')) toggleShortcuts();
-            });
-            d.shortcutsToggle.addEventListener('click',toggleShortcuts);
             /* El botón ⚙ CONFIGURACIÓN vivía en la barra, que ya no existe: su
                sitio es el panel (#panel-conf, cableado allí). La tecla C sigue
                abriéndola. Dejar el listener aquí reventaba el arranque entero
@@ -3421,7 +3486,7 @@
                 else if(e.key==='p'||e.key==='P'){ if(!e.ctrlKey&&!e.metaKey) togglePanelPC(); }
                 else if(e.key==='Escape'){
                     if (panelPCAbierto) cerrarPanelPC();
-                    else if(!d.shortcutsPanel.classList.contains('hidden')) toggleShortcuts();
+                    else if (!d.cardCal.classList.contains('hidden')) closeCardCal();
                 }
             });
 
@@ -3701,7 +3766,10 @@
                 return '<div class="pp-grupo"><span class="pp-rot">' + esc(rot) + '</span>'
                     + '<div class="pp-dibujos">' + ops.map(o =>
                         '<button type="button" data-cmd="' + esc(cmd + o.id) + '"'
-                      + ' title="' + esc(o.nombre) + '"'
+                      /* El gesto en el título: la miniatura está quieta, así que
+                         «Mariposa» no dice que bata las alas. Lo que la pantalla
+                         va a hacer se lee antes de pulsar. */
+                      + ' title="' + esc(o.nombre + (o.gesto ? ' — ' + o.gesto : '')) + '"'
                       + ' aria-pressed="' + (o.id === puesto ? 'true' : 'false') + '"'
                       + (o.id === puesto ? ' class="puesto"' : '') + '>'
                       + '<svg viewBox="0 0 60 60" aria-hidden="true">' + (o.svg || '') + '</svg>'
@@ -3752,7 +3820,7 @@
                     const o = dt;
                     return ppOps('Optotipo', [
                             { id:'letters', nombre:'Letras', sub:'Sloan' },
-                            { id:'numbers', nombre:'Números', sub:'0 y 2 a 9' },
+                            { id:'numbers', nombre:'Números', sub:'la O y 2 a 9' },
                             { id:'pediatric', nombre:'LEA', sub:'símbolos' },
                             { id:'e_directional', nombre:'E', sub:'direccional' }
                         ], o.mode, 'Mode:')
@@ -3852,6 +3920,42 @@
             /* Recibe el espejo ya construido: construirlo aquí otra vez era
                duplicar el trabajo más caro del repintado. Lo construye si se
                le llama sin él, que es el caso de abrir el panel. */
+            /* EL MAPA DE TECLAS, DE UNA TABLA. Estaba escrito a mano en el panel
+               de la «?» y se quedó desfasado en cuanto las flechas cambiaron:
+               seguía diciendo «Navegar pantallas» cuando ya movían seis ejes.
+               Ahora sale de aquí, que es lo único que hay, y el eje de las
+               flechas del test activo sale de EJES_FLECHA — la misma tabla que
+               las mueve. */
+            const ATAJOS = [
+                ['1 \u2013 8', 'los ocho test, en el orden de la lista'],
+                ['0', 'sin est\u00edmulo, entre test y test'],
+                ['\u2191 \u2193', 'lo que el test ordena: pantalla, fila, l\u00e1mina, anillos, luz, figura'],
+                ['\u2190 \u2192', 'remezclar, o la otra elecci\u00f3n del test'],
+                ['N', 'dejar la pantalla en negro sin salir del test'],
+                ['P', 'abrir y cerrar este panel'],
+                ['B', 'bicrom\u00e1tico'],
+                ['R', 'resaltar una l\u00ednea'],
+                ['U', 'un solo car\u00e1cter'],
+                ['M', 'volver a optotipos'],
+                ['C', 'configuraci\u00f3n inicial'],
+                ['Esc', 'cerrar el panel']
+            ];
+
+            function pintarAtajos(id){
+                const caja = document.getElementById('panel-atajos');
+                if (!caja) return;
+                const e = EJES_FLECHA[id] || {};
+                const aqui = [];
+                if (e.vert) aqui.push('<b>\u2191\u2193</b> ' + esc(e.vert));
+                if (e.horiz) aqui.push('<b>\u2190\u2192</b> ' + esc(e.horiz));
+                caja.innerHTML =
+                    (aqui.length ? '<div class="pp-aqui">En este test: '
+                        + aqui.join(' &nbsp;\u00b7&nbsp; ') + '</div>' : '')
+                  + '<table class="pp-teclas">' + ATAJOS.map(([k, q]) =>
+                      '<tr><th><b>' + esc(k) + '</b></th><td>' + esc(q) + '</td></tr>').join('')
+                  + '</table>';
+            }
+
             function pintarPanelPC(datos){
                 const pp = document.getElementById('panel-pc');
                 if (!pp) return;
@@ -3905,6 +4009,7 @@
                        : (foco.id ? '#' + foco.id : null)) : null;
                 document.getElementById('panel-geo').textContent = ppGeo(dt);
                 document.getElementById('panel-cuerpo').innerHTML = ppCuerpo(dt);
+                pintarAtajos(dt.modulo);
                 if (marca) { const v = pp.querySelector(marca); if (v) v.focus(); }
             }
 
@@ -3975,6 +4080,18 @@
                 document.getElementById('pp-dist-mas').addEventListener('click',
                     () => ponerDistancia(state.testDistanceM + 0.5));
 
+                /* «SIN MANDO · CONECTAR», en el pie: quien lo pulsa busca el
+                   código de sala, así que abre el panel CON el emparejamiento
+                   desplegado y no solo el panel. Y pulsarlo otra vez no lo
+                   cierra en las narices: es lo contrario de lo que pide. */
+                const verEmparejamiento = () => {
+                    const bloque = document.querySelector('.pp-mando:not(.pp-atajos)');
+                    if (bloque) bloque.open = true;
+                    abrirPanelPC();
+                    if (bloque) bloque.scrollIntoView({ block: 'nearest' });
+                };
+                if (d.remoteStatus) d.remoteStatus.addEventListener('click', verEmparejamiento);
+
                 document.getElementById('panel-ventana').addEventListener('click', () => {
                     /* Con el código de sala en la URL el mando se empareja solo:
                        el mismo camino que sigue el móvil al escanear el QR, así
@@ -4024,6 +4141,10 @@
             function init(){
                 loadFromStorage();
                 applyCalibration();
+                /* El código de sala está listo en cuanto loadFromStorage() lo
+                   lee o lo inventa, así que el emparejamiento se pinta ya: no
+                   cuelga de abrir la configuración ni ningún panel. */
+                pintarEmparejamiento();
                 navigateToScreen(state.currentScreenIdx);
                 if (state.highlightMode) {
                     state.highlightLineGlobalIdx = globalIdxOfFirstLine();

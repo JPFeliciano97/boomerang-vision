@@ -61,9 +61,17 @@ export default async function pruebaCalibracion({ navegador, url }) {
   m.comprobar('la barra de la pantalla marca que hay que recalibrar',
     /recalibre|cambi/i.test(barra), `«${barra}»`);
 
-  await pc.click('#shortcuts-toggle');
-  await pc.waitForTimeout(500);
-  const codigo = (await pc.textContent('#pair-code-label') || '').trim();
+  /* El panel de la «?» ya no existe; el código de sala está en el de control,
+     que lo tiene siempre puesto. */
+  await pc.waitForTimeout(300);
+  /* Con `evaluate` y no `textContent`: si el elemento cambia de nombre, esto
+     devuelve '' y la prueba lo DICE, en vez de gastar 30 s en un timeout de
+     localizador que no explica nada. Ya pasó. */
+  const codigo = (await pc.evaluate(() =>
+    ((document.getElementById('panel-cod') || {}).textContent || '').trim()));
+  if (!/^[A-Z0-9]{4,8}$/.test(codigo)) {
+    throw new Error('el panel no tiene código de sala legible: ' + JSON.stringify(codigo));
+  }
   await pc.keyboard.press('Escape');
   await pc.waitForTimeout(300);
 

@@ -103,24 +103,47 @@ export default async function pruebaArranque({ navegador, url }) {
   m.comprobar('sin móvil el pie invita a conectar uno', /conectar/i.test(cartel),
     `«${cartel}»`);
 
-  const panelAntes = await solo.evaluate(() =>
-    !document.getElementById('shortcuts-panel').classList.contains('hidden'));
+  /* El QR vivía en el panel de la «?», que ya no existe: está en el panel de
+     control, plegado. Pulsar el cartel del pie tiene que abrir el panel Y
+     desplegar el emparejamiento — abrirlo y dejar el QR escondido dentro de un
+     bloque cerrado no resuelve lo que se viene a buscar. */
+  const abierto = () => solo.evaluate(() => {
+    const p = document.getElementById('panel-pc');
+    return !!(p && p.checkVisibility({ visibilityProperty: true }));
+  });
+  const panelAntes = await abierto();
   await solo.click('#remote-status');
-  await solo.waitForTimeout(600);
+  await solo.waitForTimeout(700);
   const tras = await solo.evaluate(() => ({
-    abierto: !document.getElementById('shortcuts-panel').classList.contains('hidden'),
-    qr: (document.getElementById('qr-container') || {}).children?.length > 0
+    empar: !!document.querySelector('.pp-mando:not(.pp-atajos)[open]'),
+    qr: (document.getElementById('qr-panel') || {}).children?.length > 0,
+    codigo: ((document.getElementById('panel-cod') || {}).textContent || '').trim()
   }));
-  m.comprobar('y pulsarlo abre el panel con el QR',
-    !panelAntes && tras.abierto && tras.qr,
-    `panel ${tras.abierto ? 'abierto' : 'cerrado'} · QR ${tras.qr ? 'dibujado' : 'no'}`);
+  tras.abierto = await abierto();
+  m.comprobar('y pulsarlo abre el panel con el QR desplegado',
+    !panelAntes && tras.abierto && tras.empar && tras.qr && tras.codigo.length >= 4,
+    `panel ${tras.abierto ? 'abierto' : 'cerrado'} · emparejamiento `
+    + `${tras.empar ? 'desplegado' : 'PLEGADO'} · QR ${tras.qr ? 'dibujado' : 'no'}`
+    + ` · código «${tras.codigo}»`);
 
   /* Pulsarlo otra vez no debe cerrarlo: quien lo pulsa busca el código, y que
-     desaparezca al segundo toque es lo contrario de lo que pide. */
-  await solo.click('#remote-status');
+     desaparezca al segundo toque es lo contrario de lo que pide.
+
+     El segundo clic se DESPACHA, no se da con el ratón: con el panel abierto el
+     propio panel cubre el cartel del pie, así que un clic de verdad se queda
+     esperando 30 s a que el elemento reciba el puntero y se lleva la suite por
+     delante. Lo que se comprueba aquí es el manejador —que no es un
+     conmutador—, no que el cartel se pueda alcanzar por debajo del panel. */
+  const tapado = await solo.evaluate(() => {
+    const b = document.getElementById('remote-status');
+    const r = b.getBoundingClientRect();
+    const enc = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    b.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    return !!(enc && enc.closest('#panel-pc'));
+  });
   await solo.waitForTimeout(500);
-  m.comprobar('y pulsarlo de nuevo no lo cierra en las narices',
-    await solo.evaluate(() => !document.getElementById('shortcuts-panel').classList.contains('hidden')));
+  m.comprobar('y pulsarlo de nuevo no lo cierra en las narices', await abierto(),
+    tapado ? 'el panel abierto lo tapa, como tapa la cartilla' : 'sigue a la vista');
 
   m.comprobar('sin errores de consola en todo el arranque', errores.length === 0,
     errores.length ? errores.slice(0, 3).join(' | ') : 'ninguno');

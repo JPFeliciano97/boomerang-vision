@@ -289,8 +289,11 @@ está abierto le tapa parte de la cartilla. Con un solo monitor eso no tiene
 arreglo, así que se dice en la cabecera del propio panel en vez de disimularlo.
 El flujo es elegir y cerrar.
 
-La distancia de la sala **no** se toca desde aquí: se declara una vez, en la
-configuración inicial, como en todos los demás sitios.
+La distancia de la sala **sí** se corrige aquí, en el grupo «La sala»: se pide
+una vez en la configuración inicial y después se edita en el panel. Esta línea
+decía lo contrario —era la regla de antes— y se quedó contradiciendo a la de
+arriba durante dos PR. Lo que se conserva sigue siendo lo mismo: que el cambio
+no sea invisible.
 
 ### El teclado, en todos los test
 
@@ -322,7 +325,8 @@ espera.
 La tabla vive en `EJES_FLECHA` y de ella sale **también** el rótulo que el panel
 enseña, así que no puede decir una cosa y hacer otra. Y un atajo que no está
 anunciado no existe: los números van delante de cada test en el desplegable, el
-eje de las flechas en el propio panel, y todo en el panel de la `?`.
+eje de las flechas en el propio panel, y la tabla entera en el bloque «Atajos
+de teclado», plegado. El panel de la `?` ya no existe — más abajo está por qué.
 
 **Al cerrar el panel, el foco tiene que SALIR de él.** Si se queda dentro de un
 control ya escondido, la guarda «el teclado es del panel» se cumple para

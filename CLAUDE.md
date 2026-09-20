@@ -81,6 +81,24 @@ sobre un blanco de 255 — un contraste que ningún panel dibuja. El paciente
 «fallaba» un contraste que nunca se pintó. Va de 0 a 1,00 log en cinco filas, y
 el gris más tenue queda a doce códigos del blanco.
 
+Y lo mismo vale para la RESOLUCIÓN, que es el caso que faltaba. El detalle
+crítico de un optotipo es 1/5 de su altura, y una pantalla no dibuja un trazo
+más fino que su propia rejilla: el tamaño en mm sale correcto y la letra sale
+hecha un borrón gris. Medido a 6 m en un 24″ de 1600×900:
+
+| | trazo |
+|---|---|
+| 20/20 | 5,3 px |
+| 20/15 | 3,9 px |
+| **20/10** | **2,6 px** |
+
+El aviso estaba en **2 px y no saltaba nunca** — la cartilla pedía 2,6. Está en
+`TRAZO_MIN_PX = 4`, que es el mínimo con el que el antialiasing deja
+reconocible un carácter de Sloan, y dice QUÉ líneas no resuelve la pantalla.
+Aquí no se quitan líneas como en el Pelli: cuáles no se resuelven depende del
+monitor y de la distancia, así que se avisa y se declara en vez de decidir por
+el optometrista.
+
 ## Las cartillas de Ishihara
 
 No se reproducen, ni se trazan, ni se extraen de ninguna fuente. El módulo de
@@ -231,6 +249,35 @@ Lo que sí es distinto, y debe serlo, es la presentación: el móvil es un pulga
 vista; lo que no cabe —nueve figuras, siete láminas, cinco filas— plegado en un
 desplegable.
 
+**Una sola declaración, y la escribe el módulo.** El rótulo del operador y la
+caja de geometría eran el mismo texto en dos líneas —`ppGeo()` sacaba la
+segunda de la primera con un `split`— y la de arriba conservaba las reglas que
+tenía en la barra (`white-space: nowrap`, versalitas): en la columna de 363 px
+del panel se salía entre 182 y 495 px, o sea hasta el 58 % del texto fuera. El
+rótulo ES ahora la región viva (`#panel-geo` lleva dentro `#modulo-nombre`): se
+pliega, se anuncia y se escribe en un sitio.
+
+**Y los ocho declaran, optotipos incluido.** `renderScreen()` vaciaba el rótulo
+en optotipos, así que el módulo por el que existe toda la calibración era el
+único que no decía su geometría. Declara modo, pantalla, rango de líneas, el
+20/20 en mm y el trazo de la línea más fina, y el aviso de que algo no cabe o
+no se resuelve **viaja en el espejo hasta el mando**: vivía solo en el panel
+del PC, y el camino original de esta suite es el móvil.
+
+**El panel es un armazón, no una lista larga.** Medido: 829 px de cabecera,
+rótulos y pie para 137–491 px de controles del test, así que en fijación
+infantil a 900 px de alto el campo de la distancia acababa en el píxel 1017 —
+había que desplazar para corregir un número, que es la misma molestia que tenía
+detrás del diálogo. Lo que se desplaza es **solo `#panel-cuerpo`**; la cabecera
+y el pie —el corte, los atajos, la sala, el equipo— se quedan a la vista a 900
+y a 768 px. Y los cuatro bloques del equipo (QR, otra ventana, configuración,
+estado) van en uno plegado: no son controles del test, se tocan una vez.
+
+Con el desplazamiento dentro, la última fila queda cortada por el borde y una
+barra superpuesta no lo dice, así que **se mide y se dice** («hay más abajo»), y
+se va al llegar al fondo. Una fila a medias sin explicación es el mismo defecto
+con otra forma.
+
 **Se superpone y no re-maqueta.** Si el panel empujara la maqueta, el estímulo
 cambiaría de tamaño al abrirlo y la geometría dejaría de ser la declarada sin
 que nada lo delate. Una comprobación mide la caja de lo dibujado con el panel
@@ -349,6 +396,22 @@ se queda en el botón: la guarda de arriba se los comía, y bicromático, resalt
 un solo carácter y las flechas de pantalla no hacían nada. Están en
 `atajoOptotipos()`, que usan el teclado y el panel.
 
+**Y la calibración obsoleta se dice sin abrir nada.** «CAMBIÓ LA PANTALLA:
+RECALIBRE» vive en el pie, y `body.en-modulo #footer` esconde el pie dentro de
+un test: en el camino PC-sin-móvil, dentro de un módulo y con el panel cerrado,
+arrastrar la ventana al proyector dejaba toda la geometría mal **en silencio**.
+Lo lleva el chip del lanzador (`#panel-alerta`), que además deja de esperar al
+ratón mientras la medida no sea de esta pantalla. Fuera de la cartilla: el
+estímulo no se toca.
+
+**Menos movimiento, pero no menos test.** `prefers-reduced-motion` apaga el
+adorno —el cajón que entra, el chip que se desvanece, las transiciones de los
+botones— y **no** los movimientos ni los gestos de fijación infantil: ahí el
+movimiento es el estímulo, y apagarlo no es accesibilidad, es dejar la prueba
+sin hacer. Para eso está CONGELAR, que lo decide el optometrista y no el
+sistema operativo. Por eso la regla enumera lo que apaga en vez de usar el
+`* { animation: none }` de manual.
+
 **El estado se anuncia, no solo se pinta**: `aria-pressed` en todo lo que es
 selección o conmutador — y en nada que sea una acción, que no está «pulsada» —
 y `aria-live` en la línea de geometría, que cambia sola.
@@ -405,6 +468,46 @@ taparle la cartilla un momento es de las cosas que más se hacen en una
 consulta. El corte apaga LAS DOS capas: esconder el estímulo y dejar los
 optotipos detrás es un defecto que ya apareció una vez, y en negro no se ve
 hasta que se reanuda. No se guarda: es un momento, no una preferencia.
+
+## Cuando falla la red, no el código
+
+Esto se despliega en Render y se usa con el Wi-Fi de un consultorio. Tres cosas
+que no son del navegador sino de la infraestructura, y que tienen su propia
+suite (`pruebas/sin-red.mjs`) porque no se miden ni en el DOM ni en píxeles.
+
+**Un parpadeo del Wi-Fi no puede dejar la pantalla muerta.** `public/sw.js`
+guarda las dos páginas, la fuente, el QR y el cliente del socket. Con la red
+caída de verdad —`setOffline`, no un truco en el código— la pantalla del
+paciente sigue dibujando la cartilla y el panel sigue llegando a los ocho test.
+Lo que la red se lleva es el **mando**, porque el emparejamiento pasa por el
+socket: eso no se puede prometer y no se promete.
+
+Del caché primero **y de paso se refresca**: una app clínica tiene que abrir ya
+y funcionar sin red, pero una copia guardada para siempre es peor que ninguna —
+el consultorio se quedaría con una versión vieja sin forma de actualizarla. Se
+sirve lo guardado y se pide lo nuevo por detrás, así que como mucho se va una
+carga por detrás y se arregla solo, sin números de versión que alguien tiene
+que acordarse de subir. `sw.js` se sirve con `Cache-Control: no-cache` y no se
+guarda a sí mismo: es el fichero que decide qué se guarda, y una copia rota de
+él se quedaría rota para siempre.
+
+**Lo que sale por el cable va comprimido.** Medido: `index.html` de 255 KB a
+**70 KB** (×3,6) y `remote.html` de 93 a **24 KB** (×3,8). El que paga los
+datos suele ser el móvil del optometrista. La comprobación no se conforma con
+la cabecera `content-encoding`: exige que el ahorro sea real.
+
+**El emparejamiento tiene freno.** El código de sala es lo único que separa dos
+consultorios. Un cliente legítimo se une UNA vez por conexión, así que un
+límite de 10 uniones por cada 10 segundos **y por socket** no le estorba nunca
+y a un script le pone los 60 millones de códigos fuera de alcance por esa
+conexión. Lo que no compra, dicho sin adornos: quien abra mil sockets tiene mil
+ventanas — frenar eso es trabajo de un proxy con límite por IP, no de este
+fichero. Por socket y no por IP a propósito: por IP, las pruebas (varias salas
+a la vez desde 127.0.0.1) y un consultorio con varios equipos detrás del mismo
+router se frenarían solos. Y cuenta toda unión, no solo las de forma inválida:
+un código bien formado que no existe es indistinguible de una pantalla que
+acaba de abrir su sala, así que castigar ese caso cortaría a la pantalla buena
+en cada reconexión.
 
 ## El lienzo de diseño
 

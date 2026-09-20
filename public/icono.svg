@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img"
+     aria-label="Boomerang Vision">
+  <!-- La E direccional, que es el optotipo que no necesita saber leer: el
+       icono dice lo que la app es sin una palabra, y en cualquier idioma.
+       Trazo de 1/5 del alto, como manda el optotipo de verdad. -->
+  <rect width="512" height="512" rx="96" fill="#111111"/>
+  <g fill="#ffffff">
+    <rect x="136" y="136" width="48" height="240"/>
+    <rect x="184" y="136" width="192" height="48"/>
+    <rect x="184" y="232" width="192" height="48"/>
+    <rect x="184" y="328" width="192" height="48"/>
+  </g>
+</svg>

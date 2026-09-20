@@ -9,6 +9,20 @@
          pellizco: aquí no hay nada que ampliar, y uno accidental deja la
          interfaz desplazada con el operador buscando el botón. -->
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <link rel="manifest" href="/manifest.webmanifest">
+    <link rel="icon" href="/icono.svg" type="image/svg+xml">
+    <meta name="theme-color" content="#111111">
+    <!-- EL SERVICE WORKER, que es lo que hace que un parpadeo del Wi-Fi no deje
+         la pantalla del paciente muerta a mitad de examen. Se registra tarde y
+         en silencio: si falla no se nota, porque con red la app funciona igual.
+         Ver public/sw.js para lo que guarda y lo que no. -->
+    <script>
+        if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js').catch(() => {});
+            });
+        }
+    </script>
     <title>Control Remoto Boomerang</title>
     <script src="/socket.io/socket.io.js"></script>
     <style>

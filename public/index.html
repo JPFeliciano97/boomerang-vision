@@ -4,6 +4,20 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>BOOMERANG VISION | Test de Agudeza Visual Profesional</title>
+    <link rel="manifest" href="/manifest.webmanifest">
+    <link rel="icon" href="/icono.svg" type="image/svg+xml">
+    <meta name="theme-color" content="#111111">
+    <!-- EL SERVICE WORKER, que es lo que hace que un parpadeo del Wi-Fi no deje
+         la pantalla del paciente muerta a mitad de examen. Se registra tarde y
+         en silencio: si falla no se nota, porque con red la app funciona igual.
+         Ver public/sw.js para lo que guarda y lo que no. -->
+    <script>
+        if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js').catch(() => {});
+            });
+        }
+    </script>
     <script src="/socket.io/socket.io.js"></script>
     <!-- QR generado en local: el código de emparejamiento no sale de aquí -->
     <script src="/qrcode.js"></script>

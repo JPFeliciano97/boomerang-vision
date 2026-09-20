@@ -22,6 +22,7 @@ import pruebaCalibracion from './calibracion.mjs';
 import pruebaArranque from './arranque.mjs';
 import pruebaCaidas from './caidas.mjs';
 import pruebaPanel from './panel.mjs';
+import pruebaSinRed from './sin-red.mjs';
 
 const VERDE = '\x1b[32m', ROJO = '\x1b[31m', GRIS = '\x1b[90m', FIN = '\x1b[0m';
 const color = process.stdout.isTTY && !process.env.NO_COLOR;
@@ -90,7 +91,8 @@ try {
     ['calibración', pruebaCalibracion, { navegador, url: servidor.url }],
     ['arranque',    pruebaArranque,    { navegador, url: servidor.url }],
     ['caídas',      pruebaCaidas,      { navegador, url: servidor.url }],
-    ['panel del PC', pruebaPanel,      { navegador, url: servidor.url }]
+    ['panel del PC', pruebaPanel,      { navegador, url: servidor.url }],
+    ['sin red',     pruebaSinRed,      { navegador, url: servidor.url }]
   ];
 
   const enParalelo = Promise.all(aLaVez.map(([n, p, a]) => correr(n, p, a)));
@@ -112,11 +114,19 @@ try {
   });
 
   let total = 0, fallos = 0;
-  /* Las nueve suites más el recuento de errores de consola: diez marcadores.
-     Si falta alguno es que el bucle de arriba no llegó a añadirlo, y eso no
-     puede terminar en verde. */
-  if (marcadores.length !== 10) {
-    console.error(c('\nfaltan marcadores: ' + marcadores.length + ' de 10', ROJO));
+  /* Todas las suites más el recuento de errores de consola. Si falta alguno es
+     que el bucle de arriba no llegó a añadirlo, y eso no puede terminar en
+     verde: una suite que desaparece en silencio deja el total más bajo y el
+     corredor diciendo «todas pasan».
+
+     El número SALE DE LAS LISTAS y no está escrito a mano. Estuvo escrito —un
+     10— y al añadir la suite «sin red» el corredor contó un fallo que no era de
+     nadie: el aviso salía por la salida de errores y no había ninguna fila
+     roja que lo explicara. El guardián hizo su trabajo, pero se equivocaba de
+     culpable. */
+  const ESPERADOS = enFila.length + aLaVez.length + 1;
+  if (marcadores.length !== ESPERADOS) {
+    console.error(c('\nfaltan marcadores: ' + marcadores.length + ' de ' + ESPERADOS, ROJO));
     fallos++;
   }
   for (const m of marcadores) {

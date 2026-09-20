@@ -164,6 +164,200 @@ export default async function pruebaPanel({ navegador, url }) {
     alcanzados.length === 8 ? 'los ocho dibujan, elegidos en el desplegable'
                             : `solo ${alcanzados.length}: ` + fallados.join(' · '));
 
+  /* ── 3b · El rótulo cabe, declara y no se repite ───────────────────────
+     El panel es una columna de 363 px y el rótulo del operador venía con las
+     reglas que tenía en la barra de arriba —`white-space: nowrap`, versalitas,
+     11 px—, que en una barra de 1600 px de ancho no molestaban. Medido: se
+     salía entre 182 y 495 px de su caja, o sea entre un tercio y el 58 % del
+     texto fuera del panel. Es el mismo descuido que dejó al pie asomando en
+     los siete módulos: reglas de la barra que sobrevivieron a la barra.
+
+     Y las dos cosas que van con eso:
+
+       · Que los OCHO declaren su geometría. Siete lo hacían; optotipos, el
+         módulo por el que existe toda la calibración, dejaba el rótulo vacío
+         y el panel caía a «Optotipos · 6 pantallas» — ni el 20/20 en mm, ni
+         la línea, ni el trazo. La cifra que sujeta este sistema no estaba.
+       · Que no se diga dos veces. El rótulo y la caja de geometría eran el
+         mismo texto —una era un substring de la otra, sacado con `split`— y
+         la que se salía era justo la redundante. */
+  const cajaDelRotulo = () => pc.evaluate(V => {
+    const r = document.getElementById('modulo-nombre');
+    const pp = document.getElementById('panel-pc');
+    if (!r || !pp) return null;
+    const a = r.getBoundingClientRect(), b = pp.getBoundingClientRect();
+    const cs = getComputedStyle(pp);
+    const dentro = b.right - parseFloat(cs.paddingRight);
+    return { texto: (r.textContent || '').replace(/\s+/g, ' ').trim(),
+             sobresale: Math.round(a.right - dentro),
+             ancho: Math.round(a.width), hueco: Math.round(dentro - b.left),
+             visible: r.checkVisibility(V) };
+  }, VIS);
+
+  const rotulos = [];
+  for (const [id] of MODULOS) {
+    await abrirModulo(id);
+    rotulos.push({ id, ...(await cajaDelRotulo()) });
+  }
+  const salidos = rotulos.filter(r => r.sobresale > 1);
+  m.comprobar('el rótulo del panel cabe en el panel, en los ocho test',
+    salidos.length === 0,
+    salidos.length ? salidos.map(r => r.id + ' se sale ' + r.sobresale + ' px de '
+        + r.hueco + ' (mide ' + r.ancho + ')').join(' · ')
+      : 'los ocho caben · el más largo ' + Math.max(...rotulos.map(r => r.ancho))
+        + ' px en ' + rotulos[0].hueco);
+
+  /* Una cifra física en cada uno: mm, grados o px. Un rótulo que solo diga el
+     nombre del test no declara nada — el desplegable de arriba ya lo dice. */
+  const mudos = rotulos.filter(r => !/\d/.test(r.texto)
+                                 || !/(mm|°|px|log|Δ|′)/.test(r.texto));
+  m.comprobar('y los ocho declaran su geometría, optotipos incluido',
+    mudos.length === 0,
+    mudos.length ? mudos.map(r => r.id + ': «' + r.texto.slice(0, 40) + '»').join(' · ')
+      : rotulos.map(r => r.id + ' ✓').join(' '));
+
+  /* Y no dos veces. Se comparan los bloques de texto de la cabecera del panel
+     —lo que hay por encima de los controles del test— buscando una tirada
+     larga repetida. */
+  const repetido = await pc.evaluate(() => {
+    const pp = document.getElementById('panel-pc');
+    const cuerpo = document.getElementById('panel-cuerpo');
+    const bloques = [];
+    for (const hijo of pp.children) {
+      if (hijo === cuerpo) break;
+      const t = (hijo.textContent || '').replace(/\s+/g, ' ').trim();
+      if (t.length >= 20) bloques.push({ q: hijo.id || hijo.className, t });
+    }
+    for (let i = 0; i < bloques.length; i++)
+      for (let j = i + 1; j < bloques.length; j++) {
+        const a = bloques[i].t.toLowerCase(), b = bloques[j].t.toLowerCase();
+        for (let k = 0; k + 20 <= a.length; k++) {
+          const trozo = a.slice(k, k + 20);
+          if (b.includes(trozo)) return { a: bloques[i].q, b: bloques[j].q, trozo };
+        }
+      }
+    return null;
+  });
+  m.comprobar('y la geometría se declara una sola vez, no en dos líneas',
+    repetido === null,
+    repetido ? `«${repetido.a}» y «${repetido.b}» repiten «${repetido.trozo}…»`
+             : 'ningún bloque de la cabecera repite a otro');
+
+  /* ── 3c · La distancia se alcanza sin desplazar el panel ───────────────
+     La distancia de la sala es editable en el panel a propósito: tenerla solo
+     detrás del diálogo obligaba a pasar por él para corregir un número. Pero
+     el panel gastaba 829 px en cabecera, rótulos y pie para 137–491 px de
+     controles del test, así que en una ventana de 900 px el campo caía por
+     debajo del pliegue y había que desplazar para llegar a él — que es la
+     misma molestia con otra forma.
+
+     Se mide con el panel SIN desplazar: se fuerza scrollTop a 0 y se pide que
+     el campo esté dentro de la ventana. */
+  const alcanceDist = [];
+  const vpOriginal = pc.viewportSize();
+  /* A dos altos, y el segundo es el que importa: 768 px es un portátil, y ahí
+     el pie del panel entero cabía sin sitio para los controles del test. */
+  for (const alto of [900, 768]) {
+    await pc.setViewportSize({ width: vpOriginal.width, height: alto });
+    await pc.waitForTimeout(300);
+    for (const [id] of MODULOS) {
+      await abrirModulo(id);
+      alcanceDist.push({ id, alto, ...(await pc.evaluate(() => {
+        const pp = document.getElementById('panel-pc');
+        const cuerpo = document.getElementById('panel-cuerpo');
+        pp.scrollTop = 0;
+        const r = document.getElementById('pp-dist').getBoundingClientRect();
+        const c = document.getElementById('panel-corte').getBoundingClientRect();
+        return { dist: Math.round(r.bottom), corte: Math.round(c.bottom),
+                 ventana: Math.round(pp.clientHeight),
+                 cuerpo: Math.round(cuerpo.clientHeight) };
+      })) });
+    }
+  }
+  await pc.setViewportSize(vpOriginal);
+  await pc.waitForTimeout(300);
+  const cortados = alcanceDist.filter(x => x.dist > x.ventana || x.corte > x.ventana);
+  m.comprobar('el campo de distancia y el corte se alcanzan sin desplazar el panel',
+    cortados.length === 0,
+    cortados.length ? cortados.map(x => x.id + ' a ' + x.alto + ': la distancia acaba en '
+        + x.dist + ' y el corte en ' + x.corte + ' de ' + x.ventana).join(' · ')
+      : 'los ocho a 900 y a 768 px · el peor deja la distancia en '
+        + Math.max(...alcanceDist.map(x => x.dist)) + ' px · al cuerpo del test le quedan '
+        + Math.min(...alcanceDist.map(x => x.cuerpo)) + ' px en el caso más apretado');
+
+  /* Y cuando los controles del test no caben, el panel lo dice. Pasar el
+     desplazamiento al cuerpo dejó la última fila cortada por el borde del
+     contenedor, y con una barra superpuesta —la de un Chromium headless, y la
+     de macOS— no hay nada que lo indique: una fila de figuras a medias sin
+     explicación es el defecto que este proyecto no se salta. */
+  await abrirModulo('infantil');
+  const desborde = await pc.evaluate(() => {
+    const c = document.getElementById('panel-cuerpo');
+    const marca = () => ({ desborda: c.classList.contains('desborda'),
+                           alFondo: c.classList.contains('al-fondo'),
+                           barra: c.offsetWidth - c.clientWidth,
+                           corte: c.scrollHeight - c.clientHeight });
+    const arriba = marca();
+    c.scrollTop = c.scrollHeight;
+    c.dispatchEvent(new Event('scroll'));
+    return { arriba, abajo: marca() };
+  });
+  await abrirModulo('relax');                 // aquí los controles SÍ caben
+  const cabe = await pc.evaluate(() => {
+    const c = document.getElementById('panel-cuerpo');
+    return { desborda: c.classList.contains('desborda'),
+             corte: c.scrollHeight - c.clientHeight };
+  });
+  m.comprobar('y si los controles del test no caben, el panel lo dice',
+    desborde.arriba.desborda && !desborde.arriba.alFondo
+      && desborde.abajo.alFondo && !cabe.desborda,
+    `fijación corta ${desborde.arriba.corte} px y lo marca `
+    + `${desborde.arriba.desborda ? 'sí' : 'NO'} (barra de ${desborde.arriba.barra} px) · `
+    + `al llegar al fondo ${desborde.abajo.alFondo ? 'se va' : 'SIGUE'} · `
+    + `relax no corta nada y ${cabe.desborda ? 'lo marca de más' : 'no lo marca'}`);
+
+  /* Y quien pide menos movimiento lo recibe — pero solo donde el movimiento es
+     adorno. Las transiciones de la interfaz (el cajón que entra, el chip que se
+     desvanece) se apagan; los movimientos y los gestos de fijación infantil NO,
+     porque ahí el movimiento ES el estímulo del test: apagarlo no es una
+     preferencia de accesibilidad, es dejar el test sin hacer. */
+  const ctxQuieto = await navegador.newContext({
+    viewport: { width: 1600, height: 900 }, reducedMotion: 'reduce' });
+  const q = await ctxQuieto.newPage();
+  await q.goto(url);
+  await q.evaluate(() => document.fonts.ready);
+  await q.waitForTimeout(1500);
+  await q.click('#card-cancel').catch(() => {});
+  await q.keyboard.press('p');
+  await q.waitForTimeout(400);
+  const quieto = await q.evaluate(() => {
+    const pp = document.getElementById('panel-pc');
+    const chip = document.getElementById('panel-pc-abrir');
+    return { panel: getComputedStyle(pp).transitionDuration,
+             chip: getComputedStyle(chip).transitionDuration };
+  });
+  await q.selectOption('#panel-modulo', 'infantil');
+  await q.waitForTimeout(700);
+  await q.keyboard.press('Escape');
+  await q.waitForTimeout(400);
+  const estimulo = await q.evaluate(() => {
+    const svg = document.querySelector('#modulo-area svg');
+    if (!svg) return null;
+    const fuera = svg.getAnimations().length;
+    const dentro = [...svg.querySelectorAll('*')]
+      .reduce((n, e) => n + e.getAnimations().length, 0);
+    return { fuera, dentro };
+  });
+  const sinMov = t => /^(0s)(,\s*0s)*$/.test(t);
+  m.comprobar('con «menos movimiento» se apaga el adorno, no el estímulo del test',
+    sinMov(quieto.panel) && sinMov(quieto.chip)
+      && !!estimulo && estimulo.fuera > 0 && estimulo.dentro > 0,
+    `el cajón ${sinMov(quieto.panel) ? 'entra sin transición' : 'sigue en ' + quieto.panel}`
+    + ` · el chip ${sinMov(quieto.chip) ? 'sin transición' : 'sigue en ' + quieto.chip}`
+    + ` · la figura ${estimulo ? estimulo.fuera + ' movimiento y ' + estimulo.dentro
+        + ' de gesto' : 'NO SE DIBUJA'}`);
+  await ctxQuieto.close();
+
   /* ── 4 · Y el panel ofrece todo lo que ofrece el mando ──────────────── */
   const faltantes = [];
   for (const [id] of MODULOS) {
@@ -535,6 +729,13 @@ export default async function pruebaPanel({ navegador, url }) {
      en la URL para que se empareje solo — el mismo camino del QR, así que no
      hay una segunda forma de emparejar que mantener. */
   if (!(await panelAbierto())) { await pc.keyboard.press('p'); await pc.waitForTimeout(300); }
+  /* Vive dentro del bloque «El equipo», plegado: no son controles del test y
+     se tocan una vez al montar la sala. Se abre como lo abriría una persona. */
+  await pc.evaluate(() => {
+    const e = document.querySelector('.pp-equipo');
+    if (e) e.open = true;
+  });
+  await pc.waitForTimeout(250);
   const hayBoton = await pc.evaluate(V => {
     const b = document.getElementById('panel-ventana');
     return !!(b && b.checkVisibility(V));

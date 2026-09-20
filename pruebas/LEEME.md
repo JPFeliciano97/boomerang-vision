@@ -5,7 +5,7 @@ npm test
 ```
 
 Levanta el servidor en un puerto libre, abre Chromium, empareja una pantalla
-con un mando **de verdad** por el código de sala, y pasa 187 comprobaciones en
+con un mando **de verdad** por el código de sala, y pasa 201 comprobaciones en
 unos tres minutos.
 
 - `0` — todo pasa
@@ -59,6 +59,7 @@ al medir píxeles dibujados:
 | `panel.mjs`       | El panel del PC, en una pantalla SIN móvil emparejado: que no asome al arrancar —esta pantalla la mira el paciente—, que abrirlo no mueva ni un píxel de lo dibujado, que desde su desplegable se llegue a los ocho módulos, y que ofrezca las 30 familias de comando que ofrece el mando. Más el mínimo de ratón, el orden de tabulación y que su lanzador no se monte sobre otro control. |
 | (`panel.mjs`)     | Y el teclado en los ocho test: que `1`–`8` lleven a los ocho y el `0` deje la pantalla sin estímulo, que un número signifique lo mismo dentro de un test que fuera —el test, no la fila—, que `↑↓` muevan el eje ordenado de cada uno y `↑` deshaga lo que hizo `↓`, y que los atajos estén anunciados en el panel — el de la `?` ya no existe, y las teclas se leen celda a celda de la tabla `ATAJOS`. Más que el pie no asome dentro de un módulo. |
 | `caidas.mjs`      | Lo que pasa cuando la conexión se cae a media prueba — el suceso más probable de todos, porque un móvil se bloquea la pantalla a los 30 s. Lo que no puede pasar: que la pantalla del paciente se quede en blanco, que el móvil vuelva a otro módulo del que está la pantalla, o que los comandos dejen de llegar sin decirlo. |
+| `sin-red.mjs`     | Lo que falla cuando falla la infraestructura y no el código, que no se ve ni en el DOM ni en píxeles. Con la red **caída de verdad** (`setOffline`), que la pantalla del paciente siga dibujando la cartilla y el panel siga llegando a los ocho test — sin móvil, que es lo único que se puede prometer sin servidor. Que el servidor comprima, y que el ahorro sea real y no una cabecera bonita: 255 KB → 70 KB y 93 → 24. Y que probar códigos de sala a lo bruto tenga freno. |
 | `calibracion.mjs` | Cuánto se puede confiar en el milímetro, y si alguien lo dice donde se lee. Siembra una calibración de tarjeta **de otra pantalla** —lo que deja un portátil desconectado del monitor de la consulta— y exige que el mando lo diga, porque dentro de un módulo la barra del PC está plegada y el pie escondido. |
 
 ## Por qué unas suites van en fila y otras a la vez
@@ -221,6 +222,15 @@ en `public/index.html` y comprobando que la ejecución se pone roja:
 | el panel abriéndose solo en cada repintado | `el panel no se abre solo tras siete pulsaciones` — hereda el defecto que tenía la barra de calibración |
 | la distancia sin efecto visible al cambiarla | `cambiarla mueve la geometría que el test declara` — al acercar medio metro, el 20/20 mide menos en la misma proporción |
 | la configuración inicial plantándose en cada arranque | `solo se pide la primera vez` |
+| `#modulo-nombre` con las reglas que tenía en la barra | `el rótulo del panel cabe en el panel` — se salía entre 182 y 495 px de una caja de 363 |
+| optotipos sin rótulo | `los ocho declaran su geometría` — «optotipos: «»» |
+| el umbral de trazo en 2 px | `el aviso de trazo fino llega al mando` — la 20/10 pide 2,6 px y nada saltaba |
+| el aviso de calibración solo en el pie | `sin móvil lo dice la propia pantalla, sin abrir el panel` — «nadie lo dice» |
+| el panel como una lista con un solo desplazamiento | `el campo de distancia se alcanza sin desplazar` — en fijación acababa en el píxel 1017 de 900 |
+| `prefers-reduced-motion` sin atender | `se apaga el adorno, no el estímulo` — el cajón seguía en 0,22 s |
+| `app.use(compression())` quitado | `el servidor comprime las dos páginas, y de verdad` — 255 KB → 255 KB, ×1,0 |
+| el freno del `join` en 10.000 uniones | `probar códigos de sala a lo bruto tiene freno` — 25 respuestas y nadie corta |
+| `public/sw.js` apartado | cuatro comprobaciones, incluida `con la red caída la pantalla del paciente sigue dibujando` — «se quedó en blanco: el paciente sin nada y sin una palabra» |
 | el gesto de la figura sin colgar de `svg.inf-viva` | `congelar para también el gesto de dentro de la figura` — «sigue animándose: dentro [bv-g-pelota]» |
 | las alas de la mariposa a `scaleX(1.9)` | `ninguna se sale del cuadro que el test declara, ni se recorta` — tinta tocando el borde en 7 de 12 fases |
 | el recuento de tinta en vez de la firma de píxeles | `el gesto mueve tinta de verdad` — acusaba a la carita de estar quieta mientras parpadeaba: los ojos son dos óvalos DENTRO de la cara y la silueta no cambia ni un píxel |
@@ -253,6 +263,24 @@ Y sigue encontrándolos. Dos del mismo tipo, los dos en `panel.mjs`:
   corrido y buscaba `\bP\b`. Con las celdas pegadas —«…del testPabrir y cerrar
   este panel»— no hay límite de palabra, así que acusaba al panel de no anunciar
   la `P` y la `N`, que sí anunciaba. Ahora se leen las celdas una por una.
+
+Y la tanda de la red trajo **dos más, las dos del tipo que deja una suite en
+verde sin comprobar nada**, encontradas justo por reinyectar el defecto:
+
+- La del freno del emparejamiento marcaba «se desconectó» con cualquier
+  desconexión — y la que llega siempre es la del `close()` de la propia prueba.
+  Con el freno quitado a propósito seguía en verde. Ahora mira el MOTIVO: lo
+  que se busca es `io server disconnect`, o sea que corte el servidor.
+- `navigator.serviceWorker.ready` **no falla cuando no hay service worker: se
+  queda esperando para siempre**. Sin una carrera contra un reloj, apartar el
+  fichero no ponía la prueba en rojo — colgaba la suite entera, que es peor,
+  porque un fallo que no se puede leer no es un fallo que sirva.
+
+Y una tercera, de otro tipo: el corredor llevaba escrito a mano que esperaba
+**diez** marcadores. Al añadir la suite «sin red» contó un fallo que no era de
+nadie —el aviso salía por la salida de errores y no había ninguna fila roja que
+lo explicara—. El guardián hacía su trabajo pero se equivocaba de culpable; el
+número sale ahora de las listas de suites.
 
 Y una más, del tipo «control que no controla nada»: la comprobación de que el
 cero dibujado no lleva barra compara el centro de la O con el de **otro dígito

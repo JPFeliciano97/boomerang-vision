@@ -735,5 +735,46 @@ export default async function pruebaModulos({ pc, tel, abrir }) {
   /* Dejar el mando en el tamaño de referencia para las suites siguientes. */
   await tel.setViewportSize({ width: 412, height: 915 });
   await tel.waitForTimeout(400);
+  /* ── El aviso de optotipos llega al mando ──────────────────────────────
+     Los cinco módulos de sala llevan su veredicto hasta el menú del móvil,
+     ANTES de entrar. Optotipos no llevaba el suyo a ningún sitio: el «no cabe»
+     y el «la pantalla no resuelve esta línea» se escribían en la línea de la
+     escala del panel del PC —y solo ahí—. Con el panel cerrado, o con el móvil
+     en la mano, que una línea salga hecha un borrón era silencioso, y es lo
+     único que puede falsear una agudeza sin que se note: los optotipos salen
+     perfectos y mal medidos.
+
+     No hay que forzar nada raro para verlo. La última pantalla, a 6 m, en un
+     monitor de 24″ y 1600×900 —el equipo de esta suite— pide un trazo de 3,9 px
+     en la 20/15 y de 2,6 px en la 20/10. */
+  await abrir('Optotipos');
+  await pc.waitForTimeout(500);
+  const leerAviso = () => tel.evaluate(() => {
+    const e = document.getElementById('opto-aviso');
+    return { hay: !!e, txt: e ? (e.textContent || '').replace(/\s+/g, ' ').trim() : '',
+             visible: !!(e && e.checkVisibility()) };
+  });
+  const declarado = () => pc.evaluate(() =>
+    (document.getElementById('modulo-nombre') || {}).textContent || '');
+
+  const arriba = await leerAviso();          // pantalla 1: nada que avisar
+  for (let i = 0; i < 5; i++) { await tel.click('#opto-nivel-bajar').catch(() => {}); await pc.keyboard.press('ArrowDown'); await pc.waitForTimeout(120); }
+  await pc.waitForTimeout(700);
+  const fina = await leerAviso();
+  const declFina = await declarado();
+  /* Y volver arriba, que es donde las suites siguientes esperan la cartilla. */
+  for (let i = 0; i < 6; i++) { await pc.keyboard.press('ArrowUp'); await pc.waitForTimeout(80); }
+  await pc.waitForTimeout(600);
+  const vuelta = await leerAviso();
+
+  m.comprobar('el aviso de trazo fino de optotipos llega al mando, no solo al panel',
+    fina.hay && fina.visible && /no la[s]? resuelve/.test(fina.txt) && /20\/10/.test(fina.txt)
+      && /⚠/.test(declFina) && !arriba.visible && !vuelta.visible,
+    !fina.hay ? 'el mando no tiene dónde ponerlo'
+      : `pantalla 1 ${arriba.visible ? 'AVISA (no debería)' : 'limpia'}`
+        + ` · pantalla 6 el mando dice «${fina.txt.slice(0, 62)}»`
+        + ` · el panel «${(declFina.match(/⚠.*/) || ['—'])[0].slice(0, 44)}»`
+        + ` · al volver arriba ${vuelta.visible ? 'SIGUE puesto' : 'se va'}`);
+
   return m;
 }

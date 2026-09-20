@@ -158,9 +158,12 @@ export default async function pruebaRegresiones({ pc, tel, abrir }) {
   /* Con `evaluate` y no con `textContent`: el segundo ESPERA al selector, y una
      espera de 30 s dentro de una suite se la lleva entera por delante en vez de
      dar un fallo legible. Aquí no hace falta esperar a nada. */
+  /* El 20/20 se lee de LA DECLARACIÓN, que es donde optotipos dice su
+     geometría. Antes estaba en la línea de la escala y el rótulo del módulo
+     quedaba vacío en optotipos: ahora hay un solo sitio donde se declara. */
   const veinte = async () => +(((await pc.evaluate(() =>
-    (document.getElementById('info-span') || {}).textContent || '')) || '')
-    .match(/20\/20: ([\d.]+)mm/) || [])[1];
+    (document.getElementById('modulo-nombre') || {}).textContent || '')) || '')
+    .match(/20\/20 mide ([\d.]+) mm/) || [])[1];
   const antesDist = await pc.evaluate(() => +document.getElementById('pp-dist').value);
   const mmAntes = await veinte();
   await pc.click('#pp-dist-menos');
@@ -236,8 +239,8 @@ export default async function pruebaRegresiones({ pc, tel, abrir }) {
   m.comprobar('la tecla C abre la configuración inicial', dialogoAbierto);
   if (dialogoAbierto) {
     const veinte = async () => +(((await pc.evaluate(() =>
-      (document.getElementById('info-span') || {}).textContent || '')) || '')
-      .match(/20\/20: ([\d.]+)mm/) || [])[1];
+      (document.getElementById('modulo-nombre') || {}).textContent || '')) || '')
+      .match(/20\/20 mide ([\d.]+) mm/) || [])[1];
     const antes = await veinte();
     await pc.fill('#test-distance', '3');
     await pc.click('#card-cancel');           // cancelar NO aplica

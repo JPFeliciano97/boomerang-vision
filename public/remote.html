@@ -9,6 +9,20 @@
          pellizco: aquí no hay nada que ampliar, y uno accidental deja la
          interfaz desplazada con el operador buscando el botón. -->
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <link rel="manifest" href="/manifest.webmanifest">
+    <link rel="icon" href="/icono.svg" type="image/svg+xml">
+    <meta name="theme-color" content="#111111">
+    <!-- EL SERVICE WORKER, que es lo que hace que un parpadeo del Wi-Fi no deje
+         la pantalla del paciente muerta a mitad de examen. Se registra tarde y
+         en silencio: si falla no se nota, porque con red la app funciona igual.
+         Ver public/sw.js para lo que guarda y lo que no. -->
+    <script>
+        if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js').catch(() => {});
+            });
+        }
+    </script>
     <title>Control Remoto Boomerang</title>
     <script src="/socket.io/socket.io.js"></script>
     <style>
@@ -52,6 +66,13 @@
         }
         /* `clip` recorta el desbordamiento lateral SIN crear scroll container,
            que es justo la diferencia que importa aquí. */
+
+        /* Menos movimiento donde es adorno. En el mando no hay estímulo: todo
+           lo que se mueve aquí es interfaz, así que se apaga entero. */
+        @media (prefers-reduced-motion: reduce) {
+            * { transition: none !important; }
+        }
+
         body { touch-action: pan-y; overflow-x: clip; }
 
         :root {
@@ -560,6 +581,16 @@
         .nivelador .valor .r {
             font-size: 8px; text-transform: uppercase; letter-spacing: 1px; color: #666;
         }
+        /* El aviso de geometría: se esconde cuando no hay nada que avisar, en
+           vez de ocupar una línea vacía en un panel que ya es largo. */
+        .aviso-geo { display: none; }
+        .aviso-geo.puesto {
+            display: block;
+            margin: 10px 0 0; padding: 9px 11px;
+            background: #2a1c14; border: 1px solid #56392a; border-radius: 9px;
+            color: #e8a072; font-size: 12px; line-height: 1.45;
+        }
+
         #opto-lineas {
             font-family: monospace; font-size: 11px; color: #777;
             text-align: center; padding-top: 8px;
@@ -649,6 +680,11 @@
                 <div class="hueco"></div>
             </div>
             <div id="opto-lineas"></div>
+            <!-- Que la cartilla no quepa, o que la pantalla no tenga rejilla
+                 para el trazo de una línea, es lo único que puede falsear una
+                 medida de agudeza sin que se note: los optotipos salen
+                 perfectos y mal medidos. Vivía solo en el panel del PC. -->
+            <div id="opto-aviso" class="aviso-geo"></div>
 
             <div class="grupo-tit">Presentación</div>
             <button class="conmut" id="btn-resaltar" onclick="enviar('KeyR')">
@@ -947,6 +983,9 @@
             $r('opto-pantallas').textContent = data.pantallas ?? 6;
             $r('opto-lineas').textContent = (data.lines || [])
                 .map(l => '20/' + l.snellen).join('  \u00b7  ');
+            const av = $r('opto-aviso');
+            av.textContent = data.aviso || '';
+            av.classList.toggle('puesto', !!data.aviso);
         }
 
         /* El espejo no está a escala: es una vista previa y todas las líneas se

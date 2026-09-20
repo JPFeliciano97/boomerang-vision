@@ -101,6 +101,40 @@ export default async function pruebaCalibracion({ navegador, url }) {
     aLaVista.barra ? 'la barra del PC ha vuelto' :
       (aLaVista.abierto ? 'el panel está abierto' : 'el panel está cerrado y no hay barra'));
 
+  /* Pero SIN MÓVIL tiene que decirlo igual, y ahí estaba el agujero. El aviso
+     vive en el pie, y `body.en-modulo #footer { display:none }` lo esconde
+     dentro de un test. En el camino PC-sin-móvil —el que el panel de control
+     abrió—, dentro de un módulo y con el panel cerrado, nada lo decía: arrastrar
+     la ventana al proyector dejaba toda la geometría mal en silencio, y una
+     medida mal tomada que nadie nota es el peor fallo de este sistema.
+
+     Lo que se exige: algo VISIBLE en la pantalla del PC que lo diga, sin abrir
+     el panel, y FUERA de la cartilla — el estímulo no se toca. */
+  const sinAbrirNada = await pc.evaluate(() => {
+    const V = { visibilityProperty: true, opacityProperty: true };
+    const area = document.getElementById('modulo-area');
+    const lineas = document.getElementById('lines-container');
+    const panel = document.getElementById('panel-pc');
+    const dice = [];
+    for (const e of document.querySelectorAll('body *')) {
+      if (!e.childElementCount && /recalibr|otra pantalla|cambi[óo] la pantalla/i
+            .test(e.textContent || '') && e.checkVisibility(V)) {
+        dice.push({ q: e.id || e.className || e.tagName,
+                    enCartilla: !!(area && area.contains(e)) || !!(lineas && lineas.contains(e)),
+                    enPanel: !!(panel && panel.contains(e)),
+                    txt: (e.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 40) });
+      }
+    }
+    return dice;
+  });
+  const fuera = sinAbrirNada.filter(x => !x.enPanel && !x.enCartilla);
+  const enCartilla = sinAbrirNada.filter(x => x.enCartilla);
+  m.comprobar('y sin móvil lo dice la propia pantalla, sin abrir el panel y fuera de la cartilla',
+    fuera.length > 0 && enCartilla.length === 0,
+    enCartilla.length ? 'lo escribe SOBRE la cartilla: ' + enCartilla[0].q
+      : fuera.length ? '«' + fuera[0].txt + '» en ' + fuera[0].q
+      : 'nadie lo dice: la medida es de otra pantalla y el estímulo parece medido');
+
   const enMando = (await tel.textContent('#vista-modulo') || '').replace(/\s+/g, ' ');
   m.comprobar('el mando avisa de que la calibración no es de esta pantalla',
     /recalibr|otra pantalla|cambi[óo] la pantalla/i.test(enMando),

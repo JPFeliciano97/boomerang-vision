@@ -4,6 +4,20 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>BOOMERANG VISION | Test de Agudeza Visual Profesional</title>
+    <link rel="manifest" href="/manifest.webmanifest">
+    <link rel="icon" href="/icono.svg" type="image/svg+xml">
+    <meta name="theme-color" content="#111111">
+    <!-- EL SERVICE WORKER, que es lo que hace que un parpadeo del Wi-Fi no deje
+         la pantalla del paciente muerta a mitad de examen. Se registra tarde y
+         en silencio: si falla no se nota, porque con red la app funciona igual.
+         Ver public/sw.js para lo que guarda y lo que no. -->
+    <script>
+        if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js').catch(() => {});
+            });
+        }
+    </script>
     <script src="/socket.io/socket.io.js"></script>
     <!-- QR generado en local: el código de emparejamiento no sale de aquí -->
     <script src="/qrcode.js"></script>
@@ -290,6 +304,26 @@
             transform-origin: 30px 30px;
         }
 
+        /* ═══ MENOS MOVIMIENTO, PERO NO MENOS TEST ═══
+           Quien pide `prefers-reduced-motion` lo pide por mareo o por
+           fotosensibilidad, y hay que hacerle caso — en el ADORNO: el cajón que
+           entra deslizándose, el chip que se desvanece, las transiciones de
+           color de los botones.
+
+           Y NO en el estímulo. Los cuatro movimientos y los nueve gestos de
+           fijación infantil son el test: un niño de dos años mira lo que se
+           mueve, y apagarlo no es una preferencia de accesibilidad, es dejar la
+           prueba sin hacer. Si alguien necesita la figura quieta ya existe el
+           botón CONGELAR, que es una decisión del optometrista y no del sistema
+           operativo. Por eso esto enumera lo que apaga en vez de usar el
+           `* { animation: none }` de manual. */
+        @media (prefers-reduced-motion: reduce) {
+            #panel-pc, #panel-pc-abrir, #panel-pc button, #panel-pc select,
+            #test-area, .remote-status, #card-cal, .pp-conf, .pp-corte {
+                transition: none !important;
+            }
+        }
+
         #test-area {
             flex:1; position:relative; cursor:none; overflow:hidden;
             background:#FFFFFF; transition:background 0.2s;
@@ -327,12 +361,6 @@
            asomar en los siete módulos, a la vista del paciente y gastando
            alto. Hay una comprobación que lo mide (pruebas/panel.mjs). */
         body.en-modulo #footer { display:none; }
-
-        #modulo-nombre {
-            font-family: var(--ui);
-            font-size:11px; letter-spacing:1.6px; color:#7a7a7a;
-            text-transform:uppercase; white-space:nowrap;
-        }
 
         #lines-container {
             position:absolute;
@@ -503,20 +531,59 @@
            `visibility: hidden` es además la señal que `checkVisibility()` lee,
            así que «cerrado» significa lo mismo para el navegador y para la
            prueba. */
+        /* EL PANEL ES UN ARMAZÓN, no una lista larga. Era una columna con un
+           solo desplazamiento, y eso dejaba abajo del pliegue lo que no se
+           puede dejar abajo: la distancia de la sala, que es editable aquí a
+           propósito. Medido en el módulo de fijación a 900 px de alto, el campo
+           acababa en el píxel 1017 — había que desplazar para corregir un
+           número, que es la misma molestia que tenía detrás del diálogo.
+
+           Ahora lo que se desplaza es SOLO el cuerpo del test (`#panel-cuerpo`,
+           entre 137 y 491 px según el módulo): la cabecera y el pie —el corte,
+           los atajos, la sala, el equipo— se quedan siempre a la vista, a
+           cualquier alto de ventana. Los controles del test son lo único que
+           puede crecer, así que son lo único que se desplaza. */
         #panel-pc {
             position: fixed; top: 0; right: 0; z-index: 900;
             width: 400px; max-width: 100vw; height: 100vh;
             box-sizing: border-box; padding: 0 18px 20px;
-            overflow-y: auto; overscroll-behavior-y: contain;
+            display: flex; flex-direction: column;
+            overflow: hidden;
             background: #101010; border-left: 1px solid #2a2a2a;
             box-shadow: -18px 0 46px rgba(0,0,0,0.6);
             font-family: var(--ui); color: #e8e8e8;
             visibility: hidden; transform: translateX(100%);
             transition: transform .22s ease, visibility .22s;
         }
+        /* Nada crece salvo el cuerpo. Sin esto el flex reparte el alto entre
+           todos y el cuerpo del test se queda sin sitio. */
+        #panel-pc > * { flex: 0 0 auto; }
+        #panel-cuerpo {
+            flex: 1 1 auto; min-height: 0; overflow-y: auto;
+            /* Sin `overscroll-behavior`: la rueda tiene que encadenar hacia el
+               panel cuando aquí no hay nada que desplazar. Un contenedor de
+               desplazamiento vacío que se queda el gesto es el defecto que ya
+               dejó el mando sin poder deslizar. */
+        }
         body.panel-abierto #panel-pc { visibility: visible; transform: none; }
-        #panel-pc::-webkit-scrollbar { width: 9px; }
-        #panel-pc::-webkit-scrollbar-thumb { background: #2e2e2e; border-radius: 5px; }
+        #panel-cuerpo::-webkit-scrollbar { width: 9px; }
+        #panel-cuerpo::-webkit-scrollbar-thumb { background: #2e2e2e; border-radius: 5px; }
+        /* Y QUE SE VEA QUE HAY MÁS. Al pasar el desplazamiento al cuerpo, la
+           última fila de controles queda cortada por el borde del contenedor, y
+           en un Chromium con barra superpuesta no hay nada que lo diga: una fila
+           de figuras a medias sin explicación es el mismo defecto que este
+           proyecto no se salta en la pantalla del paciente. La marca la pone
+           `marcarDesborde()`, que mide, y se va al llegar al final. */
+        #panel-cuerpo { scrollbar-width: thin; scrollbar-color: #2e2e2e transparent; }
+        #panel-cuerpo.desborda:not(.al-fondo) {
+            mask-image: linear-gradient(to bottom, #000 calc(100% - 26px), transparent);
+        }
+        #panel-cuerpo.desborda:not(.al-fondo)::after {
+            content: 'hay más abajo';
+            display: block; text-align: center; padding: 4px 0 2px;
+            font-family: var(--ui); font-size: 9.5px; letter-spacing: 1px;
+            color: #6e6e6e;
+        }
 
         /* El lanzador no está a la vista del paciente: aparece cuando alguien
            mueve el ratón, igual que el cursor, y se va solo. El atajo de
@@ -535,6 +602,17 @@
             opacity: 0; pointer-events: none; transition: opacity .25s ease;
         }
         body.raton-vivo #panel-pc-abrir { opacity: 0.82; pointer-events: auto; }
+        /* Con la medida de otra pantalla el chip no espera al ratón: es lo
+           único que lo dice en el camino PC-sin-móvil. */
+        body.cal-obsoleta #panel-pc-abrir {
+            opacity: 1; pointer-events: auto;
+            background: #241a12; border-color: #6b482f; color: #e8a072;
+        }
+        #panel-pc-abrir .alerta { display: none; }
+        body.cal-obsoleta #panel-pc-abrir .alerta {
+            display: inline; font-family: var(--ui); font-size: 11.5px;
+            letter-spacing: 0.6px; color: #e8a072;
+        }
         body.raton-vivo #panel-pc-abrir:hover { opacity: 1; background: #232323; border-color: #454545; }
         body.panel-abierto #panel-pc-abrir { opacity: 0 !important; pointer-events: none; }
         #panel-pc-abrir .tecla {
@@ -585,6 +663,12 @@
         }
         .pp-geo:empty { display: none; }
         .pp-geo .lim { color: #c9a870; }
+        /* El aviso va DENTRO de la declaración y con su propio color: es la
+           misma frase que dice la cifra la que dice que la cifra no se puede
+           dibujar. Separarlos dejaba el aviso en una línea que el operador no
+           mira. */
+        .pp-geo .avi { color: #e08a5f; }
+        #panel-geo:has(.avi) { border-color: #4a3324; background: #1a1411; }
 
         /* Los grupos de 2–4 opciones van como botones: se ven todos a la vez y
            se pulsan en un gesto. Solo se pliega en desplegable lo que no cabe
@@ -676,17 +760,17 @@
         /* El emparejamiento, plegado: hace falta una vez por sala y después
            estorba. El código de sala queda a la vista en el título, que es lo
            que se dicta por teléfono. */
-        .pp-rotulo {
-            font-family: var(--ui); font-size: 10.5px; letter-spacing: 1.4px;
-            color: #6e6e6e; line-height: 1.5; margin-bottom: 4px;
-        }
-        .pp-rotulo:empty, .pp-info:empty { display: none; }
+        .pp-info:empty { display: none; }
         .pp-info {
             font-family: var(--num); font-size: 9.5px; color: #5a5a5a;
             margin-bottom: 12px; line-height: 1.5;
         }
 
         .pp-sala { margin-top: 18px; padding-top: 14px; border-top: 1px solid #222; }
+        /* Dentro del bloque plegado los botones no llevan el margen que tenían
+           cuando colgaban del panel. */
+        .pp-equipo .pp-conf { margin-top: 10px; }
+        .pp-equipo .pp-pie { margin-top: 12px; padding-top: 10px; }
         .pp-dist { display: flex; align-items: center; gap: 8px; }
         .pp-dist button {
             width: 44px; height: 44px; flex-shrink: 0; cursor: pointer;
@@ -805,7 +889,14 @@
          La distancia de la sala NO se toca desde aquí: se declara una vez, en
          la configuración inicial, y en ningún otro sitio. -->
     <button id="panel-pc-abrir" type="button" title="Controles (P)">
-        <span class="txt">Controles</span><span class="tecla">P</span>
+        <span class="txt">Controles</span><span class="tecla">P</span><!--
+        Y el aviso de calibración, que sin esto no se decía en ningún sitio
+        alcanzable. Vive en el pie, y el pie se esconde dentro de un módulo; con
+        el panel cerrado y sin móvil, arrastrar la ventana a otra pantalla
+        dejaba toda la geometría mal en silencio. Va aquí y no sobre la
+        cartilla: el estímulo no se toca. Y con él puesto el chip se queda a la
+        vista, en vez de asomar solo cuando el ratón se mueve. -->
+        <span class="alerta" id="panel-alerta"></span>
     </button>
     <aside id="panel-pc" aria-label="Panel de control">
         <div class="pp-cabecera">
@@ -819,11 +910,14 @@
             <label class="pp-rot" for="panel-modulo">Test</label>
             <select id="panel-modulo"></select>
         </div>
-        <div class="pp-geo" id="panel-geo" role="status" aria-live="polite"></div>
-        <!-- El rótulo que el operador lee y la cifra de la escala: estaban en
-             la barra de arriba, a la vista del paciente. Aquí siguen
-             actualizándose siempre, con el panel abierto o cerrado. -->
-        <div class="pp-rotulo"><span id="modulo-nombre"></span></div>
+        <!-- LA DECLARACIÓN, y solo una. El rótulo del operador y la caja de
+             geometría eran el mismo texto en dos líneas —`ppGeo()` sacaba la
+             segunda de la primera con un `split`— y la de arriba se salía del
+             panel 495 px, porque conservaba el `white-space: nowrap` que tenía
+             cuando vivía en una barra de 1600 px de ancho. Ahora el rótulo ES
+             la región viva: se pliega, se anuncia y se escribe en un sitio. -->
+        <div class="pp-geo" id="panel-geo" role="status" aria-live="polite"><span
+            id="modulo-nombre"></span></div>
         <div class="pp-info"><span id="info-span"></span></div>
         <div id="panel-cuerpo"></div>
         <button type="button" id="panel-corte" class="pp-corte" data-cmd="Corte">
@@ -857,30 +951,38 @@
             <div class="pp-dist-nota" id="pp-dist-nota"></div>
         </div>
 
-        <details class="pp-mando">
-            <summary><span>Conectar el m&oacute;vil</span><span class="pp-cod"
+        <!-- EL EQUIPO, en un solo bloque plegado. Eran cuatro sueltos —el
+             QR, la otra ventana, la configuración y el estado— y entre los
+             cuatro se llevaban 190 px del pie del panel. No son controles del
+             test: se tocan una vez al montar la sala. Plegados, la distancia
+             de la sala vuelve a caber sin desplazar el panel, que era lo que
+             se perdía. El código de sala se queda en el título, que es lo que
+             se dicta por teléfono. -->
+        <details class="pp-mando pp-equipo">
+            <summary><span>El equipo y el m&oacute;vil</span><span class="pp-cod"
                 id="panel-cod">&hellip;</span></summary>
             <div class="pp-mando-cuerpo">
                 <div id="qr-panel"></div>
                 <div class="pp-mando-txt">Escanee el c&oacute;digo, o escriba el c&oacute;digo de
                     sala en el navegador del m&oacute;vil. El mando y este panel manejan lo
                     mismo: el que sobra es el que no tenga a mano.</div>
+                <!-- El arreglo de verdad para lo único que el panel compromete:
+                     que tape parte de la cartilla. Esto abre EL MANDO en su
+                     propia ventana, ya emparejado con esta pantalla — se
+                     arrastra al segundo monitor y la pantalla del paciente se
+                     queda limpia. No es una interfaz nueva: es el mando de
+                     siempre, emparejado solo. -->
+                <button type="button" class="pp-conf" id="panel-ventana">
+                    <span>Abrir los controles en otra ventana</span>
+                    <span class="val">para el segundo monitor</span>
+                </button>
+                <button type="button" class="pp-conf" id="panel-conf">
+                    <span>Configuraci&oacute;n inicial</span>
+                    <span class="val">distancia y medida &middot; C</span>
+                </button>
+                <div class="pp-pie" id="panel-estado"></div>
             </div>
         </details>
-        <!-- El arreglo de verdad para lo único que el panel compromete: que
-             tape parte de la cartilla. Esto abre EL MANDO en su propia ventana,
-             ya emparejado con esta pantalla — se arrastra al portátil o al
-             segundo monitor y la pantalla del paciente se queda limpia. No es
-             una interfaz nueva: es el mando de siempre, emparejado solo. -->
-        <button type="button" class="pp-conf" id="panel-ventana">
-            <span>Abrir los controles en otra ventana</span>
-            <span class="val">para el segundo monitor</span>
-        </button>
-        <button type="button" class="pp-conf" id="panel-conf">
-            <span>Configuraci&oacute;n inicial</span>
-            <span class="val">distancia y medida &middot; C</span>
-        </button>
-        <div class="pp-pie" id="panel-estado"></div>
     </aside>
 
     <!-- Aquí estaba la barra de calibración: distancia, ⚙ CONFIGURACIÓN, el
@@ -2158,6 +2260,19 @@
             });
 
             const TOTAL_SCREENS = SCREENS.length;
+
+            /* El nombre del modo para la declaración, en una tabla y no en un
+               `if`: el panel y el mando ya tienen los suyos y este es el
+               tercero, así que al menos que se lea de un sitio. */
+            const MODOS_ROTULO = { letters: 'letras', numbers: 'números',
+                                   pediatric: 'LEA', e_directional: 'E direccional' };
+            /* Píxeles de dispositivo mínimos del detalle crítico (1/5 del alto)
+               para que la pantalla dibuje un optotipo reconocible. Ver el
+               comentario largo en renderOptotipos(). */
+            const TRAZO_MIN_PX = 4;
+            /* El aviso de optotipos, para que viaje en el espejo hasta el mando.
+               Lo escribe renderOptotipos() y lo lee construirEspejo(). */
+            let avisoOptotipos = '';
             const TOTAL_LINES = ALL_LINES.length;
 
             const state = {
@@ -2186,7 +2301,7 @@
 
             const $ = id => document.getElementById(id);
             const d = {
-                testDistance:$('test-distance'), distSala:$('dist-sala'), monitorSize:$('monitor-size'),
+                testDistance:$('test-distance'), monitorSize:$('monitor-size'),
                 qrConfig:$('qr-config'), pairCodeConfig:$('pair-code-config'),
                 qrPanel:$('qr-panel'), panelCod:$('panel-cod'),
                 btnCardCal:$('btn-card-cal'), cardCal:$('card-cal'), cardShape:$('card-shape'),
@@ -2379,7 +2494,6 @@
                     state.calSource = 'monitor';
                 }
                 state.isCalibrated = state.cssPxPerMM > 0;
-                if (d.distSala) d.distSala.textContent = state.testDistanceM;
                 updateCalStatus();
             }
             function updateRemoteStatus(peers){
@@ -2397,6 +2511,16 @@
                 else                          { txt = '◐ ESTIMADO POR MONITOR';    cls = 'estimated-text'; }
                 d.calStatus.textContent = txt;
                 d.calStatus.className = 'cal-status ' + cls;
+                /* La misma verdad, en el único sitio que se alcanza sin abrir
+                   nada y sin móvil. Sale de aquí para que no haya dos cálculos
+                   de «hay que recalibrar». */
+                const alerta = document.getElementById('panel-alerta');
+                const mal = !state.isCalibrated || state.calStale;
+                document.body.classList.toggle('cal-obsoleta', mal);
+                if (alerta) {
+                    alerta.textContent = !state.isCalibrated ? '⚠ SIN CALIBRAR'
+                        : state.calStale ? '⚠ CAMBIÓ LA PANTALLA: RECALIBRE' : '';
+                }
             }
 
 
@@ -2644,7 +2768,9 @@
                 }
                 if (esOpto) {
                     d.testArea.style.background = '';
-                    d.moduloNombre.textContent = '';
+                    /* El rótulo lo escribe renderOptotipos(), que es quien tiene
+                       las cifras. Borrarlo aquí era lo que dejaba a optotipos
+                       sin declarar nada. */
                     renderOptotipos();
                 } else if (m.id === 'menu') {
                     d.moduloArea.style.background = '#000000';
@@ -2770,6 +2896,11 @@
                     corte: state.corte
                 };
                 if (m.id === 'optotipos' && state.isCalibrated) {
+                    /* El aviso de que la cartilla no cabe o que la pantalla no
+                       resuelve una línea viaja AQUÍ. Vivía solo en el panel del
+                       PC, y el camino original de esta suite es el móvil: el
+                       operador que la maneja con el móvil no se enteraba. */
+                    datos.aviso = avisoOptotipos;
                     const screen = getCurrentScreen();
                     datos.lines = screen.lines.map((line, li) => ({
                         snellen: line.snellen.split('/')[1],
@@ -2987,8 +3118,16 @@
                 if (hayMovil) window.remoteSocket.emit('screenUpdate', datos);
             }
 
-            // Un módulo declarado pero sin construir lo dice en la pantalla, en
-            // vez de dejarla en blanco y parecer que algo se rompió.
+            /* Un módulo declarado pero sin construir lo dice en la pantalla, en
+               vez de dejarla en blanco y parecer que algo se rompió.
+
+               NO es código muerto, aunque hoy los ocho módulos estén hechos y
+               nadie llame a esto: es el `else` del despachador. El día que
+               alguien añada un noveno a MODULOS y se olvide del renderizador,
+               esto es lo único que separa al paciente de una pantalla en negro
+               sin una palabra, que es la regla que este proyecto no se salta.
+               Lo mismo vale para `ppPendiente()` en el panel y para el
+               veredicto «pendiente» del menú. */
             function renderPendiente(m){
                 d.moduloArea.style.background = '#000000';
                 d.moduloArea.innerHTML =
@@ -3000,7 +3139,12 @@
 
             function renderOptotipos(){
                 d.linesContainer.innerHTML='';
-                if(!state.isCalibrated) return;
+                if(!state.isCalibrated){
+                    d.moduloNombre.textContent = 'Optotipos · sin calibrar: '
+                        + 'mida la pantalla con una tarjeta (tecla C)';
+                    avisoOptotipos = '';
+                    return;
+                }
                 const screen = getCurrentScreen();
                 d.linesContainer.style.gap = '0px';   // la separación vertical la pone cada línea
                 const rows = [];
@@ -3065,8 +3209,7 @@
                 });
 
                 const mm20_20 = optotypeHeightMM(1.0,state.testDistanceM);
-                d.infoSpan.textContent = textoCalibracion() +
-                    ` · 20/20: ${mm20_20.toFixed(2)}mm → ${cssHeight(mm20_20).toFixed(1)}px`;
+                d.infoSpan.textContent = textoCalibracion();
 
                 // Con tamaños y separaciones físicas hay combinaciones de monitor y
                 // distancia en las que una pantalla ya no cabe. Avisarlo, en vez de
@@ -3079,25 +3222,71 @@
                 });
                 const tooTall = cont.top < area.top - 1 || cont.bottom > area.bottom + 1;
 
-                // El detalle crítico de un optotipo es 1/5 de su altura. Por
-                // debajo de 2 px de dispositivo la pantalla no tiene rejilla
-                // para dibujar la línea, aunque el tamaño en mm sea correcto.
-                const finest = Math.min(...screen.lines.map(l => cssHeight(optotypeHeightMM(l.decimal, state.testDistanceM))));
-                const strokeDev = finest * liveDpr() / 5;
-                const tooFine = strokeDev < 2;
+                /* Y el otro extremo, el que faltaba. El detalle crítico de un
+                   optotipo es 1/5 de su altura, y una pantalla no puede dibujar
+                   un trazo más fino que su propia rejilla: el tamaño en mm sale
+                   correcto y la letra sale hecha un borrón gris.
 
-                d.infoSpan.classList.toggle('overflow', tooWide || tooTall || tooFine);
-                if (tooWide || tooTall) d.infoSpan.textContent += '  ⚠ no cabe: use un monitor mayor o acorte la distancia';
-                else if (tooFine) d.infoSpan.textContent += `  ⚠ trazo de ${strokeDev.toFixed(1)} px: la pantalla no resuelve esta línea`;
+                   Es la misma regla que quitó dos filas del Pelli-Robson —«lo
+                   que la pantalla no puede emitir no se pide»— aplicada a la
+                   RESOLUCIÓN en vez de al contraste. El umbral estaba en 2 px y
+                   no saltaba nunca: medido a 6 m en un 24″ de 1600×900, el
+                   trazo es 5,3 px en la 20/20, 3,9 px en la 20/15 y 2,6 px en la
+                   20/10, así que la cartilla pedía 2,6 y el aviso esperaba 2.
+                   Cuatro píxeles es el mínimo con el que el antialiasing deja
+                   reconocible un carácter de Sloan. */
+                const finas = ALL_LINES
+                    .filter(l => l.screenIndex === state.currentScreenIdx)
+                    .map(l => ({ snellen: l.snellen,
+                                 trazo: cssHeight(optotypeHeightMM(l.decimal, state.testDistanceM))
+                                        * liveDpr() / 5 }))
+                    .filter(l => l.trazo < TRAZO_MIN_PX);
+
+                /* LA DECLARACIÓN DE OPTOTIPOS. Antes esto era una cadena vacía:
+                   el módulo por el que existe toda la calibración era el único
+                   que no declaraba su geometría, así que el panel caía a
+                   «Optotipos · 6 pantallas» — ni el 20/20 en mm, ni la línea,
+                   ni el trazo. Y el aviso vivía solo en la línea de la escala,
+                   dentro del panel: con el panel cerrado o el móvil en la mano,
+                   una línea que no cabe era silenciosa. */
+                const lineas = screen.lines;
+                const rango = lineas.length > 1
+                    ? lineas[0].snellen + ' a ' + lineas[lineas.length - 1].snellen
+                    : lineas[0].snellen;
+                const masFina = lineas.reduce((a, b) => b.decimal > a.decimal ? b : a);
+                const trazoFino = cssHeight(optotypeHeightMM(masFina.decimal, state.testDistanceM))
+                                  * liveDpr() / 5;
+                let decl = `Optotipos · ${MODOS_ROTULO[state.mode] || state.mode}`
+                    + ` · pantalla ${state.currentScreenIdx + 1}/${TOTAL_SCREENS}`
+                    + ` · ${rango} · el 20/20 mide ${mm20_20.toFixed(2)} mm`
+                    + ` · trazo ${trazoFino.toFixed(1)} px en la ${masFina.snellen}`
+                    + (state.bichromatic ? ' · bicromático' : '')
+                    + (state.highlightMode ? ' · línea resaltada' : '')
+                    + (state.singleCharMode ? ' · un solo carácter' : '');
+                let avi = '';
+                if (tooWide || tooTall) {
+                    avi = '⚠ no cabe en la pantalla: use un monitor mayor o acorte la distancia';
+                } else if (finas.length) {
+                    const y = xs => xs.length > 1
+                        ? xs.slice(0, -1).join(', ') + ' y ' + xs[xs.length - 1] : xs[0];
+                    avi = '⚠ ' + y(finas.map(l => l.snellen))
+                        + ': trazo de ' + y(finas.map(l => l.trazo.toFixed(1)))
+                        + ' px, por debajo de ' + TRAZO_MIN_PX
+                        + (finas.length > 1 ? ' — la pantalla no las resuelve'
+                                            : ' — la pantalla no la resuelve');
+                }
+                d.moduloNombre.innerHTML = esc(decl)
+                    + (avi ? ' <span class="avi">' + esc(avi) + '</span>' : '');
+                d.infoSpan.classList.toggle('overflow', tooWide || tooTall || finas.length > 0);
+                /* Y el aviso viaja: el mando lo necesita más que el panel,
+                   porque el camino original de esta suite es el móvil. */
+                avisoOptotipos = avi;
             }
 
-            function updateModeButtons() {
-            }
 
             function setMode(mode) {
                 if(state.mode===mode) return;
                 state.mode = mode;
-                updateModeButtons();
                 state.lineChars = {};
                 renderScreen();
                 saveToStorage();
@@ -3191,7 +3380,6 @@
                 }
                 // Un código por pantalla, estable entre recargas.
                 if (!isPairCode(state.pairCode)) state.pairCode = newPairCode();
-                updateModeButtons();
                 d.testArea.classList.toggle('bichromatic',state.bichromatic);
             }
 
@@ -3499,6 +3687,7 @@
             window.addEventListener('resize',()=>{
                 // El zoom cambia el DPR y con él los mm por px CSS: hay que
                 // rehacer la conversión, no solo repintar.
+                marcarDesborde();
                 resolveCalibration();
                 if(state.isCalibrated) renderScreen();
                 if(cardOpen){ cardWidthPx = clampCardWidth(cardWidthPx); renderCardShape(); }
@@ -3900,22 +4089,6 @@
                 return '<div class="pp-geo">Este módulo todavía no está construido.</div>';
             }
 
-            /* La cifra que el módulo declara: la misma que el rótulo de la
-               pantalla, para que el panel no invente una segunda geometría. */
-            function ppGeo(dt){
-                const g = dt.pelli || dt.worth || dt.schober || dt.color
-                       || dt.relax || dt.infantil || dt.amsler;
-                if (!g) return dt.modulo === 'optotipos'
-                    ? 'Optotipos · ' + (dt.pantallas || 0) + ' pantallas' : '';
-                const t = (d.moduloNombre.textContent || '').split(' · ').slice(1).join(' · ');
-                return t || '';
-            }
-
-            /* El mapa de teclas ya NO se escribe en el panel: quien lo tiene
-               abierto está usando el ratón, y el panel enseña cada opción con
-               su rótulo. Los atajos siguen en el panel de la «?», que es donde
-               se buscan. La tabla EJES_FLECHA se queda porque es la que MUEVE
-               las flechas. */
 
             /* Recibe el espejo ya construido: construirlo aquí otra vez era
                duplicar el trabajo más caro del repintado. Lo construye si se
@@ -4007,10 +4180,26 @@
                 const marca = foco && pp.contains(foco)
                     ? (foco.dataset && foco.dataset.cmd ? '[data-cmd="' + foco.dataset.cmd + '"]'
                        : (foco.id ? '#' + foco.id : null)) : null;
-                document.getElementById('panel-geo').textContent = ppGeo(dt);
+                /* #panel-geo no se escribe aquí: LLEVA DENTRO el rótulo, que
+                   cada módulo rellena al pintar. Escribirlo aquí borraba el
+                   span y con él la declaración. */
                 document.getElementById('panel-cuerpo').innerHTML = ppCuerpo(dt);
                 pintarAtajos(dt.modulo);
+                marcarDesborde();
                 if (marca) { const v = pp.querySelector(marca); if (v) v.focus(); }
+            }
+
+            /* Mide si los controles del test caben en el hueco que les queda y
+               lo dice. Se llama al repintar, al desplazar y al cambiar el alto
+               de la ventana: los tres son momentos en los que la respuesta
+               cambia, y ninguno pasa por el otro. */
+            function marcarDesborde(){
+                const c = document.getElementById('panel-cuerpo');
+                if (!c) return;
+                const hay = c.scrollHeight > c.clientHeight + 1;
+                c.classList.toggle('desborda', hay);
+                c.classList.toggle('al-fondo',
+                    !hay || c.scrollTop + c.clientHeight >= c.scrollHeight - 2);
             }
 
             function abrirPanelPC(){
@@ -4037,6 +4226,8 @@
                 const pp = document.getElementById('panel-pc');
                 if (!pp) return;
                 document.getElementById('panel-pc-abrir').addEventListener('click', abrirPanelPC);
+                document.getElementById('panel-cuerpo')
+                    .addEventListener('scroll', marcarDesborde, { passive: true });
                 document.getElementById('panel-pc-cerrar').addEventListener('click', cerrarPanelPC);
                 /* La distancia de la sala NO se edita desde aquí: este botón abre
                    la CONFIGURACIÓN INICIAL, que es el único sitio donde se

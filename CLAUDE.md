@@ -259,7 +259,12 @@ contra las 30 familias de comando del mando.
 Lo que sí es distinto, y debe serlo, es la presentación: el móvil es un pulgar a
 30 cm y esto es un ratón. Grupos de 2 a 4 opciones como botones, todos a la
 vista; lo que no cabe —nueve figuras, siete láminas, cinco filas— plegado en un
-desplegable.
+`<details>`, con los mismos botones dentro. **Plegado, no un `<select>`**: el
+botón enseña el dibujo de la figura y su estado, y un desplegable nativo
+esconde las dos cosas. Hubo un `ppSelect()` para eso que no llamaba nadie, y se
+barrió con su CSS; lo que se conserva es el `SELECT` de las guardas del
+teclado, que es la regla de qué controles se quedan las flechas y no un apaño
+para un elemento que existía.
 
 **Una sola declaración, y la escribe el módulo.** El rótulo del operador y la
 caja de geometría eran el mismo texto en dos líneas —`ppGeo()` sacaba la

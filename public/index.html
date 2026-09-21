@@ -318,7 +318,7 @@
            operativo. Por eso esto enumera lo que apaga en vez de usar el
            `* { animation: none }` de manual. */
         @media (prefers-reduced-motion: reduce) {
-            #panel-pc, #barra-test, #barra-test button, #panel-pc button, #panel-pc select,
+            #panel-pc, #barra-test, #barra-test button, #panel-pc button,
             #test-area, .remote-status, #card-cal, .pp-conf, .pp-corte {
                 transition: none !important;
             }
@@ -693,13 +693,6 @@
         }
         .pp-grupo { margin-bottom: 13px; }
         .pp-grupo + .pp-grupo { margin-top: 0; }
-        #panel-pc select {
-            width: 100%; min-height: 42px; padding: 9px 11px;
-            background: #1a1a1a; color: #eee; border: 1px solid #333;
-            border-radius: 9px; font-family: var(--ui); font-size: 13.5px; cursor: pointer;
-        }
-        #panel-pc select:hover { border-color: #454545; }
-
         .pp-geo {
             font-family: var(--num); font-size: 10.5px; line-height: 1.6;
             color: #7a7a7a; padding: 9px 11px; margin-bottom: 14px;
@@ -4056,16 +4049,20 @@
                       + '</button>').join('') + '</div></div>';
             }
 
-            /* Lo mismo, plegado, para cuando la lista no cabe en el cajón. */
-            function ppSelect(rot, id, ops, puesto, cmd){
-                if (!ops || !ops.length) return '';
-                return '<div class="pp-grupo"><label class="pp-rot" for="' + id + '">' + esc(rot) + '</label>'
-                    + '<select id="' + id + '">' + ops.map(o =>
-                        '<option value="' + esc(o.id) + '" data-cmd="' + esc(cmd + o.id) + '"'
-                      + (String(o.id) === String(puesto) ? ' selected' : '') + '>'
-                      + esc(o.nombre || o.label) + (o.sub ? ' · ' + esc(o.sub) : '')
-                      + '</option>').join('') + '</select></div>';
-            }
+            /* Aquí había un `ppSelect()` que pintaba la lista larga como un
+               `<select>`, y no lo llamaba nadie: lo que no cabe —nueve figuras,
+               siete láminas, cinco filas— va en un `<details>` con los mismos
+               botones, que enseña el dibujo de la figura y el estado de cada
+               opción. Lo descubrió una prueba que buscó un desplegable en el
+               panel para medir la pausa del auto-ocultado y no encontró
+               ninguno: «no hay desplegable que enfocar».
+
+               Lo que NO se va con él es el `SELECT` de las dos guardas del
+               teclado. No son un apaño para un elemento que existía: son la
+               regla de qué controles se quedan las flechas, y si algún día
+               vuelve un desplegable, sin ellas las flechas le pasarían por
+               encima EN SILENCIO. El CSS sí se fue, porque un desplegable sin
+               vestir se ve a la primera. */
 
             /* Las figuras infantiles, con su dibujo dentro del botón: elegir
                «Molinete» de una lista de nueve nombres obliga a traducir el

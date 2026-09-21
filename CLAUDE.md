@@ -259,7 +259,12 @@ contra las 30 familias de comando del mando.
 Lo que sí es distinto, y debe serlo, es la presentación: el móvil es un pulgar a
 30 cm y esto es un ratón. Grupos de 2 a 4 opciones como botones, todos a la
 vista; lo que no cabe —nueve figuras, siete láminas, cinco filas— plegado en un
-desplegable.
+`<details>`, con los mismos botones dentro. **Plegado, no un `<select>`**: el
+botón enseña el dibujo de la figura y su estado, y un desplegable nativo
+esconde las dos cosas. Hubo un `ppSelect()` para eso que no llamaba nadie, y se
+barrió con su CSS; lo que se conserva es el `SELECT` de las guardas del
+teclado, que es la regla de qué controles se quedan las flechas y no un apaño
+para un elemento que existía.
 
 **Una sola declaración, y la escribe el módulo.** El rótulo del operador y la
 caja de geometría eran el mismo texto en dos líneas —`ppGeo()` sacaba la
@@ -377,10 +382,21 @@ Lo que se conserva, y lo que hay que romper para volver al defecto:
 - **El centro de la pantalla no la saca.** Sale del borde de arriba, no de un
   `mousemove` global: señalarle algo al paciente con el ratón no tiene por qué
   enseñarle los controles.
-- **No se esconde debajo de quien la usa.** El reloj se para con el ratón
-  encima o con un control enfocado — las dos cosas, porque un desplegable
-  abierto no dispara `mouseleave`. Un menú que se va mientras lees la línea de
-  geometría es peor que no tenerlo.
+- **No se esconde debajo de quien la usa, y «usarla» es MOVER el ratón.** Un
+  menú que se va mientras lees la línea de geometría es peor que no tenerlo,
+  así que cada `pointermove` por encima reinicia el reloj. Lo que NO cuenta es
+  el puntero apoyado y quieto, ni un botón con el foco: **los dos vetos que
+  había —`:hover` y «hay algo enfocado dentro»— se cumplen para siempre justo
+  después de usarla**, porque quien pulsa un test deja el puntero encima del
+  ítem y el foco en ese botón. Con eso la barra no se escondía NUNCA, y eso es
+  la barra vieja con otro nombre; lo reportó quien usa esto, no una prueba —
+  las tres que había apartaban el ratón Y quitaban el foco antes de esperar, o
+  sea medían una barra que nadie acababa de usar. Es la misma trampa que ya
+  tuvo la guarda del teclado, que por eso cuenta los campos y no los botones.
+  Del veto del foco queda lo único que el ratón no puede decir: un **campo o un
+  desplegable** enfocado — el de la distancia es el caso vivo, y ahí las
+  flechas son suyas—, porque un desplegable nativo abierto se queda el puntero
+  y no manda ni `pointermove` ni `mouseleave`.
 - **Con la medida de otra pantalla no se esconde nunca.** Es el único estado en
   el que hay que verla sí o sí, y sin móvil no lo dice nadie más.
 
@@ -408,6 +424,17 @@ estímulo. Y lo que no puede cambiar es el tamaño físico de lo dibujado — lo
 milímetros salen de la calibración y de la distancia, no del alto de la
 ventana—; hay una comprobación que exige que el 20/20 mida lo mismo dentro y
 fuera.
+
+**Y ahí `Esc` no es nuestro.** El navegador se queda esa tecla para salir de
+pantalla completa y no la reparte, así que el único gesto anunciado para
+recoger los controles no llegaba: la barra se quedaba encima del estímulo y
+quien la quitaba se salía de pantalla completa sin querer. Como quien pulsa
+`Esc` quiere recoger, **salir de pantalla completa sin pasar por nuestro
+control recoge la barra y el menú**; salir a propósito —la `F` o el botón— no,
+que entonces la barra se iría en las narices de quien acaba de pulsarla. El
+evento `fullscreenchange` no dice quién lo pidió, así que lo distingue una
+bandera, y las dos ramas están comprobadas. Y se anuncia en la tabla: un atajo
+que dice hacer algo que en pantalla completa no hace es peor que no tenerlo.
 
 **El corte se explica ahora en la propia pantalla**, tenue y abajo
 (`.corte-aviso`). Antes lo decía esa barra; sin ella, el paciente se habría

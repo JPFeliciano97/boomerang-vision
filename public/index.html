@@ -3789,11 +3789,11 @@
                    barras es alto de estímulo. */
                 else if(e.key==='f'||e.key==='F'){ if(!e.ctrlKey&&!e.metaKey) pantallaCompleta(); }
                 else if(e.key==='Escape'){
-                    /* Esc recoge los controles enteros: el menú y la barra. */
-                    if (panelPCAbierto) cerrarPanelPC();
-                    else if (!d.cardCal.classList.contains('hidden')) closeCardCal();
-                    document.body.classList.remove('barra-viva');
-                    clearTimeout(barraReloj);
+                    /* Esc recoge los controles enteros: el menú y la barra. En
+                       pantalla completa esta tecla no llega —el navegador se la
+                       queda para salir—, y por eso salir recoge también. */
+                    if (!panelPCAbierto && !d.cardCal.classList.contains('hidden')) closeCardCal();
+                    recogerControles();
                 }
             });
 
@@ -4234,12 +4234,14 @@
                 ['U', 'un solo car\u00e1cter'],
                 ['M', 'volver a optotipos'],
                 ['C', 'configuraci\u00f3n inicial'],
-                ['Esc', 'recoger la barra y el menú']
+                ['Esc', 'recoger la barra y el menú (en pantalla completa sale de ella, '
+                        + 'y eso los recoge igual)']
             ];
             /* El gesto también se anuncia: una barra que aparece sola y nadie
                sabe cómo sacar es peor que un atajo sin anunciar. */
             const GESTO_BARRA = 'Acerque el ratón al borde de arriba para sacar la barra. '
-                + 'Se esconde sola a los 5 s, y no mientras la esté usando.';
+                + 'Se esconde sola a los 5 s: mientras mueva el ratón por encima se queda, '
+                + 'y con un campo enfocado tampoco se va.';
 
             function pintarAtajos(id){
                 const caja = document.getElementById('panel-atajos');
@@ -4398,13 +4400,29 @@
             /* ── EL AUTO-OCULTADO ──────────────────────────────────────────
                La barra se esconde a los cinco segundos, y eso es lo que le
                permite existir: la barra anterior de este proyecto se quitó
-               entera por estar a la vista del paciente todo el rato.
+               entera por estar a la vista del paciente todo el rato. Si deja de
+               esconderse, vuelve esa barra con otro nombre.
 
-               Pero NO mientras alguien la está usando. Un menú que se va en las
-               narices mientras lees la línea de geometría es peor que no
-               tenerlo, así que el reloj se para con el ratón encima o con un
-               control enfocado — y el foco hace falta además del ratón, porque
-               un desplegable abierto no dispara `mouseleave`.
+               Y DEJÓ DE ESCONDERSE. En consulta no se escondía nunca, y la
+               causa son los dos vetos que tenía esta función: el `:hover` y
+               «hay algo enfocado dentro». Los dos se cumplen PARA SIEMPRE justo
+               después de usarla — quien pulsa un test deja el puntero encima
+               del ítem y el foco en ese botón, y nadie los mueve mientras el
+               paciente lee la cartilla —, así que el reloj se reiniciaba solo
+               para toda la sesión. Exactamente la trampa que ya tuvo la guarda
+               del teclado, que por eso cuenta los campos y no los botones.
+
+               Lo que cuenta como «la está usando» es MOVER el ratón por encima,
+               y eso ya lo lleva el `pointermove` de la barra y del menú, que
+               reinicia el reloj en cada movimiento. Un puntero apoyado y quieto
+               no es nadie usando nada.
+
+               Así que aquí queda el único caso que el ratón NO puede decir: un
+               campo o un desplegable con el foco. Ahí las flechas son suyas —lo
+               dice la guarda del teclado— y el menú no puede irse a mitad de
+               corregir la distancia, que es la cifra que sujeta toda la
+               geometría; y un desplegable nativo abierto se queda el puntero,
+               así que no manda ni `pointermove` ni `mouseleave`.
 
                Y con la medida de otra pantalla no se esconde nunca: es el único
                estado en el que hay que verla sí o sí, y sin móvil no lo dice
@@ -4414,13 +4432,11 @@
 
             function usandoLosControles(){
                 const a = document.activeElement;
-                for (const id of ['barra-test', 'panel-pc']) {
+                if (!a || !['SELECT', 'INPUT', 'TEXTAREA'].includes(a.tagName)) return false;
+                return ['barra-test', 'panel-pc'].some(id => {
                     const e = document.getElementById(id);
-                    if (!e) continue;
-                    if (a && e.contains(a) && a !== document.body) return true;
-                    if (e.matches(':hover')) return true;
-                }
-                return false;
+                    return !!(e && e.contains(a));
+                });
             }
 
             function esconderControles(){
@@ -4434,6 +4450,16 @@
                 document.body.classList.add('barra-viva');
                 clearTimeout(barraReloj);
                 barraReloj = setTimeout(esconderControles, BARRA_MS);
+            }
+
+            /* Recoger los controles enteros: el menú y la barra. Lo piden tres
+               sitios —Escape, la P y salir de pantalla completa por su cuenta—
+               y una tercera copia del gesto es como se separan tres caminos que
+               deben hacer lo mismo. */
+            function recogerControles(){
+                if (panelPCAbierto) cerrarPanelPC();
+                document.body.classList.remove('barra-viva');
+                clearTimeout(barraReloj);
             }
 
             /* Abre el menú de un test —o el de la sala— colgando de su ítem. */
@@ -4452,10 +4478,23 @@
                `resize` ya rehace la calibración, así que la geometría sigue
                siendo la declarada. Si el navegador la deniega —hay políticas
                que lo hacen— no pasa nada más que quedarse como estaba. */
+            /* Y EN PANTALLA COMPLETA, ESCAPE NO ES NUESTRO: el navegador se
+               queda esa tecla para salir y no la reparte, así que el único
+               gesto anunciado para recoger los controles no llegaba — la barra
+               se quedaba encima del estímulo y quien la quitaba se salía de
+               pantalla completa sin querer.
+
+               Como quien pulsa Escape quiere recoger, salir SIN pasar por este
+               control los recoge. Salir a propósito —la F o el botón— no, que
+               entonces la barra se iría en las narices de quien acaba de
+               pulsarla. Esta bandera es lo único que distingue las dos cosas:
+               el evento `fullscreenchange` no dice quién lo pidió. */
+            let saleAdrede = false;
             function pantallaCompleta(){
                 const d = document;
                 if (d.fullscreenElement) {
-                    if (d.exitFullscreen) d.exitFullscreen().catch(() => {});
+                    saleAdrede = true;
+                    if (d.exitFullscreen) d.exitFullscreen().catch(() => { saleAdrede = false; });
                 } else if (d.documentElement.requestFullscreen) {
                     d.documentElement.requestFullscreen().catch(() => {});
                 }
@@ -4486,13 +4525,8 @@
             /* `P` saca la barra con el menú del test que está puesto, y lo
                vuelve a esconder. Es el camino de teclado a todo lo demás. */
             function togglePanelPC(){
-                if (panelPCAbierto) {
-                    cerrarPanelPC();
-                    document.body.classList.remove('barra-viva');
-                    clearTimeout(barraReloj);
-                } else {
-                    abrirMenu(moduloActual().id);
-                }
+                if (panelPCAbierto) recogerControles();
+                else abrirMenu(moduloActual().id);
             }
 
             (function cablearPanelPC(){
@@ -4643,7 +4677,13 @@
                 window.addEventListener('resize', () => { ajustarBarra(); anclarMenu(); });
                 document.addEventListener('fullscreenchange', () => {
                     anclarMenu();
-                    avivarBarra();
+                    const adrede = saleAdrede;
+                    saleAdrede = false;
+                    /* Entrar, o salir a propósito: la barra se queda con su
+                       reloj. Salir por su cuenta es Escape (o la barra del
+                       navegador), y ahí Escape significa «recoge». */
+                    if (document.fullscreenElement || adrede) avivarBarra();
+                    else recogerControles();
                 });
             })();
 

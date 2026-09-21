@@ -194,8 +194,35 @@ export default async function pruebaPanel({ navegador, url }) {
   m.comprobar('y se esconde sola a los cinco segundos', !(await barraVisible()),
     (await barraVisible()) ? 'sigue a la vista' : 'se fue');
 
-  /* Pero NO mientras alguien la está usando: un menú que se va en las narices
-     mientras lees la línea de geometría es peor que no tener menú. */
+  /* Y ESTE ES EL GESTO DE VERDAD: pulsar un test en la barra y no tocar nada
+     más. Es lo que hace una persona —elegir el test y soltar el ratón— y era
+     el caso que ninguna comprobación hacía: todas apartaban el ratón Y
+     quitaban el foco antes de esperar, así que medían una barra que nadie
+     acababa de usar. En consulta la barra no se escondía NUNCA.
+
+     Dos vetos la dejaban clavada, y los dos se cumplen para siempre después de
+     un clic: el `:hover` —el puntero se queda justo encima del ítem pulsado y
+     nadie lo mueve mientras el paciente lee la cartilla— y «hay algo enfocado
+     dentro», porque un botón pulsado se queda con el foco. Exactamente la
+     trampa que ya tuvo la guarda del teclado, que por eso solo cuenta los
+     desplegables y los campos. */
+  await ratonAlBorde();
+  await pulsar(BARRA + ' [data-test="schober"]');
+  await pc.waitForTimeout(400);
+  await pc.waitForTimeout(6500);                 // sin mover el ratón, sin tocar el foco
+  const trasUsarla = await pc.evaluate(V => {
+    const b = document.querySelector('#barra-test');
+    const pp = document.getElementById('panel-pc');
+    return { barra: !!(b && b.checkVisibility(V)),
+             menu: !!(pp && pp.checkVisibility(V)),
+             foco: (document.activeElement || {}).tagName };
+  }, VIS);
+  m.comprobar('se esconde sola después de pulsar un test, sin tocar nada más',
+    !trasUsarla.barra && !trasUsarla.menu,
+    `barra ${trasUsarla.barra ? 'CLAVADA' : 'se fue'} · menú `
+    + `${trasUsarla.menu ? 'CLAVADO' : 'se fue'} · el foco se quedó en ${trasUsarla.foco}`);
+
+  /* Lo mismo sin clic: el puntero apoyado encima no es «estar usándola». */
   await ratonAlBorde();
   /* Con guarda: sin barra esto reventaba con «Cannot read properties of null»
      y se llevaba la suite entera, que es un fallo que no se puede leer. */
@@ -207,20 +234,44 @@ export default async function pruebaPanel({ navegador, url }) {
   });
   if (caja) await pc.mouse.move(caja.x, caja.y);
   await pc.waitForTimeout(6500);
-  const conRaton = caja ? await barraVisible() : false;
+  const quietaEncima = caja ? await barraVisible() : true;
+  m.comprobar('el ratón quieto encima no la deja clavada', !quietaEncima,
+    quietaEncima ? 'sigue a la vista con el ratón parado encima' : 'se fue');
+
+  /* Pero MOVIÉNDOLO por encima sí se queda: un menú que se va en las narices
+     mientras lees la línea de geometría es peor que no tener menú. Lo que
+     cuenta como «la está usando» es mover el ratón, no tenerlo apoyado. */
+  await ratonAlBorde();
+  let siguiendoElRaton = !!caja;
+  for (let i = 0; i < 14 && caja; i++) {
+    await pc.mouse.move(caja.x + (i % 2 ? 7 : -7), caja.y);
+    await pc.waitForTimeout(500);                // 14 × 500 ms = 7 s > los 5 s
+    if (!(await barraVisible())) { siguiendoElRaton = false; break; }
+  }
   await ratonLejos();
   await pc.waitForTimeout(6500);
-  m.comprobar('no se esconde mientras el ratón está encima', conRaton,
-    conRaton ? 'aguanta con el ratón encima' : 'se fue con el ratón encima');
+  m.comprobar('no se esconde mientras el ratón se mueve por encima', siguiendoElRaton,
+    siguiendoElRaton ? 'aguanta los 7 s mientras el ratón se mueve'
+      : 'se fue con el ratón moviéndose por encima');
 
-  /* Ni con el foco dentro del menú: un desplegable abierto no dispara
-     `mouseleave`, así que el ratón solo no basta. */
+  /* PERO SÍ con un CAMPO enfocado, que es el caso por el que el veto del foco
+     existe: el campo de la distancia. Ahí las flechas son suyas —lo dice la
+     guarda del teclado— y el menú no puede irse a mitad de corregir la cifra,
+     que además es la que sujeta toda la geometría. Campos y desplegables sí,
+     botones no: la misma distinción que ya hace esa guarda.
+
+     Escrito con el campo y no con un `<select>` a propósito: en el panel no
+     hay ninguno —lo que no cabe va en un `<details>` con botones—, así que una
+     comprobación sobre un `select` mide algo que no existe. Ya lo hizo: dijo
+     «no hay desplegable que enfocar». */
   await ratonAlBorde();
-  await pulsar(BARRA + ' [data-test="schober"]');
+  await pulsar(BARRA + ' [data-test="sala"]');
   await pc.waitForTimeout(400);
-  await pc.evaluate(() => {
-    const b = document.querySelector('#panel-pc button, #panel-pc select, #panel-pc input');
-    if (b) b.focus();
+  const hayCampo = await pc.evaluate(() => {
+    const c = document.getElementById('pp-dist');
+    if (!c) return false;
+    c.focus();
+    return document.activeElement === c;
   });
   await ratonLejos();
   await pc.waitForTimeout(6500);
@@ -231,9 +282,11 @@ export default async function pruebaPanel({ navegador, url }) {
              menu: !!(pp && pp.checkVisibility(V)),
              foco: (document.activeElement || {}).id || (document.activeElement || {}).tagName };
   }, VIS);
-  m.comprobar('ni con un control del menú enfocado', conFoco.barra && conFoco.menu,
-    `barra ${conFoco.barra ? 'a la vista' : 'ESCONDIDA'} · menú `
-    + `${conFoco.menu ? 'a la vista' : 'ESCONDIDO'} · foco en ${conFoco.foco}`);
+  m.comprobar('ni con el campo de la distancia enfocado',
+    hayCampo && conFoco.barra && conFoco.menu,
+    !hayCampo ? 'no hay campo de distancia que enfocar en «La sala»'
+      : `barra ${conFoco.barra ? 'a la vista' : 'ESCONDIDA'} · menú `
+        + `${conFoco.menu ? 'a la vista' : 'ESCONDIDO'} · foco en ${conFoco.foco}`);
 
   /* Y al esconderse, el foco SALE. */
   await pc.evaluate(() => { const b = document.activeElement; if (b && b.blur) b.blur(); });
@@ -952,6 +1005,54 @@ export default async function pruebaPanel({ navegador, url }) {
     dentro && !fuera && mmAntes > 0 && Math.abs(mmDentro - mmAntes) < 0.01,
     `el botón ${dentro ? 'entra' : 'NO entra'} · la F ${!fuera ? 'sale' : 'NO sale'}`
     + ` · el 20/20 de ${mmAntes} a ${mmDentro} mm`);
+
+  /* Y EN PANTALLA COMPLETA, ESCAPE NO ES NUESTRO. El navegador se queda esa
+     tecla para salir de pantalla completa y no la reparte, así que el único
+     gesto anunciado para recoger los controles no llegaba: la barra se quedaba
+     encima del estímulo y quien la quitaba se salía de pantalla completa sin
+     querer.
+
+     Así que salir de pantalla completa SIN pasar por nuestro control —que es
+     Escape, o la barra del navegador— recoge la barra y el menú: es lo que
+     quería quien pulsó Escape. Salir a propósito (la F o el botón) no, que
+     entonces la barra se iría en las narices de quien acaba de pulsarla.
+
+     Se mide llamando a `exitFullscreen()` desde fuera, que es exactamente lo
+     que el navegador hace con Escape — la tecla misma no se puede sintetizar
+     con esa semántica. */
+  await ratonAlBorde();
+  await pulsar('#barra-pantalla');
+  await pc.waitForTimeout(800);
+  await pulsar(BARRA + ' [data-test="schober"]');
+  await pc.waitForTimeout(400);
+  const antesDeSalir = await pc.evaluate(() => !!document.fullscreenElement);
+  await pc.evaluate(() => document.exitFullscreen && document.exitFullscreen().catch(() => {}));
+  await pc.waitForTimeout(900);
+  const trasSalirSolo = await pc.evaluate(V => {
+    const b = document.querySelector('#barra-test');
+    const pp = document.getElementById('panel-pc');
+    return { pantalla: !!document.fullscreenElement,
+             barra: !!(b && b.checkVisibility(V)),
+             menu: !!(pp && pp.checkVisibility(V)) };
+  }, VIS);
+  m.comprobar('salir de pantalla completa por su cuenta recoge la barra y el menú',
+    antesDeSalir && !trasSalirSolo.pantalla && !trasSalirSolo.barra && !trasSalirSolo.menu,
+    !antesDeSalir ? 'no llegó a entrar en pantalla completa'
+      : `barra ${trasSalirSolo.barra ? 'SIGUE a la vista' : 'recogida'} · menú `
+        + `${trasSalirSolo.menu ? 'SIGUE abierto' : 'recogido'}`);
+
+  /* Y la F, que es salir a propósito, no los recoge. */
+  await ratonAlBorde();
+  await pulsar('#barra-pantalla');
+  await pc.waitForTimeout(800);
+  await pc.keyboard.press('f');
+  await pc.waitForTimeout(900);
+  const trasLaEfe = await barraVisible();
+  m.comprobar('pero saliendo con la F la barra se queda', trasLaEfe,
+    trasLaEfe ? 'la barra sigue a la vista tras salir con la F'
+      : 'la F se llevó la barra por delante');
+  await ratonLejos();
+  await pc.waitForTimeout(6500);
 
   /* ── 15 · Y se puede sacar a otra ventana ─────────────────────────────
      Es el arreglo de lo único que el panel compromete: que tape parte de la

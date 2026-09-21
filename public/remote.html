@@ -1053,27 +1053,13 @@
 
         /* Un glifo por módulo, el mismo que el lienzo de diseño. Por id, no por
            posición: añadir un módulo no debe desplazar los iconos de los demás. */
-        const ICONO_MOD = {
-            optotipos: '<path d="M3 5h14"/><path d="M5 10h10"/><path d="M7.5 15h5"/>',
-            contraste: '<circle cx="10" cy="10" r="7"/><path d="M10 3a7 7 0 0 1 0 14z" fill="currentColor" stroke="none"/>',
-            worth:     '<circle cx="10" cy="4" r="2.1" fill="currentColor" stroke="none"/>'
-                     + '<circle cx="4.4" cy="10" r="2.1"/><circle cx="15.6" cy="10" r="2.1"/><circle cx="10" cy="16" r="2.1"/>',
-            schober:   '<circle cx="10" cy="10" r="7.2"/><circle cx="10" cy="10" r="3.6"/>'
-                     + '<path d="M10 5.2v9.6M5.2 10h9.6"/>',
-            color:     '<g fill="currentColor" stroke="none"><circle cx="10" cy="4.6" r="2"/>'
-                     + '<circle cx="4.8" cy="7.6" r="2"/><circle cx="15.2" cy="7.6" r="2"/>'
-                     + '<circle cx="10" cy="10.6" r="2"/><circle cx="4.8" cy="13.6" r="2"/>'
-                     + '<circle cx="15.2" cy="13.6" r="2"/><circle cx="10" cy="16.6" r="2"/></g>',
-            amsler:    '<path d="M3 3h14v14H3zM7.7 3v14M12.3 3v14M3 7.7h14M3 12.3h14" stroke-width="1.3"/>'
-                     + '<circle cx="10" cy="10" r="1.5" fill="currentColor" stroke="none"/>',
-            relax:     '<circle cx="10" cy="10" r="8" stroke-width="0.8" opacity="0.4"/>'
-                     + '<circle cx="10" cy="10" r="5.4" stroke-width="1.1" opacity="0.7"/>'
-                     + '<circle cx="10" cy="10" r="1.6" fill="currentColor" stroke="none"/>',
-            infantil:  '<path d="M10 2.8l1.9 4.2 4.3.5-3.2 3 .9 4.4-3.9-2.3-3.9 2.3.9-4.4-3.2-3 4.3-.5z"/>'
-        };
-        const iconoSVG = id => '<svg width="20" height="20" viewBox="0 0 20 20" fill="none"'
+        /* El dibujo de cada módulo llega EN EL ESPEJO, no se guarda aquí: es
+           la misma regla que las figuras de fijación infantil. Tenerlo en los
+           dos ficheros significaba que añadir un módulo era editar dos y
+           acordarse de los dos. */
+        const iconoSVG = ico => '<svg width="20" height="20" viewBox="0 0 20 20" fill="none"'
             + ' stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">'
-            + (ICONO_MOD[id] || '') + '</svg>';
+            + (ico || '') + '</svg>';
 
         function pintarMenu(data) {
             pintarTiraEstado(data.cal || {});
@@ -1099,7 +1085,7 @@
                 const tag = ver.etiqueta || (!m.hecho ? 'pendiente'
                           : (m.distFija != null ? 'a ' + m.distFija + ' m' : ''));
                 b.innerHTML =
-                    '<div class="icono">' + iconoSVG(m.id) + '</div>'
+                    '<div class="icono">' + iconoSVG(m.icono) + '</div>'
                   + '<div class="txt"><div class="tit"></div><div class="sub"></div></div>'
                   + '<div class="tag ' + (ver.estado || '') + '"></div>';
                 b.querySelector('.tit').textContent = m.titulo;

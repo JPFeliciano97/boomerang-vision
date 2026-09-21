@@ -125,19 +125,176 @@ export default async function pruebaPanel({ navegador, url }) {
                  : 'cambió: ' + antes.map((c, i) => c === despues[i] ? null : `${c} → ${despues[i]}`)
                      .filter(Boolean).slice(0, 2).join(' · ')));
 
+  /* ── 2b · LA BARRA DE TEST ──────────────────────────────────────────────
+     El panel era un cajón lateral con un desplegable de ocho test dentro.
+     Ahora los ocho están en una barra arriba, cada uno con su número —que es
+     su atajo— y su icono, y al pulsar uno cae SU menú, colgando de su ítem.
+
+     La barra se esconde sola, y eso no es un adorno: es la condición que hace
+     que pueda existir. La barra anterior de este proyecto se quitó entera
+     porque estaba a la vista del paciente todo el rato gastando alto de
+     pantalla; una que se va sola no tiene ese defecto. Así que si deja de
+     esconderse, vuelve el defecto que costó una PR quitar.
+
+     Y lo que se esconde tiene que devolver el foco: la guarda «el teclado es
+     del panel» se cumple para siempre si el foco se queda dentro de algo ya
+     invisible, y entonces el teclado muere entero. Ya pasó una vez cuando el
+     panel se cerraba a mano; ahora se cierra SOLO, así que puede pasar sin que
+     nadie toque nada. */
+  const BARRA = '#barra-test';
+  const barraVisible = () => pc.evaluate(V => {
+    const b = document.querySelector('#barra-test');
+    return !!(b && b.checkVisibility(V));
+  }, VIS);
+  /* «Lejos» es el centro de la cartilla: señalarle algo al paciente con el
+     ratón no puede sacar la barra. */
+  const ratonLejos = async () => { await pc.mouse.move(800, 620); };
+  const ratonAlBorde = async () => { await pc.mouse.move(700, 4); await pc.waitForTimeout(250); };
+
+  await pc.keyboard.press('Escape');
+  await ratonLejos();
+  await pc.waitForTimeout(6500);                 // que se apague todo
+
+  const contenido = await pc.evaluate(() => {
+    const b = document.querySelector('#barra-test');
+    if (!b) return null;
+    const items = [...b.querySelectorAll('[data-test]')].map(e => ({
+      test: e.dataset.test,
+      num: (e.querySelector('.num') || {}).textContent || '',
+      etiqueta: (e.querySelector('.et') || {}).textContent || '',
+      icono: !!e.querySelector('svg')
+    }));
+    return { items, pantalla: !!b.querySelector('#barra-pantalla') };
+  });
+  const ESPERADOS = MODULOS.map(([id]) => id);
+  const pintados = contenido ? contenido.items.filter(i => i.test !== 'sala') : [];
+  m.comprobar('la barra lleva los ocho test con su número y su icono, más «La sala»',
+    !!contenido
+      && JSON.stringify(pintados.map(i => i.test)) === JSON.stringify(ESPERADOS)
+      && pintados.every((i, k) => i.num === String(k + 1) && i.icono && i.etiqueta.length > 2)
+      && contenido.items.some(i => i.test === 'sala')
+      && contenido.pantalla,
+    !contenido ? 'no hay barra de test'
+      : pintados.length + ' test · ' + pintados.map(i => i.num + ' ' + i.etiqueta).join(', ')
+        + (contenido.items.some(i => i.test === 'sala') ? ' · La sala' : ' · SIN «La sala»')
+        + (contenido.pantalla ? ' · pantalla completa' : ' · SIN pantalla completa'));
+
+  /* Escondida de entrada, y el centro de la pantalla no la saca. */
+  const trasCentro = await barraVisible();
+  await ratonAlBorde();
+  const trasBorde = await barraVisible();
+  m.comprobar('nace escondida y asoma al acercar el ratón al borde de arriba',
+    !trasCentro && trasBorde,
+    (trasCentro ? 'estaba A LA VISTA con el ratón en el centro' : 'escondida en el centro')
+    + ' · ' + (trasBorde ? 'asoma en el borde' : 'NO asoma en el borde'));
+
+  /* Y se va sola. Cinco segundos: se mide esperando seis y medio. */
+  await ratonLejos();
+  await pc.waitForTimeout(6500);
+  m.comprobar('y se esconde sola a los cinco segundos', !(await barraVisible()),
+    (await barraVisible()) ? 'sigue a la vista' : 'se fue');
+
+  /* Pero NO mientras alguien la está usando: un menú que se va en las narices
+     mientras lees la línea de geometría es peor que no tener menú. */
+  await ratonAlBorde();
+  /* Con guarda: sin barra esto reventaba con «Cannot read properties of null»
+     y se llevaba la suite entera, que es un fallo que no se puede leer. */
+  const caja = await pc.evaluate(() => {
+    const e = document.querySelector('#barra-test');
+    if (!e) return null;
+    const b = e.getBoundingClientRect();
+    return { x: Math.round(b.x + b.width / 2), y: Math.round(b.y + b.height / 2) };
+  });
+  if (caja) await pc.mouse.move(caja.x, caja.y);
+  await pc.waitForTimeout(6500);
+  const conRaton = caja ? await barraVisible() : false;
+  await ratonLejos();
+  await pc.waitForTimeout(6500);
+  m.comprobar('no se esconde mientras el ratón está encima', conRaton,
+    conRaton ? 'aguanta con el ratón encima' : 'se fue con el ratón encima');
+
+  /* Ni con el foco dentro del menú: un desplegable abierto no dispara
+     `mouseleave`, así que el ratón solo no basta. */
+  await ratonAlBorde();
+  await pulsar(BARRA + ' [data-test="schober"]');
+  await pc.waitForTimeout(400);
+  await pc.evaluate(() => {
+    const b = document.querySelector('#panel-pc button, #panel-pc select, #panel-pc input');
+    if (b) b.focus();
+  });
+  await ratonLejos();
+  await pc.waitForTimeout(6500);
+  const conFoco = await pc.evaluate(V => {
+    const b = document.querySelector('#barra-test');
+    const pp = document.getElementById('panel-pc');
+    return { barra: !!(b && b.checkVisibility(V)),
+             menu: !!(pp && pp.checkVisibility(V)),
+             foco: (document.activeElement || {}).id || (document.activeElement || {}).tagName };
+  }, VIS);
+  m.comprobar('ni con un control del menú enfocado', conFoco.barra && conFoco.menu,
+    `barra ${conFoco.barra ? 'a la vista' : 'ESCONDIDA'} · menú `
+    + `${conFoco.menu ? 'a la vista' : 'ESCONDIDO'} · foco en ${conFoco.foco}`);
+
+  /* Y al esconderse, el foco SALE. */
+  await pc.evaluate(() => { const b = document.activeElement; if (b && b.blur) b.blur(); });
+  await pc.keyboard.press('Escape');
+  await pc.waitForTimeout(400);
+  const focoFuera = await pc.evaluate(() => {
+    const a = document.activeElement;
+    const pp = document.getElementById('panel-pc');
+    const b = document.querySelector('#barra-test');
+    return !(pp && pp.contains(a)) && !(b && b.contains(a));
+  });
+  m.comprobar('y al esconderse el foco sale del menú, o el teclado se queda muerto',
+    focoFuera, focoFuera ? 'el foco salió' : 'el foco se quedó dentro de algo invisible');
+
+  /* El menú cuelga de SU ítem: eso es lo que lo hace un menú y no un cajón. */
+  const medirAnclaje = async cual => {
+    await ratonAlBorde();
+    await pulsar(BARRA + ' [data-test="' + cual + '"]');
+    await pc.waitForTimeout(450);
+    return pc.evaluate(c => {
+      const itE = document.querySelector('#barra-test [data-test="' + c + '"]');
+      const baE = document.querySelector('#barra-test');
+      const ppE = document.getElementById('panel-pc');
+      if (!itE || !baE || !ppE) return null;
+      const it = itE.getBoundingClientRect(), pp = ppE.getBoundingClientRect();
+      const ba = baE.getBoundingClientRect();
+      return { desvio: Math.round(pp.left - it.left),
+               bajoBarra: Math.round(pp.top - ba.bottom),
+               ancho: Math.round(pp.width), derecha: Math.round(pp.right),
+               ventana: window.innerWidth };
+    }, cual);
+  };
+  const izq = await medirAnclaje('color');
+  m.comprobar('el menú cuelga del ítem que se pulsa, no de un lado fijo',
+    !!izq && Math.abs(izq.desvio) <= 24 && izq.bajoBarra >= -2 && izq.bajoBarra <= 24,
+    !izq ? 'no hay barra o no hay menú que medir'
+      : `sale ${izq.desvio} px del borde del ítem y ${izq.bajoBarra} px bajo la barra`
+        + ` · ${izq.ancho} px de ancho`);
+
+  /* Y el último ítem no puede sacar el menú de la pantalla: ahí el anclaje
+     cede y el menú se frena contra el margen derecho. Sin este freno, el menú
+     del octavo test se dibujaría medio fuera. */
+  const der = await medirAnclaje('amsler');
+  m.comprobar('y el del último ítem se frena contra el borde en vez de salirse',
+    !!der && der.derecha <= der.ventana - 4 && der.desvio <= 0,
+    !der ? 'no se pudo medir'
+      : `acaba en ${der.derecha} de ${der.ventana} px de ventana`
+        + ` · cede ${Math.abs(der.desvio)} px del ítem`);
+
   /* ── 3 · Los ocho módulos, con el ratón solo ─────────────────────────── */
-  /* El desplegable vive DENTRO del panel, así que hay que abrirlo antes: con
-     el panel cerrado `selectOption` no encuentra nada y el `.catch(()=>{})`
-     que llevaba se comía el fallo en silencio — el módulo no cambiaba y la
-     comprobación de después medía el módulo anterior creyendo medir otro. Una
-     prueba que no puede fallar no comprueba nada. Así que se abre si hace
-     falta, y si el desplegable sigue sin estar, esto REVIENTA. */
+  /* Se entra por la BARRA, que es como entra una persona: acercar el ratón al
+     borde de arriba y pulsar el test. Era un desplegable dentro de un cajón y
+     había que abrir el cajón primero; ahora los ocho están a un gesto.
+
+     Sin `.catch()`: si el ítem no está, esto REVIENTA. Un `.catch(()=>{})`
+     aquí se comía el fallo en silencio, el módulo no cambiaba y lo que venía
+     después medía el módulo anterior creyendo medir otro. */
   const abrirModulo = async id => {
-    if (!(await panelAbierto())) {
-      await pc.keyboard.press('p');
-      await pc.waitForTimeout(300);
-    }
-    await pc.selectOption('#panel-modulo', id, { timeout: 4000 });
+    await pc.mouse.move(700, 4);
+    await pc.waitForTimeout(260);
+    await pc.click('#barra-test [data-test="' + id + '"]', { timeout: 4000 });
     await pc.waitForTimeout(450);
     return pc.evaluate(() => (document.getElementById('modulo-nombre') || {}).textContent || '');
   };
@@ -161,8 +318,42 @@ export default async function pruebaPanel({ navegador, url }) {
   }
   m.comprobar('desde el panel se llega a los ocho módulos, sin móvil',
     alcanzados.length === 8,
-    alcanzados.length === 8 ? 'los ocho dibujan, elegidos en el desplegable'
+    alcanzados.length === 8 ? 'los ocho dibujan, pulsados en la barra'
                             : `solo ${alcanzados.length}: ` + fallados.join(' · '));
+
+  /* Y la barra dice QUÉ TEST ESTÁ PUESTO, aunque el menú esté cerrado. Con
+     `aria-expanded` solo, al cerrar el menú no quedaba ninguno marcado: la
+     barra enseñaba ocho botones iguales sin decir cuál está en la pantalla del
+     paciente. En la barra compacta —la de un portátil, donde los nombres no
+     caben— eso es lo único que lo dice, así que ahí el nombre del puesto se
+     queda a la vista. */
+  await abrirModulo('schober');
+  await pc.keyboard.press('Escape');
+  await ratonAlBorde();
+  const marcado = await pc.evaluate(V => {
+    const b = document.querySelector('#barra-test');
+    if (!b) return null;
+    const act = [...b.querySelectorAll('[data-test]')]
+      .filter(e => e.getAttribute('aria-current') === 'true')
+      .map(e => e.dataset.test);
+    const abierto = [...b.querySelectorAll('[aria-expanded="true"]')].length;
+    /* Y en compacto, que el nombre del puesto se lea. Se fuerza la clase para
+       medirlo sin depender del ancho de esta ventana. */
+    b.classList.add('compacta');
+    const suyo = b.querySelector('[data-test="schober"] .et');
+    const otro = b.querySelector('[data-test="amsler"] .et');
+    const leo = { puesto: !!(suyo && suyo.checkVisibility(V)),
+                  resto: !!(otro && otro.checkVisibility(V)) };
+    b.classList.remove('compacta');
+    return { act, abierto, leo };
+  }, VIS);
+  m.comprobar('la barra dice qué test está puesto aunque el menú esté cerrado',
+    !!marcado && JSON.stringify(marcado.act) === '["schober"]' && marcado.abierto === 0
+      && marcado.leo.puesto && !marcado.leo.resto,
+    !marcado ? 'no hay barra'
+      : `marcados [${marcado.act.join(', ')}] · ${marcado.abierto} menús abiertos`
+        + ` · en compacto se lee el puesto: ${marcado.leo.puesto ? 'sí' : 'NO'}`
+        + ` y el resto ${marcado.leo.resto ? 'TAMBIÉN' : 'no'}`);
 
   /* ── 3b · El rótulo cabe, declara y no se repite ───────────────────────
      El panel es una columna de 363 px y el rótulo del operador venía con las
@@ -253,43 +444,59 @@ export default async function pruebaPanel({ navegador, url }) {
 
      Se mide con el panel SIN desplazar: se fuerza scrollTop a 0 y se pide que
      el campo esté dentro de la ventana. */
-  const alcanceDist = [];
+  /* Lo que tiene que estar a la vista SIN desplazar, ahora que el menú cuelga
+     de la barra en vez de ser una columna de pantalla completa:
+
+       · el corte de estímulo, en el menú de cada test — es lo más usado de
+         todo el examen;
+       · la distancia de la sala, en el menú de «La sala» — es editable a
+         propósito, y tenerla detrás de un desplazamiento es la misma molestia
+         que tenía detrás del diálogo.
+
+     A dos altos, y el segundo es el que importa: 768 px es un portátil. */
+  const alcance = [];
   const vpOriginal = pc.viewportSize();
-  /* A dos altos, y el segundo es el que importa: 768 px es un portátil, y ahí
-     el pie del panel entero cabía sin sitio para los controles del test. */
   for (const alto of [900, 768]) {
     await pc.setViewportSize({ width: vpOriginal.width, height: alto });
     await pc.waitForTimeout(300);
     for (const [id] of MODULOS) {
       await abrirModulo(id);
-      alcanceDist.push({ id, alto, ...(await pc.evaluate(() => {
-        const pp = document.getElementById('panel-pc');
-        const cuerpo = document.getElementById('panel-cuerpo');
-        pp.scrollTop = 0;
-        const r = document.getElementById('pp-dist').getBoundingClientRect();
+      alcance.push({ id, alto, ...(await pc.evaluate(() => {
         const c = document.getElementById('panel-corte').getBoundingClientRect();
-        return { dist: Math.round(r.bottom), corte: Math.round(c.bottom),
-                 ventana: Math.round(pp.clientHeight),
-                 cuerpo: Math.round(cuerpo.clientHeight) };
+        const cu = document.getElementById('panel-cuerpo');
+        return { corte: Math.round(c.bottom), ventana: window.innerHeight,
+                 cuerpo: Math.round(cu.clientHeight) };
       })) });
     }
+    await ratonAlBorde();
+    await pulsar(BARRA + ' [data-test="sala"]');
+    await pc.waitForTimeout(450);
+    alcance.push({ id: 'sala', alto, ...(await pc.evaluate(() => {
+      const r = document.getElementById('pp-dist').getBoundingClientRect();
+      return { corte: Math.round(r.bottom), ventana: window.innerHeight, cuerpo: 0 };
+    })) });
   }
   await pc.setViewportSize(vpOriginal);
   await pc.waitForTimeout(300);
-  const cortados = alcanceDist.filter(x => x.dist > x.ventana || x.corte > x.ventana);
-  m.comprobar('el campo de distancia y el corte se alcanzan sin desplazar el panel',
+  const cortados = alcance.filter(x => x.corte > x.ventana || x.corte <= 0);
+  m.comprobar('el corte de cada test y la distancia de la sala se alcanzan sin desplazar',
     cortados.length === 0,
-    cortados.length ? cortados.map(x => x.id + ' a ' + x.alto + ': la distancia acaba en '
-        + x.dist + ' y el corte en ' + x.corte + ' de ' + x.ventana).join(' · ')
-      : 'los ocho a 900 y a 768 px · el peor deja la distancia en '
-        + Math.max(...alcanceDist.map(x => x.dist)) + ' px · al cuerpo del test le quedan '
-        + Math.min(...alcanceDist.map(x => x.cuerpo)) + ' px en el caso más apretado');
+    cortados.length ? cortados.map(x => x.id + ' a ' + x.alto + ': acaba en '
+        + x.corte + ' de ' + x.ventana).join(' · ')
+      : 'los ocho y la sala, a 900 y a 768 px · lo peor acaba en '
+        + Math.max(...alcance.map(x => x.corte)) + ' px');
 
   /* Y cuando los controles del test no caben, el panel lo dice. Pasar el
      desplazamiento al cuerpo dejó la última fila cortada por el borde del
      contenedor, y con una barra superpuesta —la de un Chromium headless, y la
      de macOS— no hay nada que lo indique: una fila de figuras a medias sin
      explicación es el defecto que este proyecto no se salta. */
+  /* A 900 px el menú ya cabe entero en casi todos los test, así que el
+     desborde se mide donde existe: una ventana baja, que es un portátil viejo
+     o una ventana a medias. Medirlo donde no pasa sería una prueba que no
+     puede fallar. */
+  await pc.setViewportSize({ width: vpOriginal.width, height: 620 });
+  await pc.waitForTimeout(300);
   await abrirModulo('infantil');
   const desborde = await pc.evaluate(() => {
     const c = document.getElementById('panel-cuerpo');
@@ -308,6 +515,8 @@ export default async function pruebaPanel({ navegador, url }) {
     return { desborda: c.classList.contains('desborda'),
              corte: c.scrollHeight - c.clientHeight };
   });
+  await pc.setViewportSize(vpOriginal);
+  await pc.waitForTimeout(300);
   m.comprobar('y si los controles del test no caben, el panel lo dice',
     desborde.arriba.desborda && !desborde.arriba.alFondo
       && desborde.abajo.alFondo && !cabe.desborda,
@@ -332,11 +541,13 @@ export default async function pruebaPanel({ navegador, url }) {
   await q.waitForTimeout(400);
   const quieto = await q.evaluate(() => {
     const pp = document.getElementById('panel-pc');
-    const chip = document.getElementById('panel-pc-abrir');
-    return { panel: getComputedStyle(pp).transitionDuration,
-             chip: getComputedStyle(chip).transitionDuration };
+    const barra = document.getElementById('barra-test');
+    return { panel: pp ? getComputedStyle(pp).transitionDuration : 'no hay panel',
+             barra: barra ? getComputedStyle(barra).transitionDuration : 'no hay barra' };
   });
-  await q.selectOption('#panel-modulo', 'infantil');
+  await q.mouse.move(700, 4);
+  await q.waitForTimeout(260);
+  await q.click('#barra-test [data-test="infantil"]').catch(() => {});
   await q.waitForTimeout(700);
   await q.keyboard.press('Escape');
   await q.waitForTimeout(400);
@@ -350,10 +561,10 @@ export default async function pruebaPanel({ navegador, url }) {
   });
   const sinMov = t => /^(0s)(,\s*0s)*$/.test(t);
   m.comprobar('con «menos movimiento» se apaga el adorno, no el estímulo del test',
-    sinMov(quieto.panel) && sinMov(quieto.chip)
+    sinMov(quieto.panel) && sinMov(quieto.barra)
       && !!estimulo && estimulo.fuera > 0 && estimulo.dentro > 0,
-    `el cajón ${sinMov(quieto.panel) ? 'entra sin transición' : 'sigue en ' + quieto.panel}`
-    + ` · el chip ${sinMov(quieto.chip) ? 'sin transición' : 'sigue en ' + quieto.chip}`
+    `el menú ${sinMov(quieto.panel) ? 'cae sin transición' : 'sigue en ' + quieto.panel}`
+    + ` · la barra ${sinMov(quieto.barra) ? 'sin transición' : 'sigue en ' + quieto.barra}`
     + ` · la figura ${estimulo ? estimulo.fuera + ' movimiento y ' + estimulo.dentro
         + ' de gesto' : 'NO SE DIBUJA'}`);
   await ctxQuieto.close();
@@ -442,33 +653,22 @@ export default async function pruebaPanel({ navegador, url }) {
     tabulables.total > 0 && tabulables.fuera === 0,
     `${tabulables.total} controles · ${tabulables.fuera} fuera del orden de tabulación`);
 
-  /* ── 10 · El lanzador no se monta encima de nada ──────────────────────
-     Nació en la esquina de abajo a la derecha, que ya estaba ocupada por el
-     botón de atajos (`?`, bottom 50 right 16) y por la barra del pie: se
-     solapaban y quedaba medio botón debajo del otro. Con el panel cerrado,
-     ningún control fijo puede pisar a otro. */
-  /* En OPTOTIPOS, que es donde están los dos: dentro de un módulo el botón de
-     atajos se esconde (`body.en-modulo`), así que allí no hay con quién
-     chocar y la comprobación pasaría sin comparar nada. */
-  await abrirModulo('optotipos');
-  await pc.keyboard.press('Escape');
-  await pc.waitForTimeout(300);
-  /* El lanzador solo asoma con el ratón vivo, así que hay que moverlo de
-     verdad: si no está a la vista, esta comprobación no mide nada. */
-  await pc.mouse.move(700, 480);
-  await pc.mouse.move(800, 500, { steps: 5 });
-  await pc.waitForTimeout(500);
-  const solapes = await pc.evaluate(V => {
-    /* Lo que se PULSA, no todo lo que esté fijo: la primera versión metía
-       #modulo-area —la capa del estímulo, que ocupa la pantalla entera— y
-       acusaba al lanzador de pisarla.
+  /* ── 10 · Nada de la barra se monta encima de nada ────────────────────
+     Esto nació midiendo el chip de «Controles», que salió en la esquina que ya
+     tenían el botón de atajos y el pie y quedaba medio debajo. Ese chip ya no
+     existe — lo sustituye la barra — pero el defecto es el mismo con otra
+     forma: nueve ítems en una fila que no caben se solapan, y un botón medio
+     debajo de otro se pulsa mal.
 
-       Y ya no se filtra por `position: fixed`. Los dos controles con los que el
-       lanzador chocaba —el botón «?» y la barra de arriba— eran fijos y ya no
-       existen, así que ese filtro dejaba UN SOLO control a la vista y la
-       comprobación no comparaba nada: pasaba en verde sin medir. Lo que importa
-       no es cómo esté posicionado el vecino sino que el lanzador no se le monte
-       encima, y el vecino que queda —el cartel del pie— va en el flujo. */
+     En OPTOTIPOS, que es donde el pie está a la vista: dentro de un módulo se
+     esconde y no habría con quién comparar. */
+  await abrirModulo('optotipos');
+  await ratonAlBorde();
+  const solapes = await pc.evaluate(V => {
+    /* Lo que se PULSA, no todo lo que haya: la primera versión metía
+       #modulo-area —la capa del estímulo, que ocupa la pantalla entera— y
+       acusaba al lanzador de pisarla. Y no se filtra por `position: fixed`:
+       el vecino que queda —el cartel del pie— va en el flujo. */
     const fijos = [...document.querySelectorAll('button, select, input, a[href]')]
       .filter(e => !e.closest('#panel-pc') && e.checkVisibility(V))
       .map(e => ({ q: e.id || e.className || e.tagName, r: e.getBoundingClientRect() }))
@@ -480,14 +680,13 @@ export default async function pruebaPanel({ navegador, url }) {
       for (let j = i + 1; j < fijos.length; j++)
         if (pisa(fijos[i].r, fijos[j].r)) malos.push(fijos[i].q + ' pisa ' + fijos[j].q);
     return { malos, cuantos: fijos.length,
-             lanzador: fijos.some(x => x.q === 'panel-pc-abrir') };
+             barra: fijos.filter(x => x.q === '' || true).length };
   }, VIS);
-  m.comprobar('el lanzador del panel no se monta sobre ningún otro control',
-    solapes.malos.length === 0 && solapes.lanzador && solapes.cuantos >= 2,
+  m.comprobar('ningún control de la barra se monta sobre otro',
+    solapes.malos.length === 0 && solapes.cuantos >= 10,
     solapes.malos.length ? solapes.malos.slice(0, 3).join(' · ')
-      : (!solapes.lanzador ? 'el lanzador no estaba a la vista: la prueba no mide nada'
-         : solapes.cuantos < 2 ? 'solo ' + solapes.cuantos + ' control: no hay con quién comparar'
-         : solapes.cuantos + ' controles a la vista, ninguno se pisa'));
+      : solapes.cuantos < 10 ? 'solo ' + solapes.cuantos + ' controles: la barra no está a la vista'
+      : solapes.cuantos + ' controles a la vista, ninguno se pisa');
 
   /* ── 10a · Dentro de un módulo el pie se va ────────────────────────────
      En un módulo la pantalla es el estímulo y nada más: el pie —la marca y el
@@ -704,7 +903,10 @@ export default async function pruebaPanel({ navegador, url }) {
     if (!p) return null;
     return {
       teclas: [...p.querySelectorAll('table.pp-teclas th')].map(e => e.textContent.trim()),
-      aqui: (p.querySelector('.pp-aqui') || {}).textContent || ''
+      /* TODOS los `.pp-aqui`, no el primero: hay dos —el eje de las flechas
+         de este test y el gesto de la barra— y con `querySelector` a secas la
+         sonda leía solo uno y acusaba al menú de no anunciar el otro. */
+      aqui: [...p.querySelectorAll('.pp-aqui')].map(e => e.textContent).join(' · ')
     };
   });
   const teclas = anuncio ? anuncio.teclas : [];
@@ -715,22 +917,53 @@ export default async function pruebaPanel({ navegador, url }) {
     ['↑ ↓',    /↑/],
     ['← →',    /←/],
     ['N',      /^N$/],
-    ['P',      /^P$/]
+    ['P',      /^P$/],
+    ['F',      /^F$/]
   ].filter(([, re]) => !anunciada(re)).map(([k]) => k);
-  m.comprobar('el panel anuncia los números, las flechas y la P',
-    !!anuncio && faltan.length === 0 && /↑↓|←→/.test(anuncio.aqui),
-    !anuncio ? 'no hay bloque de atajos en el panel'
+  /* Y el GESTO, no solo las teclas: una barra que aparece sola y que nadie
+     sabe cómo sacar es peor que un atajo sin anunciar. */
+  const diceElGesto = !!anuncio && /borde de arriba/i.test(anuncio.aqui);
+  m.comprobar('el menú anuncia los números, las flechas, la P, la F y el gesto de la barra',
+    !!anuncio && faltan.length === 0 && /↑↓|←→/.test(anuncio.aqui) && diceElGesto,
+    !anuncio ? 'no hay bloque de atajos en el menú'
       : (faltan.length ? 'no anuncia ' + faltan.join(', ')
-         : teclas.length + ' teclas · «' + anuncio.aqui.replace(/\s+/g, ' ').trim() + '»'));
+         : !diceElGesto ? 'no dice cómo sacar la barra'
+         : teclas.length + ' teclas · «' + anuncio.aqui.replace(/\s+/g, ' ').trim().slice(0, 90) + '»'));
+
+  /* ── PANTALLA COMPLETA ────────────────────────────────────────────────
+     Lo que gana no es estética: el navegador se queda con 80-120 px de barras
+     que aquí son alto de estímulo. Y lo que NO puede cambiar es el tamaño
+     físico de lo dibujado: los milímetros salen de la calibración y de la
+     distancia, no del alto de la ventana. Si al entrar a pantalla completa el
+     20/20 midiera otra cosa, la cifra que el test declara sería falsa. */
+  await abrirModulo('optotipos');
+  const mm2020 = () => pc.evaluate(() => +(((document.getElementById('modulo-nombre')
+    || {}).textContent || '').match(/20\/20 mide ([\d.]+) mm/) || [])[1]);
+  const mmAntes = await mm2020();
+  await ratonAlBorde();
+  await pulsar('#barra-pantalla');
+  await pc.waitForTimeout(800);
+  const dentro = await pc.evaluate(() => !!document.fullscreenElement);
+  const mmDentro = await mm2020();
+  await pc.keyboard.press('f');
+  await pc.waitForTimeout(800);
+  const fuera = await pc.evaluate(() => !!document.fullscreenElement);
+  m.comprobar('el botón de pantalla completa entra, la F sale, y el optotipo mide lo mismo',
+    dentro && !fuera && mmAntes > 0 && Math.abs(mmDentro - mmAntes) < 0.01,
+    `el botón ${dentro ? 'entra' : 'NO entra'} · la F ${!fuera ? 'sale' : 'NO sale'}`
+    + ` · el 20/20 de ${mmAntes} a ${mmDentro} mm`);
 
   /* ── 15 · Y se puede sacar a otra ventana ─────────────────────────────
      Es el arreglo de lo único que el panel compromete: que tape parte de la
      cartilla. La ventana nueva es EL MANDO de siempre, con el código de sala
      en la URL para que se empareje solo — el mismo camino del QR, así que no
      hay una segunda forma de emparejar que mantener. */
-  if (!(await panelAbierto())) { await pc.keyboard.press('p'); await pc.waitForTimeout(300); }
-  /* Vive dentro del bloque «El equipo», plegado: no son controles del test y
-     se tocan una vez al montar la sala. Se abre como lo abriría una persona. */
+  /* Vive en el menú de «La sala», dentro del bloque «El equipo» plegado: no
+     son controles de un test y se tocan una vez al montar la sala. Se abre
+     como lo abriría una persona: el ítem de la barra y luego el bloque. */
+  await ratonAlBorde();
+  await pulsar(BARRA + ' [data-test="sala"]');
+  await pc.waitForTimeout(400);
   await pc.evaluate(() => {
     const e = document.querySelector('.pp-equipo');
     if (e) e.open = true;

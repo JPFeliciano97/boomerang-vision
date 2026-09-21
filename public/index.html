@@ -318,7 +318,7 @@
            operativo. Por eso esto enumera lo que apaga en vez de usar el
            `* { animation: none }` de manual. */
         @media (prefers-reduced-motion: reduce) {
-            #panel-pc, #panel-pc-abrir, #panel-pc button, #panel-pc select,
+            #panel-pc, #barra-test, #barra-test button, #panel-pc button, #panel-pc select,
             #test-area, .remote-status, #card-cal, .pp-conf, .pp-corte {
                 transition: none !important;
             }
@@ -544,16 +544,18 @@
            cualquier alto de ventana. Los controles del test son lo único que
            puede crecer, así que son lo único que se desplaza. */
         #panel-pc {
-            position: fixed; top: 0; right: 0; z-index: 900;
-            width: 400px; max-width: 100vw; height: 100vh;
-            box-sizing: border-box; padding: 0 18px 20px;
+            position: fixed; z-index: 900;
+            top: var(--menu-top, 54px); left: var(--menu-left, 14px);
+            width: 400px; max-width: calc(100vw - 20px);
+            max-height: calc(100vh - var(--menu-top, 54px) - 14px);
+            box-sizing: border-box; padding: 14px 18px 18px;
             display: flex; flex-direction: column;
             overflow: hidden;
-            background: #101010; border-left: 1px solid #2a2a2a;
-            box-shadow: -18px 0 46px rgba(0,0,0,0.6);
+            background: #101010; border: 1px solid #2a2a2a; border-radius: 12px;
+            box-shadow: 0 22px 54px rgba(0,0,0,0.66);
             font-family: var(--ui); color: #e8e8e8;
-            visibility: hidden; transform: translateX(100%);
-            transition: transform .22s ease, visibility .22s;
+            visibility: hidden; opacity: 0; transform: translateY(-8px);
+            transition: opacity .16s ease, transform .16s ease, visibility .16s;
         }
         /* Nada crece salvo el cuerpo. Sin esto el flex reparte el alto entre
            todos y el cuerpo del test se queda sin sitio. */
@@ -565,7 +567,18 @@
                desplazamiento vacío que se queda el gesto es el defecto que ya
                dejó el mando sin poder deslizar. */
         }
-        body.panel-abierto #panel-pc { visibility: visible; transform: none; }
+        body.panel-abierto #panel-pc { visibility: visible; opacity: 1; transform: none; }
+        /* Dos modos, un contenedor: los controles del test, o lo que se declara
+           una vez por sala. */
+        #panel-pc.modo-test .pp-solo-sala,
+        #panel-pc.modo-sala .pp-solo-test { display: none; }
+        #panel-pc.modo-test .pp-solo-test,
+        #panel-pc.modo-sala .pp-solo-sala {
+            display: flex; flex-direction: column; min-height: 0; flex: 1 1 auto;
+        }
+        /* En modo sala el que se desplaza es el bloque entero; en modo test lo
+           hace `#panel-cuerpo`, que es lo único que crece con el módulo. */
+        #panel-pc.modo-sala .pp-solo-sala { overflow-y: auto; }
         #panel-cuerpo::-webkit-scrollbar { width: 9px; }
         #panel-cuerpo::-webkit-scrollbar-thumb { background: #2e2e2e; border-radius: 5px; }
         /* Y QUE SE VEA QUE HAY MÁS. Al pasar el desplazamiento al cuerpo, la
@@ -592,49 +605,80 @@
            botón de atajos (`?`) y su panel, y ahí el lanzador quedaba medio
            debajo del otro. Además el cajón se abre por la derecha, así que a
            la izquierda nunca queda tapado. */
-        #panel-pc-abrir {
-            position: fixed; bottom: 46px; left: 18px; z-index: 899;
-            display: flex; align-items: center; gap: 9px;
-            min-height: 40px; padding: 0 14px;
-            background: #1a1a1a; color: #cfcfcf;
-            border: 1px solid #333; border-radius: 22px; cursor: pointer;
-            font-family: var(--ui); font-size: 12.5px; letter-spacing: 0.4px;
-            opacity: 0; pointer-events: none; transition: opacity .25s ease;
+        /* ═══════════ LA BARRA DE TEST ═══════════
+           Superpuesta y nunca en el flujo: si empujara la maqueta, el estímulo
+           cambiaría de tamaño cada vez que la barra asoma y la geometría
+           dejaría de ser la declarada sin que nada lo delate. Hay una
+           comprobación que mide la caja de lo dibujado con la barra dentro y
+           fuera y exige que no se mueva ni un píxel. */
+        #barra-test {
+            position: fixed; top: 0; left: 0; right: 0; z-index: 902;
+            display: flex; align-items: center; gap: 14px;
+            padding: 8px 14px;
+            background: rgba(14,14,14,0.96); border-bottom: 1px solid #262626;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.45);
+            font-family: var(--ui);
+            transform: translateY(-100%); visibility: hidden;
+            transition: transform .2s ease, visibility .2s;
         }
-        body.raton-vivo #panel-pc-abrir { opacity: 0.82; pointer-events: auto; }
-        /* Con la medida de otra pantalla el chip no espera al ratón: es lo
-           único que lo dice en el camino PC-sin-móvil. */
-        body.cal-obsoleta #panel-pc-abrir {
-            opacity: 1; pointer-events: auto;
-            background: #241a12; border-color: #6b482f; color: #e8a072;
-        }
-        #panel-pc-abrir .alerta { display: none; }
-        body.cal-obsoleta #panel-pc-abrir .alerta {
-            display: inline; font-family: var(--ui); font-size: 11.5px;
-            letter-spacing: 0.6px; color: #e8a072;
-        }
-        body.raton-vivo #panel-pc-abrir:hover { opacity: 1; background: #232323; border-color: #454545; }
-        body.panel-abierto #panel-pc-abrir { opacity: 0 !important; pointer-events: none; }
-        #panel-pc-abrir .tecla {
-            font-family: var(--num); font-size: 10.5px; color: #8a8a8a;
-            border: 1px solid #3a3a3a; border-radius: 4px; padding: 2px 6px;
-        }
+        /* `barra-viva` la pone el borde de arriba, una tecla o el arranque. */
+        body.barra-viva #barra-test { transform: none; visibility: visible; }
+        /* Y con la medida de otra pantalla no se esconde: es el único estado en
+           el que hay que verla sí o sí, y sin móvil no lo dice nadie más. */
+        body.cal-obsoleta #barra-test { transform: none; visibility: visible; }
 
-        .pp-cabecera {
-            position: sticky; top: 0; z-index: 2; background: #101010;
-            display: flex; align-items: center; justify-content: space-between;
-            padding: 15px 0 11px; border-bottom: 1px solid #222; margin-bottom: 12px;
+        /* La marca vivía aquí y se llevaba 150 px de los que hacían falta para
+           que los ocho test cupieran con su nombre. Ya está en el pie. */
+        .bt-items { display: flex; align-items: center; gap: 4px; flex: 1 1 auto;
+                    min-width: 0; overflow: hidden; }
+        /* Cuando los ocho no caben con su nombre, se quedan con el número y el
+           icono y el nombre pasa al título emergente. Lo decide una MEDIDA
+           —`ajustarBarra()`—, no un ancho de pantalla escrito a mano: el largo
+           de los rótulos depende de la fuente del sistema. */
+        #barra-test.compacta .et { display: none; }
+        /* El nombre del que está puesto se queda a la vista aunque los demás se
+           queden en icono: en compacto es lo único que dice qué está en la
+           pantalla del paciente. Y «La sala» conserva el suyo, que no tiene
+           icono con el que reconocerse. */
+        #barra-test.compacta [aria-current="true"] .et,
+        #barra-test.compacta .bt-sala .et { display: inline; }
+        /* Puesto pero con el menú cerrado: marcado, sin gritar. El naranja
+           relleno se reserva para «su menú está abierto». */
+        #barra-test [aria-current="true"] {
+            background: #1f1b14; border-color: #4a3a1c; color: #e8c88a;
         }
-        .pp-marca {
-            font-family: 'OpticianSans', 'Arial Black', Impact, sans-serif;
-            font-size: 13px; letter-spacing: 2.4px; color: #bbb;
+        #barra-test [aria-current="true"] .num { color: #a8895f; border-color: #4a3a1c; }
+        #barra-test button {
+            display: flex; align-items: center; gap: 7px; flex-shrink: 0;
+            min-height: 38px; padding: 0 11px;
+            background: transparent; color: #c2c2c2;
+            border: 1px solid transparent; border-radius: 9px; cursor: pointer;
+            font-family: var(--ui); font-size: 12.5px; letter-spacing: 0.3px;
         }
-        #panel-pc-cerrar {
-            width: 32px; height: 32px; flex-shrink: 0;
-            background: #1c1c1c; color: #9a9a9a; border: 1px solid #2f2f2f;
-            border-radius: 8px; cursor: pointer; font-size: 13px; line-height: 1;
+        #barra-test button:hover { background: #1e1e1e; border-color: #333; color: #e8e8e8; }
+        #barra-test button[aria-expanded="true"] {
+            background: #f39c12; border-color: #f39c12; color: #1a1a1a; font-weight: 600;
         }
-        #panel-pc-cerrar:hover { background: #262626; color: #ddd; }
+        #barra-test button[aria-expanded="true"] .num { color: #6b4a08; border-color: #c8820f; }
+        #barra-test .num {
+            font-family: var(--num); font-size: 10px; color: #8a8a8a;
+            border: 1px solid #3a3a3a; border-radius: 4px; padding: 1px 5px; line-height: 1.4;
+        }
+        #barra-test .et { white-space: nowrap; }
+        .bt-sala { margin-left: auto; }
+        .bt-icono { width: 38px; justify-content: center; padding: 0 !important; }
+        .bt-alerta {
+            display: none; font-size: 11.5px; letter-spacing: 0.6px; color: #e8a072;
+            flex-shrink: 0;
+        }
+        body.cal-obsoleta .bt-alerta { display: inline; }
+        /* La franja invisible que la saca: el borde de arriba de la pantalla,
+           como la barra de menú del Mac. Mover el ratón por el centro para
+           señalarle algo al paciente no puede sacarla. */
+        #barra-borde {
+            position: fixed; top: 0; left: 0; right: 0; height: 44px; z-index: 901;
+        }
+        body.barra-viva #barra-borde, body.cal-obsoleta #barra-borde { pointer-events: none; }
 
         .pp-mirando {
             font-size: 11px; line-height: 1.5; color: #a8895f;
@@ -857,7 +901,7 @@
         .pp-pie .aviso { color: #c9a870; }
 
         /* Aquí sí hay teclado, así que el foco tiene que verse. */
-        #panel-pc :focus-visible, #panel-pc-abrir:focus-visible {
+        #panel-pc :focus-visible, #barra-test :focus-visible {
             outline: 2px solid #f39c12; outline-offset: 2px;
         }
 
@@ -888,28 +932,55 @@
 
          La distancia de la sala NO se toca desde aquí: se declara una vez, en
          la configuración inicial, y en ningún otro sitio. -->
-    <button id="panel-pc-abrir" type="button" title="Controles (P)">
-        <span class="txt">Controles</span><span class="tecla">P</span><!--
-        Y el aviso de calibración, que sin esto no se decía en ningún sitio
-        alcanzable. Vive en el pie, y el pie se esconde dentro de un módulo; con
-        el panel cerrado y sin móvil, arrastrar la ventana a otra pantalla
-        dejaba toda la geometría mal en silencio. Va aquí y no sobre la
-        cartilla: el estímulo no se toca. Y con él puesto el chip se queda a la
-        vista, en vez de asomar solo cuando el ratón se mueve. -->
-        <span class="alerta" id="panel-alerta"></span>
-    </button>
-    <aside id="panel-pc" aria-label="Panel de control">
-        <div class="pp-cabecera">
-            <div class="pp-marca">BOOMERANG VISION</div>
-            <button type="button" id="panel-pc-cerrar" title="Cerrar (Esc)">&#10005;</button>
-        </div>
+    <!-- LA BARRA DE TEST. Los ocho están aquí, cada uno con su número —que es
+         su atajo de teclado, y un atajo que no se anuncia no existe— y su
+         icono, el mismo que dibuja el móvil. Al pulsar uno cae SU menú,
+         colgando de su ítem.
+
+         Y SE ESCONDE SOLA, que no es un adorno: es la condición que le permite
+         existir. La barra anterior de este proyecto se quitó entera porque
+         estaba a la vista del paciente todo el rato gastando alto de pantalla,
+         que es lo que este sistema gasta en el estímulo. Una que se va sola no
+         tiene ese defecto. Asoma al acercar el ratón al borde de arriba o al
+         pulsar una tecla; señalarle algo al paciente con el ratón por el centro
+         NO la saca.
+
+         Se superpone y no re-maqueta, por lo de siempre: si empujara la
+         maqueta, el estímulo cambiaría de tamaño al aparecer y la geometría
+         dejaría de ser la declarada sin que nada lo delate. -->
+    <nav id="barra-test" aria-label="Test y controles">
+        <!-- Los ocho test van en su propia caja, que es la que se recorta
+             cuando no caben. «La sala» y la pantalla completa quedan FUERA: si
+             entran en la caja que recorta, la primera pantalla estrecha se los
+             lleva por delante y no hay forma de llegar a la distancia. -->
+        <div class="bt-items" id="barra-items"></div>
+        <!-- El aviso de calibración obsoleta. Vive en el pie, y el pie se
+             esconde dentro de un módulo; sin móvil y con el menú cerrado,
+             arrastrar la ventana a otra pantalla dejaba toda la geometría mal
+             en silencio. Con él puesto la barra deja de esconderse: es el único
+             estado en el que hay que verla sí o sí. -->
+        <span class="bt-alerta" id="panel-alerta"></span>
+        <button type="button" id="barra-pantalla" class="bt-icono"
+            title="Pantalla completa (F)" aria-label="Pantalla completa">
+            <svg width="17" height="17" viewBox="0 0 20 20" fill="none" stroke="currentColor"
+                 stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"
+                 aria-hidden="true"><path d="M3 7.5V3h4.5M16.5 7.5V3H12M3 12.5V17h4.5M16.5 12.5V17H12"/></svg>
+        </button>
+    </nav>
+    <!-- EL MENÚ DEL TEST ELEGIDO. Era un cajón lateral con un desplegable de
+         ocho test dentro; ahora los ocho están en la barra y esto es lo que cae
+         del que se pulsa. La maquetación de los controles no cambia: sigue
+         siendo la columna que ya tenían, que es la que cabe.
+
+         Dos modos, y el mismo contenedor: `modo-test` trae los controles del
+         test y `modo-sala` lo que se declara una vez por sala. Un contenedor y
+         no dos para que no haya dos sitios donde mirar el foco, el
+         auto-ocultado o el desborde. -->
+    <aside id="panel-pc" class="modo-test" aria-label="Controles del test">
         <div class="pp-mirando">
-            El paciente est&aacute; viendo este panel &middot; <b>Esc</b> lo cierra
+            El paciente est&aacute; viendo este men&uacute; &middot; <b>Esc</b> lo cierra
         </div>
-        <div class="pp-grupo">
-            <label class="pp-rot" for="panel-modulo">Test</label>
-            <select id="panel-modulo"></select>
-        </div>
+        <div class="pp-solo-test">
         <!-- LA DECLARACIÓN, y solo una. El rótulo del operador y la caja de
              geometría eran el mismo texto en dos líneas —`ppGeo()` sacaba la
              segunda de la primera con un `split`— y la de arriba se salía del
@@ -924,6 +995,12 @@
             <span class="pp-corte-et">Pantalla en negro</span>
             <span class="pp-corte-val">el test sigue puesto &middot; N</span>
         </button>
+        </div><!-- /pp-solo-test -->
+
+        <!-- LO QUE SE DECLARA UNA VEZ POR SALA. Cuelga del ítem «La sala» de la
+             barra, no del menú de cada test: no son controles de un test y
+             repetirlos ocho veces sería decir ocho veces lo mismo. -->
+        <div class="pp-solo-sala">
         <details class="pp-mando pp-atajos">
             <summary><span>Atajos de teclado</span><span class="pp-cod">?</span></summary>
             <div class="pp-mando-cuerpo" id="panel-atajos"></div>
@@ -983,6 +1060,7 @@
                 <div class="pp-pie" id="panel-estado"></div>
             </div>
         </details>
+        </div><!-- /pp-solo-sala -->
     </aside>
 
     <!-- Aquí estaba la barra de calibración: distancia, ⚙ CONFIGURACIÓN, el
@@ -1153,6 +1231,33 @@
                área de la rejilla, y el Pelli-Robson porque mostrar sus ocho
                niveles a la vez obliga a letras de 26 mm. Salir de uno de estos
                deja al paciente acercado, así que el mando avisa. */
+            /* EL ICONO DE CADA MÓDULO, aquí y solo aquí. Vivía en
+               `remote.html` y ahora lo pinta también la barra del PC, así que
+               tenerlo en los dos sitios era la misma trampa que ya tuvieron las
+               figuras de fijación: añadir un módulo sería editar dos ficheros y
+               acordarse de los dos. Viaja en el espejo, como todo lo demás. */
+            const ICONO_MOD = {
+                optotipos: '<path d="M3 5h14"/><path d="M5 10h10"/><path d="M7.5 15h5"/>',
+                contraste: '<circle cx="10" cy="10" r="7"/><path d="M10 3a7 7 0 0 1 0 14z" fill="currentColor" stroke="none"/>',
+                worth:     '<circle cx="10" cy="4" r="2.1" fill="currentColor" stroke="none"/>'
+                         + '<circle cx="4.4" cy="10" r="2.1"/><circle cx="15.6" cy="10" r="2.1"/><circle cx="10" cy="16" r="2.1"/>',
+                schober:   '<circle cx="10" cy="10" r="7.2"/><circle cx="10" cy="10" r="3.6"/>'
+                         + '<path d="M10 5.2v9.6M5.2 10h9.6"/>',
+                color:     '<g fill="currentColor" stroke="none"><circle cx="10" cy="4.6" r="2"/>'
+                         + '<circle cx="4.8" cy="7.6" r="2"/><circle cx="15.2" cy="7.6" r="2"/>'
+                         + '<circle cx="10" cy="10.6" r="2"/><circle cx="4.8" cy="13.6" r="2"/>'
+                         + '<circle cx="15.2" cy="13.6" r="2"/><circle cx="10" cy="16.6" r="2"/></g>',
+                amsler:    '<path d="M3 3h14v14H3zM7.7 3v14M12.3 3v14M3 7.7h14M3 12.3h14" stroke-width="1.3"/>'
+                         + '<circle cx="10" cy="10" r="1.5" fill="currentColor" stroke="none"/>',
+                relax:     '<circle cx="10" cy="10" r="8" stroke-width="0.8" opacity="0.4"/>'
+                         + '<circle cx="10" cy="10" r="5.4" stroke-width="1.1" opacity="0.7"/>'
+                         + '<circle cx="10" cy="10" r="1.6" fill="currentColor" stroke="none"/>',
+                infantil:  '<path d="M10 2.8l1.9 4.2 4.3.5-3.2 3 .9 4.4-3.9-2.3-3.9 2.3.9-4.4-3.2-3 4.3-.5z"/>'
+            };
+            const iconoModulo = id => '<svg width="20" height="20" viewBox="0 0 20 20" fill="none"'
+                + ' stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">'
+                + (ICONO_MOD[id] || '') + '</svg>';
+
             const MODULOS = [
                 /* El orden es el de la consulta, no el del catálogo: los cuatro que
                    más se usan primero, y son los que caen en las teclas 1 a 4. */
@@ -2281,7 +2386,7 @@
                 // cssPxPerMM es lo ÚNICO que se usa para dibujar. Sale de la
                 // tarjeta si hay medida de esta misma pantalla, y si no del
                 // cálculo por resolución y pulgadas.
-                cssPxPerMM:0, calSource:'monitor', calStale:false, calAck:false,
+                cssPxPerMM:0, calSource:'monitor', calStale:false, calAck:false, barraVista:false,
                 pairCode:'', remoteJoined:false,
                 cardPxPerMM:0, cardDpr:0, cardDevW:0, cardDevH:0,
                 currentScreenIdx:0, mode:'letters', bichromatic:false,
@@ -2875,6 +2980,7 @@
                     modulo: m.id,
                     modulos: MODULOS.map(x => ({ id:x.id, titulo:x.titulo, sub:x.sub, grupo:x.grupo,
                                                  hecho:x.hecho, distFija:x.distFija,
+                                                 icono: ICONO_MOD[x.id] || '',
                                                  ver: veredictoModulo(x) })),
                     cal: {
                         testDistanceM: state.testDistanceM,
@@ -3313,7 +3419,8 @@
                     testDistanceM:state.testDistanceM,
                     cardPxPerMM:state.cardPxPerMM, cardDpr:state.cardDpr,
                     cardDevW:state.cardDevW, cardDevH:state.cardDevH,
-                    calAck:state.calAck, pairCode:state.pairCode,
+                    calAck:state.calAck, barraVista:state.barraVista,
+                    pairCode:state.pairCode,
                     bichromatic:state.bichromatic, highlightMode:state.highlightMode,
                     singleCharMode:state.singleCharMode, currentScreenIdx:state.currentScreenIdx,
                     // preferencias del Amsler; el módulo activo NO se guarda,
@@ -3360,6 +3467,7 @@
                     state.cardDevW=saved.cardDevW||0;
                     state.cardDevH=saved.cardDevH||0;
                     state.calAck=saved.calAck===true;
+                    state.barraVista=saved.barraVista===true;
                     state.pairCode=saved.pairCode||'';
                     if(typeof saved.bichromatic==='boolean') state.bichromatic=saved.bichromatic;
                     if(typeof saved.highlightMode==='boolean') state.highlightMode=saved.highlightMode;
@@ -3629,6 +3737,11 @@
                 if (pp && suyo && pp.contains(foco)
                     && !['Escape','p','P'].includes(e.key)) return;
                 if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) e.preventDefault();
+                /* Cualquier tecla que maneje la pantalla saca la barra y
+                   reinicia su reloj: quien está tocando el teclado está
+                   trabajando, y la barra le dice en qué test está. Escape no,
+                   que es justo la que sirve para quitarla. */
+                if (e.key !== 'Escape' && !e.ctrlKey && !e.metaKey && !e.altKey) avivarBarra();
                 /* Los números: los ocho test y el 0 para dejarla sin estímulo.
                    Antes de la lista blanca de abajo, porque valen en cualquier
                    módulo y no solo en optotipos. */
@@ -3672,9 +3785,15 @@
                 /* P de panel: la única forma de entrar a los ocho módulos sin
                    móvil. Vale en cualquier módulo, como la N. */
                 else if(e.key==='p'||e.key==='P'){ if(!e.ctrlKey&&!e.metaKey) togglePanelPC(); }
+                /* F de pantalla completa. El alto que se lleva el navegador en
+                   barras es alto de estímulo. */
+                else if(e.key==='f'||e.key==='F'){ if(!e.ctrlKey&&!e.metaKey) pantallaCompleta(); }
                 else if(e.key==='Escape'){
+                    /* Esc recoge los controles enteros: el menú y la barra. */
                     if (panelPCAbierto) cerrarPanelPC();
                     else if (!d.cardCal.classList.contains('hidden')) closeCardCal();
+                    document.body.classList.remove('barra-viva');
+                    clearTimeout(barraReloj);
                 }
             });
 
@@ -3914,6 +4033,9 @@
             }
 
             let panelPCAbierto = false;
+            /* Cuál de los ítems de la barra tiene su menú abierto: un id de
+               módulo, o 'sala'. */
+            let menuPuesto = 'optotipos';
             let panelPCFirma = null;
             let panelPCArrastrando = false;
 
@@ -4105,14 +4227,19 @@
                 ['\u2191 \u2193', 'lo que el test ordena: pantalla, fila, l\u00e1mina, anillos, luz, figura'],
                 ['\u2190 \u2192', 'remezclar, o la otra elecci\u00f3n del test'],
                 ['N', 'dejar la pantalla en negro sin salir del test'],
-                ['P', 'abrir y cerrar este panel'],
+                ['P', 'abrir y cerrar este menú'],
+                ['F', 'pantalla completa'],
                 ['B', 'bicrom\u00e1tico'],
                 ['R', 'resaltar una l\u00ednea'],
                 ['U', 'un solo car\u00e1cter'],
                 ['M', 'volver a optotipos'],
                 ['C', 'configuraci\u00f3n inicial'],
-                ['Esc', 'cerrar el panel']
+                ['Esc', 'recoger la barra y el menú']
             ];
+            /* El gesto también se anuncia: una barra que aparece sola y nadie
+               sabe cómo sacar es peor que un atajo sin anunciar. */
+            const GESTO_BARRA = 'Acerque el ratón al borde de arriba para sacar la barra. '
+                + 'Se esconde sola a los 5 s, y no mientras la esté usando.';
 
             function pintarAtajos(id){
                 const caja = document.getElementById('panel-atajos');
@@ -4124,9 +4251,87 @@
                 caja.innerHTML =
                     (aqui.length ? '<div class="pp-aqui">En este test: '
                         + aqui.join(' &nbsp;\u00b7&nbsp; ') + '</div>' : '')
+                  + '<div class="pp-aqui">' + esc(GESTO_BARRA) + '</div>'
                   + '<table class="pp-teclas">' + ATAJOS.map(([k, q]) =>
                       '<tr><th><b>' + esc(k) + '</b></th><td>' + esc(q) + '</td></tr>').join('')
                   + '</table>';
+            }
+
+            /* ═══════════ LA BARRA Y EL MENÚ QUE CUELGA DE ELLA ═══════════
+               Los ocho test, «La sala» y la pantalla completa. Se pinta una
+               vez: los ítems no cambian, y rehacerlos en cada repintado
+               cerraría el menú que alguien está usando. Lo que sí se refresca
+               es cuál está marcado. */
+            function pintarBarra(dt){
+                const caja = document.getElementById('barra-items');
+                if (!caja) return;
+                if (!caja.children.length) {
+                    /* El número delante: es donde se descubre el atajo. Un
+                       atajo que no está escrito al lado de lo que hace no
+                       existe — nadie lo va a encontrar pulsando teclas. */
+                    caja.innerHTML = (dt.modulos || []).map((x, i) =>
+                        '<button type="button" data-test="' + esc(x.id) + '"'
+                      + ' data-cmd="Modulo:' + esc(x.id) + '" aria-expanded="false"'
+                      + ' title="' + esc(x.titulo + ' · ' + x.grupo + ' · tecla ' + (i + 1)) + '">'
+                      + '<span class="num">' + (i + 1) + '</span>'
+                      + iconoModulo(x.id)
+                      + '<span class="et">' + esc(x.titulo) + '</span></button>').join('');
+                    const sala = document.createElement('button');
+                    sala.type = 'button';
+                    sala.className = 'bt-sala';
+                    sala.dataset.test = 'sala';
+                    sala.setAttribute('aria-expanded', 'false');
+                    sala.title = 'La distancia, la pantalla, el móvil y los atajos';
+                    sala.innerHTML = '<span class="et">La sala</span>';
+                    caja.parentNode.insertBefore(sala, caja.nextSibling);
+                    ajustarBarra();
+                }
+                for (const b of caja.parentNode.querySelectorAll('[data-test]')) {
+                    const cual = b.dataset.test;
+                    /* `aria-expanded` es si SU MENÚ está abierto. Y aparte,
+                       `aria-current` es qué test está en la pantalla del
+                       paciente, que es otra cosa: con el menú cerrado no
+                       quedaba ninguno marcado y la barra enseñaba ocho botones
+                       iguales sin decir cuál está puesto. En la barra compacta
+                       —la de un portátil, donde los nombres no caben— eso es lo
+                       único que lo dice. */
+                    b.setAttribute('aria-expanded',
+                        panelPCAbierto && cual === menuPuesto ? 'true' : 'false');
+                    if (cual === dt.modulo) b.setAttribute('aria-current', 'true');
+                    else b.removeAttribute('aria-current');
+                }
+            }
+
+            /* ¿Caben los ocho con su nombre? Se MIDE, y si no caben se quedan
+               con el número y el icono. Un ancho de pantalla escrito a mano no
+               vale: lo que ocupan los rótulos depende de la fuente que tenga
+               ese equipo, y «Pseudoisocromático» no mide lo mismo en todas. */
+            function ajustarBarra(){
+                const barra = document.getElementById('barra-test');
+                const caja = document.getElementById('barra-items');
+                if (!barra || !caja) return;
+                barra.classList.remove('compacta');
+                if (caja.scrollWidth > caja.clientWidth + 1) barra.classList.add('compacta');
+            }
+
+            /* El menú cuelga del ítem que se pulsa: eso es lo que lo hace un
+               menú y no un cajón. Se mide al abrirlo y se recoloca al cambiar
+               el alto de la ventana — y se frena contra el borde derecho, que
+               si no el último ítem lo saca de la pantalla. */
+            function anclarMenu(){
+                const pp = document.getElementById('panel-pc');
+                const barra = document.getElementById('barra-test');
+                if (!pp || !barra) return;
+                const it = menuPuesto
+                    ? barra.querySelector('[data-test="' + menuPuesto + '"]') : null;
+                const rb = barra.getBoundingClientRect();
+                const ri = it ? it.getBoundingClientRect() : null;
+                const ancho = Math.min(400, window.innerWidth - 20);
+                const izq = ri
+                    ? Math.max(10, Math.min(ri.left, window.innerWidth - ancho - 10))
+                    : 14;
+                pp.style.setProperty('--menu-left', Math.round(izq) + 'px');
+                pp.style.setProperty('--menu-top', Math.round(rb.bottom + 6) + 'px');
             }
 
             function pintarPanelPC(datos){
@@ -4134,19 +4339,7 @@
                 if (!pp) return;
                 const dt = datos || construirEspejo();
                 document.body.classList.toggle('corte-puesto', !!dt.corte);
-                /* El desplegable de test se pinta una vez: sus opciones no
-                   cambian, y rehacerlo cerraría la lista abierta. */
-                const sel = document.getElementById('panel-modulo');
-                if (sel && !sel.options.length) {
-                    /* El número delante: es donde se descubre el atajo. Un
-                       atajo que no está escrito al lado de lo que hace no
-                       existe — nadie lo va a encontrar pulsando teclas. */
-                    sel.innerHTML = (dt.modulos || []).map((x, i) =>
-                        '<option value="' + esc(x.id) + '" data-cmd="Modulo:' + esc(x.id) + '">'
-                      + (i + 1) + ' · ' + esc(x.titulo) + ' · ' + esc(x.grupo) + '</option>').join('')
-                      + '<option value="menu" data-cmd="Modulo:menu">0 · Sin estímulo · entre test y test</option>';
-                }
-                if (sel && sel.value !== dt.modulo) sel.value = dt.modulo;
+                pintarBarra(dt);
                 const campoDist = document.getElementById('pp-dist');
                 if (campoDist && document.activeElement !== campoDist) {
                     campoDist.value = dt.cal.testDistanceM;
@@ -4202,11 +4395,80 @@
                     !hay || c.scrollTop + c.clientHeight >= c.scrollHeight - 2);
             }
 
+            /* ── EL AUTO-OCULTADO ──────────────────────────────────────────
+               La barra se esconde a los cinco segundos, y eso es lo que le
+               permite existir: la barra anterior de este proyecto se quitó
+               entera por estar a la vista del paciente todo el rato.
+
+               Pero NO mientras alguien la está usando. Un menú que se va en las
+               narices mientras lees la línea de geometría es peor que no
+               tenerlo, así que el reloj se para con el ratón encima o con un
+               control enfocado — y el foco hace falta además del ratón, porque
+               un desplegable abierto no dispara `mouseleave`.
+
+               Y con la medida de otra pantalla no se esconde nunca: es el único
+               estado en el que hay que verla sí o sí, y sin móvil no lo dice
+               nadie más. */
+            const BARRA_MS = 5000;
+            let barraReloj = null;
+
+            function usandoLosControles(){
+                const a = document.activeElement;
+                for (const id of ['barra-test', 'panel-pc']) {
+                    const e = document.getElementById(id);
+                    if (!e) continue;
+                    if (a && e.contains(a) && a !== document.body) return true;
+                    if (e.matches(':hover')) return true;
+                }
+                return false;
+            }
+
+            function esconderControles(){
+                if (usandoLosControles()) { avivarBarra(); return; }
+                if (state.calStale || !state.isCalibrated) return;
+                cerrarPanelPC();
+                document.body.classList.remove('barra-viva');
+            }
+
+            function avivarBarra(){
+                document.body.classList.add('barra-viva');
+                clearTimeout(barraReloj);
+                barraReloj = setTimeout(esconderControles, BARRA_MS);
+            }
+
+            /* Abre el menú de un test —o el de la sala— colgando de su ítem. */
+            function abrirMenu(cual){
+                menuPuesto = cual;
+                const pp = document.getElementById('panel-pc');
+                if (pp) pp.className = cual === 'sala' ? 'modo-sala' : 'modo-test';
+                if (cual !== 'sala' && cual !== state.modulo) entrarModulo(cual);
+                avivarBarra();
+                abrirPanelPC();
+                anclarMenu();
+            }
+
+            /* Pantalla completa. Lo que gana no es estética: el navegador se
+               queda con 80-120 px de barras que aquí son alto de estímulo, y
+               `resize` ya rehace la calibración, así que la geometría sigue
+               siendo la declarada. Si el navegador la deniega —hay políticas
+               que lo hacen— no pasa nada más que quedarse como estaba. */
+            function pantallaCompleta(){
+                const d = document;
+                if (d.fullscreenElement) {
+                    if (d.exitFullscreen) d.exitFullscreen().catch(() => {});
+                } else if (d.documentElement.requestFullscreen) {
+                    d.documentElement.requestFullscreen().catch(() => {});
+                }
+                avivarBarra();
+            }
+
             function abrirPanelPC(){
                 document.body.classList.add('panel-abierto');
                 panelPCAbierto = true;
                 panelPCFirma = null;         // que se repinte al abrirse
                 pintarPanelPC();
+                anclarMenu();
+                avivarBarra();
             }
             function cerrarPanelPC(){
                 /* El foco tiene que SALIR del panel. Si se queda dentro de un
@@ -4219,16 +4481,68 @@
                 if (a && pp && pp.contains(a) && a.blur) a.blur();
                 document.body.classList.remove('panel-abierto');
                 panelPCAbierto = false;
+                pintarBarra(construirEspejo());      // que el ítem deje de estar marcado
             }
-            function togglePanelPC(){ panelPCAbierto ? cerrarPanelPC() : abrirPanelPC(); }
+            /* `P` saca la barra con el menú del test que está puesto, y lo
+               vuelve a esconder. Es el camino de teclado a todo lo demás. */
+            function togglePanelPC(){
+                if (panelPCAbierto) {
+                    cerrarPanelPC();
+                    document.body.classList.remove('barra-viva');
+                    clearTimeout(barraReloj);
+                } else {
+                    abrirMenu(moduloActual().id);
+                }
+            }
 
             (function cablearPanelPC(){
                 const pp = document.getElementById('panel-pc');
                 if (!pp) return;
-                document.getElementById('panel-pc-abrir').addEventListener('click', abrirPanelPC);
                 document.getElementById('panel-cuerpo')
                     .addEventListener('scroll', marcarDesborde, { passive: true });
-                document.getElementById('panel-pc-cerrar').addEventListener('click', cerrarPanelPC);
+
+                /* LA BARRA. Un solo oyente por delegación: los ítems se pintan
+                   una vez, pero engancharlos uno a uno dejaría oyentes colgando
+                   el día que se repinten. */
+                const barra = document.getElementById('barra-test');
+                barra.addEventListener('click', e => {
+                    const b = e.target.closest('[data-test]');
+                    if (!b) return;
+                    const cual = b.dataset.test;
+                    /* Pulsar el que ya está abierto lo cierra: un ítem marcado
+                       que no se puede desmarcar es un botón que miente. */
+                    if (panelPCAbierto && cual === menuPuesto) cerrarPanelPC();
+                    else abrirMenu(cual);
+                });
+                /* Mientras el ratón esté por la barra o por el menú, el reloj
+                   se reinicia: no se esconde debajo de quien la usa. */
+                for (const e of [barra, pp]) {
+                    e.addEventListener('pointermove', avivarBarra);
+                    e.addEventListener('focusin', avivarBarra);
+                }
+
+                /* El borde de arriba es lo que la saca. Con `pointermove` sobre
+                   una franja invisible y no con un `mousemove` global: mover el
+                   ratón por el centro para señalarle algo al paciente no puede
+                   sacar los controles. */
+                const borde = document.createElement('div');
+                borde.id = 'barra-borde';
+                document.body.appendChild(borde);
+                borde.addEventListener('pointermove', avivarBarra);
+
+                /* Un clic en la cartilla cierra el menú: es el gesto de «ya
+                   está, quítate». La barra se queda con su reloj. */
+                document.getElementById('test-area').addEventListener('pointerdown', () => {
+                    if (panelPCAbierto) cerrarPanelPC();
+                });
+
+                /* PANTALLA COMPLETA. El navegador solo la concede desde un
+                   gesto, así que no puede ponerse sola al arrancar. Lo que gana
+                   es alto de pantalla, que es lo que este sistema gasta en el
+                   estímulo — y `resize` ya rehace la calibración, así que la
+                   geometría sigue siendo la declarada. */
+                document.getElementById('barra-pantalla')
+                    .addEventListener('click', pantallaCompleta);
                 /* La distancia de la sala NO se edita desde aquí: este botón abre
                    la CONFIGURACIÓN INICIAL, que es el único sitio donde se
                    declara. Un campo de distancia dentro del panel invitaría a
@@ -4319,13 +4633,17 @@
                 document.addEventListener('pointerup', () => {
                     if (panelPCArrastrando) { panelPCArrastrando = false; pintarPanelPC(); }
                 });
-                /* El lanzador aparece con el ratón y se va solo, igual que el
-                   cursor: el paciente no tiene que ver un botón flotando. */
-                let apagar;
-                document.addEventListener('mousemove', () => {
-                    document.body.classList.add('raton-vivo');
-                    clearTimeout(apagar);
-                    apagar = setTimeout(() => document.body.classList.remove('raton-vivo'), 2600);
+                /* Aquí había un `mousemove` global que sacaba el chip de
+                   «Controles» con cualquier movimiento del ratón. La barra sale
+                   del BORDE DE ARRIBA y no de eso: señalarle algo al paciente
+                   con el ratón no tiene por qué enseñarle los controles. */
+                /* Y al cambiar el alto de la ventana —o al entrar y salir de
+                   pantalla completa— el menú tiene que volver a colgar de su
+                   ítem, que se ha movido. */
+                window.addEventListener('resize', () => { ajustarBarra(); anclarMenu(); });
+                document.addEventListener('fullscreenchange', () => {
+                    anclarMenu();
+                    avivarBarra();
                 });
             })();
 
@@ -4350,6 +4668,16 @@
                 // se abre solo hasta que alguien decida: medir, o renunciar a
                 // medir (cancelar / usar pulgadas). Después, nunca más.
                 if ((state.cardPxPerMM <= 0 && !state.calAck) || state.calStale) openCardCal();
+                /* LA BARRA ASOMA SOLA LA PRIMERA VEZ, y se va con su reloj. Sin
+                   esto, quien abre el programa por primera vez ve una cartilla
+                   y nada más: es el mismo defecto que tuvo el QR cuando vivía
+                   escondido y dejó invisible la suite entera. Una sola vez por
+                   equipo — después ya se sabe que el borde de arriba la saca. */
+                if (!state.barraVista) {
+                    state.barraVista = true;
+                    saveToStorage();
+                    avivarBarra();
+                }
             }
             init();
         })();

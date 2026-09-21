@@ -232,8 +232,20 @@ desarrollo se abre al tocarlo.
 ## El panel del PC
 
 Los ocho módulos nacieron alcanzables **solo desde el móvil**. El panel del PC
-(`#panel-pc` en `public/index.html`, tecla `P`, `Esc` para cerrar) abre el otro
-camino: un consultorio con un PC, un teclado y un ratón.
+abre el otro camino: un consultorio con un PC, un teclado y un ratón.
+
+**Es una barra arriba con los ocho test, y el menú de cada uno cuelga de su
+ítem** (`#barra-test` y `#panel-pc` en `public/index.html`; `P` para sacarlo,
+`Esc` para recogerlo). Antes era un cajón lateral con un desplegable de ocho
+test dentro, y eso obligaba a abrir el cajón, buscar en la lista y cerrar; los
+ocho están ahora a un gesto. Lo que **no** cambió es la maquetación de los
+controles de cada test: sigue siendo la columna que ya tenían, que es la que
+cabe. En «La sala» cuelga lo que se declara una vez por sala — la distancia, el
+móvil, la configuración y los atajos—: no son controles de un test y repetirlos
+ocho veces sería decir ocho veces lo mismo.
+
+Cómo se esconde, por qué, y qué no se puede romper: en «La barra de arriba: ida
+y vuelta», más abajo.
 
 **No reimplementa nada.** Se pinta con `construirEspejo()` —el mismo objeto que
 se le manda al móvil— y despacha por `aplicarComando()` —el mismo vocabulario
@@ -264,14 +276,13 @@ en optotipos, así que el módulo por el que existe toda la calibración era el
 no se resuelve **viaja en el espejo hasta el mando**: vivía solo en el panel
 del PC, y el camino original de esta suite es el móvil.
 
-**El panel es un armazón, no una lista larga.** Medido: 829 px de cabecera,
-rótulos y pie para 137–491 px de controles del test, así que en fijación
-infantil a 900 px de alto el campo de la distancia acababa en el píxel 1017 —
-había que desplazar para corregir un número, que es la misma molestia que tenía
-detrás del diálogo. Lo que se desplaza es **solo `#panel-cuerpo`**; la cabecera
-y el pie —el corte, los atajos, la sala, el equipo— se quedan a la vista a 900
-y a 768 px. Y los cuatro bloques del equipo (QR, otra ventana, configuración,
-estado) van en uno plegado: no son controles del test, se tocan una vez.
+**El menú es un armazón, no una lista larga.** Cuando era un cajón de pantalla
+completa gastaba 829 px de cabecera, rótulos y pie para 137–491 px de controles
+del test, y el campo de la distancia caía por debajo del pliegue. Lo que se
+desplaza es **solo `#panel-cuerpo`**, que es lo único que crece con el módulo;
+lo demás se queda a la vista. Lo que tiene que estar ahí sin desplazar nada, y
+está comprobado a 900 y a 768 px: **el corte de estímulo** en el menú de cada
+test —es lo más usado del examen— y **la distancia** en el de «La sala».
 
 Con el desplazamiento dentro, la última fila queda cortada por el borde y una
 barra superpuesta no lo dice, así que **se mide y se dice** («hay más abajo»), y
@@ -289,11 +300,18 @@ está abierto le tapa parte de la cartilla. Con un solo monitor eso no tiene
 arreglo, así que se dice en la cabecera del propio panel en vez de disimularlo.
 El flujo es elegir y cerrar.
 
-La distancia de la sala **sí** se corrige aquí, en el grupo «La sala»: se pide
-una vez en la configuración inicial y después se edita en el panel. Esta línea
+La distancia de la sala **sí** se corrige aquí, en el menú de «La sala»: se
+pide una vez en la configuración inicial y después se edita ahí. Esta línea
 decía lo contrario —era la regla de antes— y se quedó contradiciendo a la de
 arriba durante dos PR. Lo que se conserva sigue siendo lo mismo: que el cambio
 no sea invisible.
+
+**Y los iconos de módulo viven en un solo sitio.** `ICONO_MOD` está en
+`index.html`, junto a `MODULOS`, y viaja en el espejo: los pinta la barra del PC
+y los pinta el menú del móvil. Estaban solo en `remote.html`, y al necesitarlos
+la barra habría habido dos copias — la misma trampa que ya tuvieron las figuras
+de fijación infantil: añadir un módulo sería editar dos ficheros y acordarse de
+los dos.
 
 ### El teclado, en todos los test
 
@@ -324,23 +342,72 @@ espera.
 
 La tabla vive en `EJES_FLECHA` y de ella sale **también** el rótulo que el panel
 enseña, así que no puede decir una cosa y hacer otra. Y un atajo que no está
-anunciado no existe: los números van delante de cada test en el desplegable, el
-eje de las flechas en el propio panel, y la tabla entera en el bloque «Atajos
-de teclado», plegado. El panel de la `?` ya no existe — más abajo está por qué.
+anunciado no existe: los números van **delante de cada test en la barra**, el
+eje de las flechas en el propio menú, y la tabla entera en el bloque «Atajos de
+teclado», plegado. Ahí va también el GESTO —«acerque el ratón al borde de
+arriba»—, porque una barra que aparece sola y que nadie sabe cómo sacar es peor
+que un atajo sin anunciar. El panel de la `?` ya no existe — más abajo está por
+qué.
 
 **Al cerrar el panel, el foco tiene que SALIR de él.** Si se queda dentro de un
 control ya escondido, la guarda «el teclado es del panel» se cumple para
 siempre y el teclado queda muerto con el panel cerrado: ni números, ni flechas,
 ni `N`.
 
-### La barra de arriba ya no existe
+### La barra de arriba: ida y vuelta, y qué se conserva
 
-Llevaba la distancia, ⚙ CONFIGURACIÓN, el botón ▲, el rótulo del módulo y la
-cifra de px/mm, y estaba a la vista del paciente todo el rato gastando alto de
-pantalla — que es lo que este sistema gasta en el estímulo. Todo se ha ido al
-panel, **agrupado por lo que es**: arriba lo que se toca en cada test, abajo
-«La sala» — la distancia y la medida de la pantalla, que se declaran una vez —
-y al final el emparejamiento.
+La barra vieja llevaba la distancia, ⚙ CONFIGURACIÓN, el botón ▲, el rótulo del
+módulo y la cifra de px/mm, y se quitó entera porque **estaba a la vista del
+paciente todo el rato gastando alto de pantalla** — que es lo que este sistema
+gasta en el estímulo. Todo se fue al panel.
+
+**Y ahora hay barra otra vez, porque se esconde sola.** Esa es la única
+diferencia, y es la que importa: la objeción que la mató no era «una barra
+arriba está mal», era «una barra que el paciente tiene delante todo el rato está
+mal». Una que asoma al acercar el ratón al borde de arriba y se va a los cinco
+segundos no tiene ese defecto.
+
+Lo que se conserva, y lo que hay que romper para volver al defecto:
+
+- **Se esconde sola.** Si deja de hacerlo, vuelve la barra vieja con otro
+  nombre. Hay una comprobación que lo mide esperando seis segundos y medio.
+- **Se superpone y no re-maqueta.** Si empujara la maqueta, el estímulo
+  cambiaría de tamaño cada vez que la barra asoma y la geometría dejaría de ser
+  la declarada sin que nada lo delate.
+- **El centro de la pantalla no la saca.** Sale del borde de arriba, no de un
+  `mousemove` global: señalarle algo al paciente con el ratón no tiene por qué
+  enseñarle los controles.
+- **No se esconde debajo de quien la usa.** El reloj se para con el ratón
+  encima o con un control enfocado — las dos cosas, porque un desplegable
+  abierto no dispara `mouseleave`. Un menú que se va mientras lees la línea de
+  geometría es peor que no tenerlo.
+- **Con la medida de otra pantalla no se esconde nunca.** Es el único estado en
+  el que hay que verla sí o sí, y sin móvil no lo dice nadie más.
+
+**Asoma sola la primera vez** que se abre el programa en un equipo, y una sola
+vez. Sin eso, quien lo abre por primera vez ve una cartilla y nada más: es el
+mismo defecto que tuvo el QR cuando vivía escondido y dejó invisible la suite
+entera.
+
+Los ocho test van con **su número, su icono y su nombre**. El número es el
+atajo, y un atajo que no se anuncia no existe. Cuando los ocho no caben con su
+nombre —un portátil de 1366— se quedan con el número y el icono, y eso lo
+decide una **medida** (`ajustarBarra()`) y no un ancho escrito a mano: lo que
+ocupan los rótulos depende de la fuente de ese equipo. El del test puesto
+conserva su nombre, que en compacto es lo único que dice qué está en la pantalla
+del paciente.
+
+Y hay dos marcas distintas, que son dos cosas distintas: `aria-expanded` es «su
+menú está abierto» y `aria-current` es «este test está en la pantalla del
+paciente». Con solo la primera, al cerrar el menú no quedaba ninguno marcado y
+la barra enseñaba ocho botones iguales.
+
+**Pantalla completa**, en la barra y con la tecla `F`. Lo que gana no es
+estética: el navegador se queda con 80-120 px de barras que aquí son alto de
+estímulo. Y lo que no puede cambiar es el tamaño físico de lo dibujado — los
+milímetros salen de la calibración y de la distancia, no del alto de la
+ventana—; hay una comprobación que exige que el 20/20 mida lo mismo dentro y
+fuera.
 
 **El corte se explica ahora en la propia pantalla**, tenue y abajo
 (`.corte-aviso`). Antes lo decía esa barra; sin ella, el paciente se habría
@@ -409,8 +476,7 @@ ratón mientras la medida no sea de esta pantalla. Fuera de la cartilla: el
 estímulo no se toca.
 
 **Menos movimiento, pero no menos test.** `prefers-reduced-motion` apaga el
-adorno —el cajón que entra, el chip que se desvanece, las transiciones de los
-botones— y **no** los movimientos ni los gestos de fijación infantil: ahí el
+adorno —la barra que baja, el menú que cae, las transiciones de los botones— y **no** los movimientos ni los gestos de fijación infantil: ahí el
 movimiento es el estímulo, y apagarlo no es accesibilidad, es dejar la prueba
 sin hacer. Para eso está CONGELAR, que lo decide el optometrista y no el
 sistema operativo. Por eso la regla enumera lo que apaga en vez de usar el

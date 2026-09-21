@@ -138,10 +138,13 @@ export default async function pruebaRegresiones({ pc, tel, abrir }) {
      toca. Y que se pida sola UNA vez, no en cada arranque. */
 
   await abrir('Optotipos');
-  if (!(await pc.evaluate(() => {
-    const p = document.getElementById('panel-pc');
-    return !!(p && p.checkVisibility({ visibilityProperty: true }));
-  }))) { await pc.keyboard.press('p'); await pc.waitForTimeout(350); }
+  /* La distancia vive en el menú de «La sala», que cuelga de su ítem en la
+     barra: el desplegable de test y el cajón lateral ya no existen. Se entra
+     como entra una persona — el ratón al borde de arriba y el ítem. */
+  await pc.mouse.move(700, 4);
+  await pc.waitForTimeout(300);
+  await pc.click('#barra-test [data-test="sala"]', { timeout: 5000 });
+  await pc.waitForTimeout(400);
 
   const mandosDist = await pc.evaluate(() => {
     const c = document.getElementById('pp-dist');

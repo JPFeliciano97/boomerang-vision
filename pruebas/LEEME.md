@@ -5,7 +5,7 @@ npm test
 ```
 
 Levanta el servidor en un puerto libre, abre Chromium, empareja una pantalla
-con un mando **de verdad** por el código de sala, y pasa 201 comprobaciones en
+con un mando **de verdad** por el código de sala, y pasa 211 comprobaciones en
 unos tres minutos.
 
 - `0` — todo pasa
@@ -56,7 +56,7 @@ al medir píxeles dibujados:
 | `regresiones.mjs` | Los defectos que ya estuvieron en producción una vez: los tripletes de Pelli seguidos del alfabeto Sloan, la fila de contraste heredada del paciente anterior, la barra de calibración desplegándose sola, y la distancia de sala editable desde un test. |
 | `sin-mando.mjs`   | La pantalla sola, sin móvil — incluida la tecla `N`, que la corta: los ocho módulos son alcanzables solo desde el mando, así que todo el armazón podría romper el uso más común sin que ninguna prueba de módulos lo notara. |
 | `arranque.mjs`    | El recorrido de un equipo nuevo: la configuración se abre sola, pide la distancia y la medida de la pantalla, muestra el QR, y un móvil que sigue ESE código llega a los ocho módulos. Nace de medir ese camino y encontrarlo roto: el QR vivía en un panel que arranca oculto, así que la suite clínica entera era invisible al abrir la app por primera vez. |
-| `panel.mjs`       | El panel del PC, en una pantalla SIN móvil emparejado: que no asome al arrancar —esta pantalla la mira el paciente—, que abrirlo no mueva ni un píxel de lo dibujado, que desde su desplegable se llegue a los ocho módulos, y que ofrezca las 30 familias de comando que ofrece el mando. Más el mínimo de ratón, el orden de tabulación y que su lanzador no se monte sobre otro control. |
+| `panel.mjs`       | La barra de test y el menú que cuelga de ella, en una pantalla SIN móvil emparejado: que la barra lleve los ocho con su número y su icono, que **nazca escondida y se esconda sola a los cinco segundos** —y NO mientras el ratón esté encima o haya un control enfocado—, que el menú cuelgue del ítem que se pulsa y se frene contra el borde con el último, que la barra diga qué test está puesto aunque el menú esté cerrado, y que al esconderse el foco SALGA. Más pantalla completa: que el botón entre, la `F` salga y el 20/20 mida lo mismo dentro y fuera. Y lo de antes: que no asome al arrancar —esta pantalla la mira el paciente—, que abrirlo no mueva ni un píxel de lo dibujado, que desde su desplegable se llegue a los ocho módulos, y que ofrezca las 30 familias de comando que ofrece el mando. Más el mínimo de ratón, el orden de tabulación y que su lanzador no se monte sobre otro control. |
 | (`panel.mjs`)     | Y el teclado en los ocho test: que `1`–`8` lleven a los ocho y el `0` deje la pantalla sin estímulo, que un número signifique lo mismo dentro de un test que fuera —el test, no la fila—, que `↑↓` muevan el eje ordenado de cada uno y `↑` deshaga lo que hizo `↓`, y que los atajos estén anunciados en el panel — el de la `?` ya no existe, y las teclas se leen celda a celda de la tabla `ATAJOS`. Más que el pie no asome dentro de un módulo. |
 | `caidas.mjs`      | Lo que pasa cuando la conexión se cae a media prueba — el suceso más probable de todos, porque un móvil se bloquea la pantalla a los 30 s. Lo que no puede pasar: que la pantalla del paciente se quede en blanco, que el móvil vuelva a otro módulo del que está la pantalla, o que los comandos dejen de llegar sin decirlo. |
 | `sin-red.mjs`     | Lo que falla cuando falla la infraestructura y no el código, que no se ve ni en el DOM ni en píxeles. Con la red **caída de verdad** (`setOffline`), que la pantalla del paciente siga dibujando la cartilla y el panel siga llegando a los ocho test — sin móvil, que es lo único que se puede prometer sin servidor. Que el servidor comprima, y que el ahorro sea real y no una cabecera bonita: 255 KB → 70 KB y 93 → 24. Y que probar códigos de sala a lo bruto tenga freno. |
@@ -219,6 +219,12 @@ en `public/index.html` y comprobando que la ejecución se pone roja:
 | la cifra del color pegada al borde del disco | `cada cifra tiene puntos suficientes` — el margen al borde, mínimo el 6 % del radio |
 | `aria-pressed` puesto en las acciones, o quitado de la selección | `el estado de cada control se anuncia, no solo se pinta` |
 | el corte sin explicación en pantalla | `con el estímulo cortado la pantalla no dibuja nada` — exige NINGÚN estímulo Y el aviso puesto: la barra que lo decía ya no existe |
+| la barra sin auto-ocultado | `se esconde sola a los cinco segundos` — vuelve el defecto que costó una PR quitar: una franja a la vista del paciente todo el rato |
+| el auto-ocultado sin pausa con el ratón encima | `no se esconde mientras el ratón está encima` — el menú se va mientras lo estás leyendo |
+| la pausa solo por el ratón, sin mirar el foco | `ni con un control del menú enfocado` — un desplegable abierto no dispara `mouseleave` |
+| el menú anclado a un lado fijo | `el menú cuelga del ítem que se pulsa` — 0 px de desvío, y el del último ítem cediendo 37 px para no salirse |
+| la barra marcando solo con `aria-expanded` | `dice qué test está puesto aunque el menú esté cerrado` — ocho botones iguales sin decir cuál está en la pantalla |
+| «La sala» dentro de la caja que recorta | la barra a 1366 px se la llevaba por delante y no había forma de llegar a la distancia |
 | el panel abriéndose solo en cada repintado | `el panel no se abre solo tras siete pulsaciones` — hereda el defecto que tenía la barra de calibración |
 | la distancia sin efecto visible al cambiarla | `cambiarla mueve la geometría que el test declara` — al acercar medio metro, el 20/20 mide menos en la misma proporción |
 | la configuración inicial plantándose en cada arranque | `solo se pide la primera vez` |
